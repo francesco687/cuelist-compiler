@@ -26,8 +26,15 @@ function decodeOscMessage(buf) {
   return { addr, arg };
 }
 
+async function waitFor(cond, timeoutMs) {
+  const start = Date.now();
+  while (!cond()) {
+    if (Date.now() - start > timeoutMs) throw new Error('waitFor: condition not met within ' + timeoutMs + 'ms');
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
+
 test('compile-send relays datagrams that decode to the golden lines', async () => {
-  // Fake MA3: a UDP listener on an ephemeral port.
   const rx = dgram.createSocket('udp4');
   const datagrams = [];
   rx.on('message', (m) => datagrams.push(Buffer.from(m)));
@@ -41,32 +48,35 @@ test('compile-send relays datagrams that decode to the golden lines', async () =
   });
   await new Promise((r) => handle.wss.on('listening', r));
   const wsPort = handle.wss.address().port;
-
   const ws = new WebSocket(`ws://127.0.0.1:${wsPort}`);
-  const progress = [];
-  const done = new Promise((resolve, reject) => {
-    ws.addEventListener('message', (ev) => {
-      const msg = JSON.parse(ev.data);
-      if (msg.type === 'progress') progress.push(msg.sent);
-      else if (msg.type === 'done') resolve(msg);
-      else if (msg.type === 'error') reject(new Error(msg.message));
+
+  try {
+    const progress = [];
+    const done = new Promise((resolve, reject) => {
+      ws.addEventListener('message', (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'progress') progress.push(msg.sent);
+        else if (msg.type === 'done') resolve(msg);
+        else if (msg.type === 'error') reject(new Error(msg.message));
+      });
     });
-  });
-  await new Promise((r) => ws.addEventListener('open', r));
-  ws.send(JSON.stringify({ type: 'compile-send', project: song1, selection: 'all' }));
+    await new Promise((r) => ws.addEventListener('open', r));
+    ws.send(JSON.stringify({ type: 'compile-send', project: song1, selection: 'all' }));
 
-  const doneMsg = await done;
-  await new Promise((r) => setTimeout(r, 100)); // let last datagram land
-  ws.close();
-  await handle.close();
-  rx.close();
+    const doneMsg = await done;
+    await waitFor(() => datagrams.length >= golden.length, 2000);
 
-  assert.strictEqual(doneMsg.total, golden.length);
-  assert.strictEqual(datagrams.length, golden.length);
-  assert.deepStrictEqual(progress, golden.map((_, i) => i + 1));
-  const decoded = datagrams.map(decodeOscMessage);
-  assert.ok(decoded.every((d) => d.addr === '/gma3/cmd'));
-  assert.deepStrictEqual(decoded.map((d) => d.arg), golden);
+    assert.strictEqual(doneMsg.total, golden.length);
+    assert.strictEqual(datagrams.length, golden.length);
+    assert.deepStrictEqual(progress, golden.map((_, i) => i + 1));
+    const decoded = datagrams.map(decodeOscMessage);
+    assert.ok(decoded.every((d) => d.addr === '/gma3/cmd'));
+    assert.deepStrictEqual(decoded.map((d) => d.arg), golden);
+  } finally {
+    ws.close();
+    await handle.close();
+    rx.close();
+  }
 });
 
 test('compile-send with empty selection returns an error', async () => {
@@ -75,18 +85,22 @@ test('compile-send with empty selection returns an error', async () => {
   });
   await new Promise((r) => handle.wss.on('listening', r));
   const ws = new WebSocket(`ws://127.0.0.1:${handle.wss.address().port}`);
-  const result = new Promise((resolve, reject) => {
-    ws.addEventListener('message', (ev) => {
-      const msg = JSON.parse(ev.data);
-      if (msg.type === 'error') resolve(msg);
-      else if (msg.type === 'done') reject(new Error('unexpected done'));
+
+  try {
+    const result = new Promise((resolve, reject) => {
+      ws.addEventListener('message', (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'error') resolve(msg);
+        else if (msg.type === 'done') reject(new Error('unexpected done'));
+      });
     });
-  });
-  await new Promise((r) => ws.addEventListener('open', r));
-  const empty = { songs: [{ id: 's1', name: '', sequence: 1, cues: [] }], activeSongId: 's1', storeMode: 'Overwrite' };
-  ws.send(JSON.stringify({ type: 'compile-send', project: empty, selection: 'all' }));
-  const msg = await result;
-  assert.match(msg.message, /no cues/);
-  ws.close();
-  await handle.close();
+    await new Promise((r) => ws.addEventListener('open', r));
+    const empty = { songs: [{ id: 's1', name: '', sequence: 1, cues: [] }], activeSongId: 's1', storeMode: 'Overwrite' };
+    ws.send(JSON.stringify({ type: 'compile-send', project: empty, selection: 'all' }));
+    const msg = await result;
+    assert.match(msg.message, /no cues/);
+  } finally {
+    ws.close();
+    await handle.close();
+  }
 });
