@@ -1,0 +1,18 @@
+[Unit]
+Description=Cuelist Compiler Pi Hub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/cuelist-compiler/hub
+ExecStart=/usr/bin/node src/index.js
+Environment=HUB_PORT=9000
+Environment=MA3_HOST=127.0.0.1
+Environment=MA3_PORT=8000
+Environment=MA3_PREFIX=gma3
+Restart=on-failure
+User=pi
+
+[Install]
+WantedBy=multi-user.target
