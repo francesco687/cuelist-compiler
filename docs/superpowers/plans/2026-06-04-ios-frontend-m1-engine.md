@@ -1,5 +1,13 @@
 # Cuelist Compiler iOS — M1 Plan 1: Engine & Foundation
 
+> **⚠️ SUPERSEDED (2026-06-04)** by the Pi-hub architecture. The phone no longer
+> compiles or speaks OSC — a Raspberry Pi hub runs the real `web/js/compile.js` and
+> relays. See `docs/superpowers/specs/2026-06-04-ios-frontend-design.md` and the new
+> plans (Plan A — hub; Plan B — iOS app). **Carried forward into Plan B:** Task 1
+> (scaffold), Tasks 2–4 (Pool/StoreMode, Codable models, migration), Task 5 (golden
+> fixture + `gen-golden.js`), Task 10 (ProjectStore). **Dropped:** Tasks 6–9 (Swift
+> CommandBuilder, JSNumber, OSC encoding, DirectUDPTransport). Kept for reference.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the headless, fully-tested engine of the iOS app — data models that round-trip the `show.json` schema, the `CommandBuilder` that reproduces `web/js/compile.js` byte-for-byte, OSC UDP transport, and local JSON persistence — inside a `CuelistCompilerKit` framework.
