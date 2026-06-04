@@ -1,0 +1,2655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cuelist Compiler</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a1d;
+    color: #e8e8e8;
+    margin: 0;
+    padding: 8px;
+  }
+  .wrap { max-width: 1600px; margin: 0; }
+  h1 { color: #f0f0f0; margin: 0 0 4px 0; font-size: 1.6em; }
+  .sub { color: #888; font-size: 0.9em; margin-bottom: 20px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 195px 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  #sidebar {
+    background: #232327;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px;
+    position: sticky;
+    top: 8px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+  }
+  #sidebar h2 {
+    font-size: 0.8em;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 10px 0;
+    padding: 0 4px;
+  }
+  #songList { list-style: none; padding: 0; margin: 0 0 10px 0; }
+  .song-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #ccc;
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+  }
+  .song-item:hover { background: #2a2a2e; }
+  .song-item.active {
+    background: #2c3e62;
+    border-color: #3d6ec6;
+    color: #fff;
+  }
+  .song-item .song-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .song-item .song-seq { font-size: 0.75em; color: #888; flex-shrink: 0; }
+  .song-item.active .song-seq { color: #b8c8e0; }
+  .song-item .song-remove {
+    background: none;
+    border: none;
+    color: #666;
+    padding: 2px 6px;
+    font-size: 1em;
+    cursor: pointer;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .song-item .song-remove:hover { background: #c63d3d; color: #fff; }
+  #addSong {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed #555;
+    color: #aaa;
+    font-weight: 400;
+    padding: 8px;
+    font-size: 0.9em;
+  }
+  #addSong:hover { border-color: #5b8dd6; color: #ddd; }
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; }
+    #sidebar { position: static; max-height: none; }
+  }
+
+  input, button, select { font: inherit; }
+  input[type="text"], input[type="number"] {
+    background: #2a2a2e;
+    border: 1px solid #444;
+    color: #e8e8e8;
+    padding: 4px 8px;
+    border-radius: 4px;
+    outline: none;
+    font-size: 0.9em;
+  }
+  input[type="text"]:focus, input[type="number"]:focus { border-color: #5b8dd6; }
+  button {
+    background: #3d6ec6;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9em;
+  }
+  button:hover { background: #4d80d6; }
+  button.danger { background: #c63d3d; }
+  button.danger:hover { background: #d65555; }
+  button.ghost {
+    background: transparent;
+    border: 1px dashed #555;
+    color: #aaa;
+    font-weight: 400;
+  }
+  button.ghost:hover { border-color: #888; color: #ddd; }
+
+  #header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #header label { color: #aaa; font-size: 0.9em; }
+  #songName { flex: 1; min-width: 200px; padding: 8px 12px; }
+  #sequence { width: 80px; padding: 8px 12px; }
+  #headerActions { display: flex; gap: 6px; margin-left: auto; }
+
+  .cue-card {
+    background: #232327;
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+  .cue-card.collapsed { padding: 6px 10px; }
+  .cue-header {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .cue-card:not(.collapsed) .cue-header { margin-bottom: 8px; }
+  .cue-num { width: 64px; text-align: center; font-weight: 600; }
+  .cue-name { flex: 1; font-weight: 500; }
+  .cue-summary {
+    color: #888;
+    font-size: 0.8em;
+    margin-left: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chevron {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    color: #888;
+    border: 1px solid #444;
+    font-size: 0.9em;
+    line-height: 1;
+  }
+  .chevron:hover { color: #ddd; border-color: #666; background: transparent; }
+  .icon-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 1em;
+    line-height: 1;
+  }
+
+  .action-block {
+    background: color-mix(in srgb, var(--action-color, #2a2a2e) 30%, #2a2a2e);
+    border-left: 7px solid var(--action-color, #3d6ec6);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--action-color, transparent) 35%, transparent);
+    padding: 3px 4px;
+    margin: 3px 0;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .color-swatch {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 2px solid #555;
+    border-radius: 50%;
+    cursor: pointer;
+    background: var(--swatch-color, transparent);
+    flex-shrink: 0;
+    transition: transform 0.08s, border-color 0.1s;
+  }
+  .color-swatch.no-color {
+    background: transparent;
+    border-style: dashed;
+    border-color: #666;
+  }
+  .color-swatch:hover { border-color: #fff; transform: scale(1.1); }
+
+  #colorPopover {
+    position: absolute;
+    z-index: 200;
+    background: #1e1e22;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 8px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.55);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  #colorPopover.hidden { display: none; }
+  .color-tile {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.12);
+    cursor: pointer;
+    background: var(--c, #444);
+    transition: transform 0.08s, outline-offset 0.08s;
+  }
+  .color-tile:hover { transform: scale(1.12); }
+  .color-tile.no-color {
+    background: transparent;
+    border-style: dashed;
+    border-color: #777;
+    position: relative;
+  }
+  .color-tile.no-color::after {
+    content: '\00d7';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #888;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .color-tile.current { outline: 2px solid #f0a830; outline-offset: 2px; }
+  .group-row {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    margin-bottom: 0;
+    flex: 0 0 135px;
+    padding-right: 3px;
+    border-right: 1px solid #3a3a40;
+  }
+  .group-row label { color: #aaa; font-size: 0.72em; min-width: auto; }
+  .group-row input.group-name { flex: 1; min-width: 0; font-size: 0.8em; padding: 2px 4px; }
+  .group-row .pick-btn { padding: 2px 4px; font-size: 0.8em; }
+
+  .presets-grid {
+    display: flex;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+  }
+  .preset-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1 1 0;
+    min-width: 130px;
+    padding-left: 3px;
+    border-left: 3px solid var(--pool-color, #444);
+    border-radius: 2px;
+  }
+  .preset-row > label {
+    font-size: 0.58em;
+    color: #bbb;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    width: 22px;
+    flex-shrink: 0;
+    text-align: center;
+    padding: 3px 1px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+  .preset-row > label:hover {
+    background: rgba(91,141,214,0.22);
+    color: #fff;
+    border-color: rgba(91,141,214,0.5);
+  }
+  .preset-row input.preset-name { flex: 1; min-width: 0; font-size: 0.75em; padding: 2px 3px; }
+  .preset-row .ptime {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .preset-row .ptime input {
+    width: 36px;
+    padding: 2px 3px;
+    font-size: 0.78em;
+    text-align: center;
+    border-radius: 2px;
+  }
+  .preset-row .ptime input.preset-fade { border-top: 2px solid rgba(91,141,214,0.5); }
+  .preset-row .ptime input.preset-delay { border-top: 2px solid rgba(240,168,48,0.5); }
+  @media (max-width: 1000px) {
+    .action-block { flex-wrap: wrap; }
+    .group-row { flex: 0 0 100%; border-right: none; border-bottom: 1px solid #3a3a40; padding-right: 0; padding-bottom: 4px; }
+    .presets-grid { flex-wrap: wrap; flex: 1 1 100%; gap: 4px 6px; }
+    .preset-row { flex: 1 1 calc(50% - 6px); min-width: 140px; }
+  }
+  @media (max-width: 480px) {
+    .preset-row { flex: 1 1 100%; }
+  }
+
+  .cue-timing {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #333;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .cue-timing label { color: #aaa; font-size: 0.85em; }
+  .cue-timing input { width: 70px; }
+
+  .add-action { font-size: 0.8em; margin-top: 4px; padding: 3px 8px; }
+
+  .cues-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .cues-toolbar .spacer { flex: 1; }
+
+  #addCue {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 2px dashed #444;
+    color: #888;
+    font-size: 1em;
+    margin-bottom: 20px;
+  }
+  #addCue:hover { border-color: #5b8dd6; color: #ddd; }
+
+  #toolbar {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #333;
+    flex-wrap: wrap;
+  }
+  #toolbar .spacer { flex: 1; }
+  #loadProject { display: none; }
+
+  .empty-hint {
+    text-align: center;
+    color: #666;
+    padding: 40px 20px;
+    border: 2px dashed #333;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+
+  .modal.hidden { display: none; }
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+  }
+  .modal-content {
+    position: relative;
+    background: #1e1e22;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 18px 20px;
+    width: min(820px, 92vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #333;
+  }
+  .modal-header h2 { margin: 0; font-size: 1.2em; color: #f0f0f0; }
+  .close-modal {
+    background: transparent;
+    color: #888;
+    border: 1px solid #444;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 4px;
+  }
+  .close-modal:hover { color: #fff; background: #c63d3d; border-color: #c63d3d; }
+
+  .pool-picker-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  .pool-picker-toolbar input[type="text"] { flex: 1; }
+  .pool-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .pool-tile {
+    position: relative;
+    background: #2a2a2e;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 18px 8px 8px 8px;
+    cursor: pointer;
+    font-size: 0.85em;
+    color: #e8e8e8;
+    text-align: center;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    word-break: break-word;
+    line-height: 1.25;
+    transition: background 0.1s, border-color 0.1s, transform 0.05s;
+    user-select: none;
+  }
+  .pool-tile:hover { background: #3a3a45; border-color: #5b8dd6; }
+  .pool-tile:active { transform: scale(0.97); }
+  .pool-tile.current { border-color: #f0a830; background: #3a3220; }
+  .pool-tile .pool-tile-no {
+    position: absolute;
+    top: 3px;
+    left: 6px;
+    font-size: 0.7em;
+    color: #999;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .pool-tile-accent {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 4px 4px 0 0;
+  }
+  .pool-empty {
+    text-align: center;
+    color: #888;
+    padding: 30px 20px;
+    font-size: 0.9em;
+    grid-column: 1 / -1;
+  }
+  .pool-empty code { background: #2a2a2e; padding: 1px 5px; border-radius: 3px; }
+
+  .input-with-picker {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+  .input-with-picker input[type="text"] { flex: 1; min-width: 0; }
+  .pick-btn {
+    background: #2a2a2e;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95em;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .pick-btn:hover { background: #3a3a45; color: #fff; border-color: #5b8dd6; }
+
+  .mood-card {
+    background: #232327;
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .mood-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .mood-name { flex: 1; font-weight: 500; }
+  .mood-empty {
+    text-align: center;
+    color: #666;
+    padding: 30px 20px;
+    border: 2px dashed #333;
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  #addMood {
+    width: 100%;
+    background: transparent;
+    border: 2px dashed #444;
+    color: #888;
+    padding: 10px;
+    font-size: 0.95em;
+  }
+  #addMood:hover { border-color: #5b8dd6; color: #ddd; }
+
+  .cue-mood-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px dashed #333;
+  }
+  .cue-mood-bar label { color: #888; font-size: 0.8em; }
+  .cue-mood-bar select {
+    background: #2a2a2e;
+    border: 1px solid #444;
+    color: #e8e8e8;
+    padding: 4px 8px;
+    border-radius: 4px;
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85em;
+  }
+  .cue-mood-bar button { padding: 4px 10px; font-size: 0.82em; }
+
+  .defaults-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 4px;
+    border-bottom: 1px solid #2a2a2e;
+  }
+  .defaults-row:last-child { border-bottom: none; }
+  .defaults-row label {
+    text-transform: uppercase;
+    font-size: 0.78em;
+    color: #aaa;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .defaults-row .col-head {
+    font-size: 0.72em;
+    color: #777;
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .defaults-row input {
+    width: 100%;
+    text-align: center;
+  }
+
+  #audioPanel {
+    background: #1d1d20;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+  #audioPanel.empty { padding: 14px; text-align: center; color: #666; }
+  #audioControls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  #audioControls .filename {
+    flex: 1;
+    color: #aaa;
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  #audioControls .time {
+    color: #ccc;
+    font-size: 0.85em;
+    font-family: ui-monospace, 'Consolas', monospace;
+    min-width: 95px;
+    text-align: right;
+  }
+  .channel-toggle {
+    background: #2a2a2e;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 4px 10px;
+    font-size: 0.82em;
+    font-weight: 600;
+  }
+  .channel-toggle.active {
+    background: #2c5e3e;
+    border-color: #3da668;
+    color: #fff;
+  }
+  .channel-toggle.muted {
+    background: #2a2a2e;
+    border-color: #444;
+    color: #555;
+  }
+  #playBtn { min-width: 70px; }
+
+  #timeline {
+    position: relative;
+    background: #131316;
+    border: 1px solid #2a2a2e;
+    border-radius: 4px;
+    overflow: hidden;
+    user-select: none;
+    cursor: pointer;
+  }
+  #timeline canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  #timeline .channel-wave {
+    position: relative;
+    height: 60px;
+    border-bottom: 1px solid #2a2a2e;
+  }
+  #timeline .channel-wave:last-child { border-bottom: none; }
+  #timeline .channel-wave .chan-label {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 0.65em;
+    color: #555;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  #timeline .playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #ff5a5a;
+    pointer-events: none;
+    z-index: 5;
+    transform: translateX(-1px);
+  }
+  #timeline .markers {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+  }
+  #timeline .marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 200, 50, 0.5);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  #timeline .marker:hover { background: rgba(255, 200, 50, 1); width: 2px; }
+  #timeline .marker.current {
+    background: rgba(91, 141, 214, 1);
+    width: 2px;
+  }
+  #timeline .marker .marker-label {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    font-size: 0.65em;
+    color: #f0c84a;
+    font-weight: 600;
+    white-space: nowrap;
+    background: rgba(20, 20, 24, 0.7);
+    padding: 1px 4px;
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  #timeline .marker.current .marker-label { color: #fff; background: rgba(61, 110, 198, 0.9); }
+
+  .osc-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid #444;
+    margin-left: 6px;
+  }
+  .osc-pill.offline { background: #2a2a2e; color: #999; border-color: #444; }
+  .osc-pill.connecting { background: #4a3a1f; color: #e8c178; border-color: #6a5028; }
+  .osc-pill.online { background: #1e4a2a; color: #8ee0a0; border-color: #2a6a3e; }
+  .osc-pill.sending { background: #1f3a5a; color: #8ec0e0; border-color: #2e5a8a; }
+  .osc-btn {
+    background: #2a5a4a;
+    border: 1px solid #3a7a5e;
+    color: #d8f0e2;
+  }
+  .osc-btn:hover:not(:disabled) { background: #357055; }
+  .osc-btn:disabled { background: #2a2a2e; color: #666; border-color: #3a3a3a; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cuelist Compiler</h1>
+  <div class="sub">Compile a multi-song show and export as a grandMA3 plugin (.lua) to paste into the plugin editor.</div>
+
+  <div class="layout">
+    <aside id="sidebar">
+      <h2>Songs</h2>
+      <ul id="songList"></ul>
+      <button id="addSong">+ New Song</button>
+    </aside>
+
+    <main id="main">
+      <div id="header">
+        <input type="text" id="songName" placeholder="Song name">
+        <label>Sequence:</label>
+        <input type="number" id="sequence" min="1" value="1">
+        <div id="headerActions">
+          <button id="manageMoodsBtn" class="ghost">Moods</button>
+          <button id="manageDefaultsBtn" class="ghost">Defaults</button>
+          <button id="managePoolsBtn" class="ghost">Pools</button>
+        </div>
+      </div>
+
+      <div id="audioPanel" class="empty">
+        <button id="loadAudioBtn" class="ghost">Load Audio…</button>
+        <input type="file" id="loadAudio" accept="audio/*" style="display:none">
+        <span style="margin-left:8px;font-size:0.85em;">no audio loaded</span>
+      </div>
+
+      <div class="cues-toolbar">
+        <button id="collapseAll" class="ghost">Collapse all</button>
+        <button id="expandAll" class="ghost">Expand all</button>
+        <div class="spacer"></div>
+        <span id="cueCount" style="color:#666;font-size:0.85em;"></span>
+      </div>
+
+      <div id="cues"></div>
+
+      <button id="addCue">+ Add Cue</button>
+
+      <div id="toolbar">
+        <label style="color:#aaa;font-size:0.9em;">Store:</label>
+        <select id="storeMode" style="background:#2a2a2e;border:1px solid #444;color:#e8e8e8;padding:6px 10px;border-radius:4px;">
+          <option value="Overwrite">Overwrite</option>
+          <option value="Merge">Merge</option>
+        </select>
+        <button id="export">Export current .lua</button>
+        <button id="exportAll">Export all .lua</button>
+        <span id="oscPill" class="osc-pill offline" title="Click to reconnect to OSC proxy">○ OSC offline</span>
+        <button id="sendOscCurrent" class="osc-btn" disabled>Send current → MA</button>
+        <button id="sendOscAll" class="osc-btn" disabled>Send all → MA</button>
+        <button id="saveProject" class="ghost">Save Project (.json)</button>
+        <button id="loadBtn" class="ghost">Load Project</button>
+        <input type="file" id="loadProject" accept=".json">
+        <button id="importCsvBtn" class="ghost">Import .csv (CuePoints)</button>
+        <input type="file" id="importCsv" accept=".csv" style="display:none">
+        <div class="spacer"></div>
+        <button id="clearAll" class="danger">Clear all</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="moodModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Moods Library</h2>
+      <button class="close-modal" title="Close">&times;</button>
+    </div>
+    <div id="moodList"></div>
+    <button id="addMood">+ New Mood</button>
+  </div>
+</div>
+
+<div id="defaultsModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content" style="width:min(520px,92vw);">
+    <div class="modal-header">
+      <h2>Default Fade / Delay</h2>
+      <button class="close-modal" title="Close">&times;</button>
+    </div>
+    <div style="color:#888;font-size:0.85em;margin-bottom:12px;line-height:1.4;">
+      Values used at export when a preset's per-attribute fade/delay is empty.
+      Shown as placeholder in the cue editor. Saved globally across all shows.
+    </div>
+    <div id="defaultsList"></div>
+  </div>
+</div>
+
+<div id="poolsModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content" style="width:min(640px,92vw);">
+    <div class="modal-header">
+      <h2>Import Pools from MA</h2>
+      <button class="close-modal" title="Close">&times;</button>
+    </div>
+    <div style="color:#888;font-size:0.85em;margin-bottom:10px;line-height:1.5;">
+      Run <code>export_pools.lua</code> in gma3 (Edit a plugin slot → paste the file →
+      Save → Run). The System Monitor will show a JSON block between
+      <code>=== CUELIST_POOLS_BEGIN ===</code> and <code>=== CUELIST_POOLS_END ===</code>.
+      Copy from BEGIN to END (markers included) and paste below.
+    </div>
+    <textarea id="poolsPaste" style="width:100%;height:200px;background:#1e1e22;border:1px solid #444;color:#e8e8e8;font-family:monospace;font-size:0.85em;padding:8px;box-sizing:border-box;" placeholder="paste the System Monitor output here..."></textarea>
+    <div id="poolsStatus" style="margin-top:10px;font-size:0.85em;color:#888;"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="poolsImportBtn">Import from textarea</button>
+      <button id="poolsLoadFileBtn" class="ghost">Load .json file…</button>
+      <input type="file" id="poolsLoadFile" accept=".json,application/json" style="display:none">
+      <div class="spacer" style="flex:1;"></div>
+      <button id="poolsClearBtn" class="danger">Clear loaded pools</button>
+    </div>
+  </div>
+</div>
+
+<div id="poolPickerModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content" style="width:min(880px,94vw);">
+    <div class="modal-header">
+      <h2 id="poolPickerTitle">Pick</h2>
+      <button class="close-modal" title="Close">&times;</button>
+    </div>
+    <div class="pool-picker-toolbar">
+      <input type="text" id="poolPickerSearch" placeholder="Filter by name or #">
+      <button id="poolPickerClear" class="ghost">Clear value</button>
+    </div>
+    <div id="poolPickerGrid" class="pool-picker-grid"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const STORAGE_KEY = 'cuelistCompilerProject';
+const STORAGE_KEY_MOODS = 'cuelistCompilerMoods';
+const STORAGE_KEY_DEFAULTS = 'cuelistCompilerDefaults';
+const STORAGE_KEY_POOLS = 'cuelistCompilerPools';
+const POOLS = ['color', 'dimmer', 'position', 'gobo', 'beam', 'focus'];
+const POOL_NUM = { dimmer: 1, position: 2, gobo: 3, color: 4, beam: 5, focus: 6 };
+const FPS = 25;
+const OSC_PROXY_URL = 'ws://127.0.0.1:8765';
+const OSC_SEND_INTERVAL_MS = 20;
+
+function timecodeToSeconds(tc) {
+  if (!tc) return NaN;
+  const parts = String(tc).split(':');
+  if (parts.length !== 4) return NaN;
+  const [hh, mm, ss, ff] = parts.map(Number);
+  if ([hh, mm, ss, ff].some(isNaN)) return NaN;
+  return hh * 3600 + mm * 60 + ss + ff / FPS;
+}
+
+function secondsToTimecode(s) {
+  if (!isFinite(s) || s < 0) return '00:00:00:00';
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = Math.floor(s % 60);
+  const ff = Math.floor((s - Math.floor(s)) * FPS);
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}:${String(ff).padStart(2,'0')}`;
+}
+
+function secondsToMMSS(s) {
+  if (!isFinite(s) || s < 0) return '0:00';
+  const mm = Math.floor(s / 60);
+  const ss = Math.floor(s % 60);
+  return `${mm}:${String(ss).padStart(2,'0')}`;
+}
+
+let state = loadState() || newProject();
+let moods = loadMoods();
+let defaults = loadDefaults();
+let pools = loadPools();
+
+// Audio state (per-session, not persisted on disk)
+// audioCache holds decoded audio per song id; the globals below mirror the
+// entry for the currently-active song and get swapped on song switch.
+let audioCtx = null;
+let audioEl = null;
+let audioBuffer = null;
+let audioGainL = null, audioGainR = null;
+let audioFileName = '';
+let audioRAF = null;
+const audioCache = new Map(); // songId -> { audioEl, audioBuffer, audioGainL, audioGainR, fileName }
+let currentAudioSongId = null;
+const channelMute = { L: false, R: false };
+
+function genId() {
+  return 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function newSong() {
+  const maxSeq = (state && state.songs)
+    ? state.songs.reduce((m, s) => Math.max(m, parseInt(s.sequence) || 0), 0)
+    : 0;
+  return {
+    id: genId(),
+    name: '',
+    sequence: maxSeq > 0 ? maxSeq + 1 : 1,
+    cues: [],
+    audioFileName: ''
+  };
+}
+
+function newProject() {
+  const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+  return { songs: [song], activeSongId: song.id, storeMode: 'Overwrite' };
+}
+
+function activeSong() {
+  if (!state.songs || state.songs.length === 0) return null;
+  return state.songs.find(s => s.id === state.activeSongId) || state.songs[0];
+}
+
+function newCue() {
+  const song = activeSong();
+  const maxN = song ? song.cues.reduce((m, c) => Math.max(m, parseFloat(c.n) || 0), 0) : 0;
+  return {
+    n: maxN + 1,
+    name: '',
+    actions: [newAction()],
+    fade: '',
+    delay: '',
+    collapsed: false
+  };
+}
+
+function newAction() {
+  const presets = {};
+  POOLS.forEach(p => presets[p] = { name: '', fade: '', delay: '' });
+  return { group: '', presets };
+}
+
+function migrateActions(actions) {
+  (actions || []).forEach(action => {
+    if (!action.presets) action.presets = {};
+    POOLS.forEach(p => {
+      const v = action.presets[p];
+      if (v == null || v === '') {
+        action.presets[p] = { name: '', fade: '', delay: '' };
+      } else if (typeof v === 'string') {
+        action.presets[p] = { name: v, fade: '', delay: '' };
+      } else if (typeof v === 'object') {
+        action.presets[p] = {
+          name: v.name || '',
+          fade: v.fade != null ? v.fade : '',
+          delay: v.delay != null ? v.delay : ''
+        };
+      }
+    });
+  });
+}
+
+function migrateCues(cues) {
+  (cues || []).forEach(cue => {
+    if (typeof cue.collapsed !== 'boolean') cue.collapsed = false;
+    if (cue.position == null) cue.position = '';
+    migrateActions(cue.actions);
+  });
+}
+
+function migrateState(s) {
+  if (!s) return s;
+  // Old single-song format: { songName, sequence, cues }
+  if (!Array.isArray(s.songs)) {
+    if (Array.isArray(s.cues)) {
+      const song = {
+        id: genId(),
+        name: s.songName || '',
+        sequence: s.sequence || 1,
+        cues: s.cues
+      };
+      s = { songs: [song], activeSongId: song.id };
+    } else {
+      return null;
+    }
+  }
+  // Ensure each song has the expected shape
+  s.songs.forEach(song => {
+    if (!song.id) song.id = genId();
+    if (!Array.isArray(song.cues)) song.cues = [];
+    if (typeof song.audioFileName !== 'string') song.audioFileName = '';
+    migrateCues(song.cues);
+  });
+  if (s.songs.length === 0) {
+    const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+    s.songs.push(song);
+  }
+  if (!s.songs.find(x => x.id === s.activeSongId)) {
+    s.activeSongId = s.songs[0].id;
+  }
+  if (s.storeMode !== 'Merge') s.storeMode = 'Overwrite';
+  return s;
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? migrateState(JSON.parse(raw)) : null;
+  } catch (e) { return null; }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadMoods() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MOODS);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    arr.forEach(m => {
+      if (!m.id) m.id = genId();
+      if (typeof m.name !== 'string') m.name = '';
+      if (!Array.isArray(m.actions)) m.actions = [newAction()];
+      migrateActions(m.actions);
+    });
+    return arr;
+  } catch (e) { return []; }
+}
+
+function saveMoods() {
+  localStorage.setItem(STORAGE_KEY_MOODS, JSON.stringify(moods));
+}
+
+function newMood() {
+  return { id: genId(), name: '', actions: [newAction()] };
+}
+
+function makeDefaults() {
+  const d = {};
+  POOLS.forEach(p => d[p] = { fade: '', delay: '' });
+  return d;
+}
+
+function loadDefaults() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DEFAULTS);
+    if (!raw) return makeDefaults();
+    const d = JSON.parse(raw) || {};
+    const out = makeDefaults();
+    POOLS.forEach(p => {
+      if (d[p]) {
+        out[p].fade  = d[p].fade  != null ? d[p].fade  : '';
+        out[p].delay = d[p].delay != null ? d[p].delay : '';
+      }
+    });
+    return out;
+  } catch (e) { return makeDefaults(); }
+}
+
+function saveDefaults() {
+  localStorage.setItem(STORAGE_KEY_DEFAULTS, JSON.stringify(defaults));
+}
+
+function emptyPools() {
+  return { groups: [], dimmer: [], position: [], gobo: [], color: [], beam: [], focus: [] };
+}
+
+function loadPools() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_POOLS);
+    if (!raw) return emptyPools();
+    const p = JSON.parse(raw);
+    const out = emptyPools();
+    Object.keys(out).forEach(k => {
+      if (Array.isArray(p[k])) {
+        out[k] = p[k]
+          .filter(x => x && x.name && String(x.name).trim())
+          .map(x => ({ no: parseInt(x.no) || 0, name: String(x.name) }));
+      }
+    });
+    return out;
+  } catch (e) { return emptyPools(); }
+}
+
+function savePools() {
+  localStorage.setItem(STORAGE_KEY_POOLS, JSON.stringify(pools));
+}
+
+const POOL_ACCENT = {
+  groups:   '#5b8dd6',
+  dimmer:   '#d8d8d8',
+  position: '#5fb86a',
+  gobo:     '#e8a23a',
+  color:    '#c44d8f',
+  beam:     '#56c2d6',
+  focus:    '#a574d6'
+};
+const POOL_TITLE = {
+  groups:   'Groups',
+  dimmer:   'Pool 1 — Dimmer',
+  position: 'Pool 2 — Position',
+  gobo:     'Pool 3 — Gobo',
+  color:    'Pool 4 — Color',
+  beam:     'Pool 5 — Beam',
+  focus:    'Pool 6 — Focus'
+};
+const POOL_ABBR = {
+  dimmer:   'DIM',
+  position: 'POS',
+  gobo:     'GOB',
+  color:    'COL',
+  beam:     'BEM',
+  focus:    'FOC'
+};
+const ACTION_COLORS = [
+  '#d63a3a', '#e8552d', '#e88332', '#f0a830', '#e8c83a',
+  '#d8d83a', '#b8d83a', '#6fc850', '#3aa860', '#2c8470',
+  '#3ac8c8', '#56b0e0', '#4a7ed6', '#3a5ad8', '#6a52d6',
+  '#a050d6', '#d650b8', '#e85a8e', '#d8d8d8'
+];
+
+let _colorPopoverOnPick = null;
+function openColorPopover(anchorEl, current, onPick) {
+  let pop = document.getElementById('colorPopover');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'colorPopover';
+    pop.className = 'hidden';
+    document.body.appendChild(pop);
+  }
+  _colorPopoverOnPick = onPick;
+  const tiles = [`<div class="color-tile no-color${!current ? ' current' : ''}" data-color="" title="No color"></div>`]
+    .concat(ACTION_COLORS.map(c =>
+      `<div class="color-tile${c === current ? ' current' : ''}" style="--c:${c}" data-color="${c}" title="${c}"></div>`
+    ))
+    .join('');
+  pop.innerHTML = tiles;
+  pop.classList.remove('hidden');
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  pop.style.left = (rect.left + window.scrollX) + 'px';
+  pop.querySelectorAll('.color-tile').forEach(t => {
+    t.addEventListener('click', e => {
+      e.stopPropagation();
+      const c = t.getAttribute('data-color');
+      const cb = _colorPopoverOnPick;
+      closeColorPopover();
+      if (cb) cb(c);
+    });
+  });
+  setTimeout(() => {
+    document.addEventListener('mousedown', colorPopoverOutsideClick);
+  }, 0);
+}
+function closeColorPopover() {
+  const pop = document.getElementById('colorPopover');
+  if (pop) pop.classList.add('hidden');
+  _colorPopoverOnPick = null;
+  document.removeEventListener('mousedown', colorPopoverOutsideClick);
+}
+function colorPopoverOutsideClick(e) {
+  const pop = document.getElementById('colorPopover');
+  if (pop && !pop.contains(e.target)) closeColorPopover();
+}
+
+let _poolPickerState = { kind: null, current: '', onPick: null };
+
+function openPoolPicker(kind, currentValue, onPick) {
+  _poolPickerState = { kind, current: currentValue || '', onPick };
+  document.getElementById('poolPickerTitle').textContent = POOL_TITLE[kind] || kind;
+  const search = document.getElementById('poolPickerSearch');
+  search.value = '';
+  renderPoolPickerGrid('');
+  document.getElementById('poolPickerModal').classList.remove('hidden');
+  setTimeout(() => search.focus(), 0);
+}
+
+function closePoolPicker() {
+  document.getElementById('poolPickerModal').classList.add('hidden');
+  _poolPickerState = { kind: null, current: '', onPick: null };
+}
+
+function pickPoolValue(name) {
+  const cb = _poolPickerState.onPick;
+  closePoolPicker();
+  if (cb) cb(name);
+}
+
+function renderPoolPickerGrid(filter) {
+  const grid = document.getElementById('poolPickerGrid');
+  const kind = _poolPickerState.kind;
+  if (!kind) return;
+  const items = pools[kind] || [];
+  const accent = POOL_ACCENT[kind] || '#5b8dd6';
+  const f = String(filter || '').trim().toLowerCase();
+  const filtered = f
+    ? items.filter(x =>
+        String(x.name).toLowerCase().includes(f) ||
+        String(x.no).includes(f))
+    : items;
+
+  if (items.length === 0) {
+    grid.innerHTML = `<div class="pool-empty">No items loaded for <code>${kind}</code>.<br>Import from MA via the <b>Pools</b> button.</div>`;
+    return;
+  }
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="pool-empty">No matches for "<code>${escapeHtml(filter)}</code>".</div>`;
+    return;
+  }
+
+  const current = (_poolPickerState.current || '').trim();
+  grid.innerHTML = filtered.map(x => {
+    const isCurrent = current && current === String(x.name).trim();
+    return `
+      <div class="pool-tile${isCurrent ? ' current' : ''}" data-name="${escapeHtml(x.name)}">
+        <span class="pool-tile-accent" style="background:${accent}"></span>
+        <span class="pool-tile-no">${x.no}</span>
+        <span>${escapeHtml(x.name)}</span>
+      </div>
+    `;
+  }).join('');
+  grid.querySelectorAll('.pool-tile').forEach(t => {
+    t.addEventListener('click', () => pickPoolValue(t.getAttribute('data-name')));
+  });
+}
+
+function parsePoolsPaste(text) {
+  if (!text) throw new Error('empty input');
+  const begin = text.indexOf('CUELIST_POOLS_BEGIN');
+  const end = text.indexOf('CUELIST_POOLS_END');
+  let json;
+  if (begin !== -1 && end !== -1 && end > begin) {
+    const slice = text.substring(begin, end);
+    const firstBrace = slice.indexOf('{');
+    const lastBrace = slice.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace === -1) throw new Error('no JSON object found between markers');
+    json = slice.substring(firstBrace, lastBrace + 1);
+  } else {
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace === -1) throw new Error('no JSON object found');
+    json = text.substring(firstBrace, lastBrace + 1);
+  }
+  let parsed;
+  try { parsed = JSON.parse(json); }
+  catch (e) { throw new Error('JSON parse failed: ' + e.message); }
+  if (!parsed.pools || typeof parsed.pools !== 'object') throw new Error('missing "pools" object');
+  const out = emptyPools();
+  Object.keys(out).forEach(k => {
+    const src = parsed.pools[k];
+    if (src && Array.isArray(src.items)) {
+      out[k] = src.items
+        .filter(x => x && x.name && String(x.name).trim())
+        .map(x => ({ no: parseInt(x.no) || 0, name: String(x.name) }));
+    }
+  });
+  return out;
+}
+
+function cloneActions(actions) {
+  return actions.map(a => {
+    const presets = {};
+    POOLS.forEach(p => {
+      const v = a.presets[p] || {};
+      presets[p] = { name: v.name || '', fade: v.fade != null ? v.fade : '', delay: v.delay != null ? v.delay : '' };
+    });
+    return { group: a.group || '', presets };
+  });
+}
+
+function actionIsEmpty(action) {
+  if (action.group && action.group.trim()) return false;
+  return !POOLS.some(p => action.presets[p] && action.presets[p].name && action.presets[p].name.trim());
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[<>&"]/g, c => (
+    { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]
+  ));
+}
+
+function render() {
+  renderSidebar();
+  const song = activeSong();
+
+  if (currentAudioSongId !== state.activeSongId) {
+    setActiveAudioFromCache(state.activeSongId);
+    renderAudioPanel();
+  }
+
+  document.getElementById('songName').value = song.name || '';
+  document.getElementById('sequence').value = song.sequence || 1;
+  document.getElementById('storeMode').value = state.storeMode || 'Overwrite';
+  document.getElementById('cueCount').textContent = song.cues.length
+    ? `${song.cues.length} cue${song.cues.length > 1 ? 's' : ''}`
+    : '';
+
+  const container = document.getElementById('cues');
+  container.innerHTML = '';
+
+  if (song.cues.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = 'No cues yet. Click "+ Add Cue" below to start.';
+    container.appendChild(hint);
+    return;
+  }
+
+  song.cues.sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));
+  song.cues.forEach((cue, ci) => container.appendChild(renderCue(song, cue, ci)));
+
+  if (audioBuffer) renderMarkers();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('songList');
+  list.innerHTML = '';
+  state.songs.forEach(song => {
+    const li = document.createElement('li');
+    li.className = 'song-item' + (song.id === state.activeSongId ? ' active' : '');
+    li.innerHTML = `
+      <span class="song-label">${escapeHtml(song.name || '(untitled)')}</span>
+      <span class="song-seq">S${escapeHtml(song.sequence)}</span>
+      <button class="song-remove" title="Remove song">&times;</button>
+    `;
+    li.addEventListener('click', e => {
+      if (e.target.classList.contains('song-remove')) return;
+      state.activeSongId = song.id;
+      saveState();
+      render();
+    });
+    li.querySelector('.song-remove').addEventListener('click', e => {
+      e.stopPropagation();
+      const label = song.name || '(untitled)';
+      const cueCount = song.cues.length;
+      const msg = `Remove song "${label}"${cueCount ? ' with ' + cueCount + ' cue(s)' : ''}?`;
+      if (!confirm(msg)) return;
+      const idx = state.songs.findIndex(s => s.id === song.id);
+      state.songs.splice(idx, 1);
+      audioCache.delete(song.id);
+      if (state.songs.length === 0) {
+        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+        state.songs.push(ns);
+        state.activeSongId = ns.id;
+      } else if (song.id === state.activeSongId) {
+        state.activeSongId = state.songs[Math.max(0, idx - 1)].id;
+      }
+      saveState();
+      render();
+    });
+    list.appendChild(li);
+  });
+}
+
+function cueSummary(cue) {
+  const groups = cue.actions.filter(a => a.group && a.group.trim()).length;
+  const parts = [];
+  if (cue.position) parts.push(cue.position);
+  if (groups) parts.push(`${groups} group${groups > 1 ? 's' : ''}`);
+  if (cue.fade && String(cue.fade).trim()) parts.push(`fade ${cue.fade}`);
+  if (cue.delay && String(cue.delay).trim()) parts.push(`delay ${cue.delay}`);
+  return parts.join(' · ');
+}
+
+function renderCue(song, cue, ci) {
+  const card = document.createElement('div');
+  card.className = 'cue-card' + (cue.collapsed ? ' collapsed' : '');
+
+  const hdr = document.createElement('div');
+  hdr.className = 'cue-header';
+  const chev = cue.collapsed ? '▶' : '▼';
+  hdr.innerHTML = `
+    <button class="chevron" title="${cue.collapsed ? 'Expand' : 'Collapse'}">${chev}</button>
+    <input type="number" step="0.1" class="cue-num" value="${escapeHtml(cue.n)}" title="Cue number">
+    <input type="text" class="cue-name" placeholder="Cue name (Intro, Verse, Chorus...)" value="${escapeHtml(cue.name)}">
+    ${cue.collapsed ? `<span class="cue-summary">${escapeHtml(cueSummary(cue))}</span>` : ''}
+    <button class="icon-btn danger" title="Remove cue">&times;</button>
+  `;
+  hdr.querySelector('.chevron').addEventListener('click', () => {
+    cue.collapsed = !cue.collapsed;
+    saveState();
+    render();
+  });
+  const numInput = hdr.querySelector('.cue-num');
+  numInput.addEventListener('input', e => {
+    cue.n = parseFloat(e.target.value);
+    saveState();
+  });
+  numInput.addEventListener('change', () => {
+    saveState();
+    render();
+  });
+  hdr.querySelector('.cue-name').addEventListener('input', e => {
+    cue.name = e.target.value;
+    saveState();
+  });
+  hdr.querySelector('.icon-btn.danger').addEventListener('click', () => {
+    if (confirm(`Remove cue ${cue.n}${cue.name ? ' "' + cue.name + '"' : ''}?`)) {
+      song.cues.splice(ci, 1);
+      saveState();
+      render();
+    }
+  });
+  card.appendChild(hdr);
+
+  if (cue.collapsed) return card;
+
+  const moodBar = document.createElement('div');
+  moodBar.className = 'cue-mood-bar';
+  const moodOpts = moods.length
+    ? moods.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name || '(unnamed)')}</option>`).join('')
+    : '<option value="" disabled>(no moods saved)</option>';
+  const otherCues = song.cues
+    .map((c, idx) => ({ c, idx }))
+    .filter(x => x.idx !== ci && !actionIsEmpty(x.c.actions[0] || {}));
+  const copyOpts = otherCues.length
+    ? otherCues.map(({ c, idx }) =>
+        `<option value="${idx}">Cue ${escapeHtml(c.n)}${c.name ? ' — ' + escapeHtml(c.name) : ''}</option>`
+      ).join('')
+    : '<option value="" disabled>(no other compiled cues)</option>';
+  moodBar.innerHTML = `
+    <label>Mood:</label>
+    <select class="apply-mood">
+      <option value="">— Apply mood —</option>
+      ${moodOpts}
+    </select>
+    <select class="copy-from">
+      <option value="">— Copy from cue —</option>
+      ${copyOpts}
+    </select>
+    <button class="ghost save-as-mood" title="Save current actions as a new mood">Save as mood</button>
+  `;
+  moodBar.querySelector('.copy-from').addEventListener('change', e => {
+    const idx = e.target.value;
+    e.target.value = '';
+    if (idx === '') return;
+    const src = song.cues[parseInt(idx)];
+    if (!src) return;
+    const cloned = cloneActions(src.actions);
+    if (cue.actions.length === 1 && actionIsEmpty(cue.actions[0])) {
+      cue.actions = cloned;
+    } else {
+      if (!confirm(`This cue already has actions. Replace with values from cue ${src.n}${src.name ? ' "' + src.name + '"' : ''}?`)) return;
+      cue.actions = cloned;
+    }
+    saveState();
+    render();
+  });
+  moodBar.querySelector('.apply-mood').addEventListener('change', e => {
+    const mid = e.target.value;
+    e.target.value = '';
+    if (!mid) return;
+    const mood = moods.find(m => m.id === mid);
+    if (!mood) return;
+    const cloned = cloneActions(mood.actions);
+    if (cue.actions.length === 1 && actionIsEmpty(cue.actions[0])) {
+      cue.actions = cloned;
+    } else {
+      cue.actions.push(...cloned);
+    }
+    saveState();
+    render();
+  });
+  moodBar.querySelector('.save-as-mood').addEventListener('click', () => {
+    const nonEmpty = cue.actions.filter(a => !actionIsEmpty(a));
+    if (nonEmpty.length === 0) {
+      alert('Cue is empty — nothing to save as mood.');
+      return;
+    }
+    const suggested = cue.name ? cue.name.trim() : '';
+    const name = prompt('Mood name:', suggested);
+    if (name == null) return;
+    moods.push({ id: genId(), name: name.trim(), actions: cloneActions(nonEmpty) });
+    saveMoods();
+    render();
+    alert(`Saved mood "${name.trim()}".`);
+  });
+  card.appendChild(moodBar);
+
+  cue.actions.forEach((action, ai) => card.appendChild(
+    renderAction(cue, action, ai, saveState, () => { saveState(); render(); })
+  ));
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'ghost add-action';
+  addBtn.textContent = '+ Add Group block';
+  addBtn.addEventListener('click', () => {
+    cue.actions.push(newAction());
+    saveState();
+    render();
+  });
+  card.appendChild(addBtn);
+
+  const timing = document.createElement('div');
+  timing.className = 'cue-timing';
+  timing.innerHTML = `
+    <label>Fade:</label>
+    <input type="number" step="0.1" min="0" class="fade-input" value="${escapeHtml(cue.fade)}" placeholder="">
+    <label>Delay:</label>
+    <input type="number" step="0.1" min="0" class="delay-input" value="${escapeHtml(cue.delay)}" placeholder="">
+  `;
+  timing.querySelector('.fade-input').addEventListener('input', e => {
+    cue.fade = e.target.value;
+    saveState();
+  });
+  timing.querySelector('.delay-input').addEventListener('input', e => {
+    cue.delay = e.target.value;
+    saveState();
+  });
+  card.appendChild(timing);
+
+  return card;
+}
+
+function renderAction(parent, action, ai, save, refresh) {
+  const block = document.createElement('div');
+  block.className = 'action-block';
+  if (action.color) block.style.setProperty('--action-color', action.color);
+
+  const groupRow = document.createElement('div');
+  groupRow.className = 'group-row';
+  const swatchColorAttr = action.color ? `style="--swatch-color:${action.color}"` : '';
+  const swatchClass = action.color ? 'color-swatch' : 'color-swatch no-color';
+  groupRow.innerHTML = `
+    <button class="${swatchClass}" type="button" title="Color group block" ${swatchColorAttr}></button>
+    <label>Group:</label>
+    <div class="input-with-picker">
+      <input type="text" class="group-name" value="${escapeHtml(action.group)}" placeholder='Group name (e.g. "Wash Side")'>
+      <button class="pick-btn" type="button" title="Pick from Groups pool">&#9638;</button>
+    </div>
+    <button class="icon-btn danger" title="Remove group block">&times;</button>
+  `;
+  const groupInput = groupRow.querySelector('.group-name');
+  groupInput.addEventListener('input', e => {
+    action.group = e.target.value;
+    save();
+  });
+  groupRow.querySelector('.pick-btn').addEventListener('click', () => {
+    openPoolPicker('groups', action.group, (name) => {
+      action.group = name;
+      groupInput.value = name;
+      save();
+    });
+  });
+  const swatchBtn = groupRow.querySelector('.color-swatch');
+  swatchBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    openColorPopover(swatchBtn, action.color || '', (color) => {
+      action.color = color;
+      save();
+      if (color) {
+        block.style.setProperty('--action-color', color);
+        swatchBtn.classList.remove('no-color');
+        swatchBtn.style.setProperty('--swatch-color', color);
+      } else {
+        block.style.removeProperty('--action-color');
+        swatchBtn.classList.add('no-color');
+        swatchBtn.style.removeProperty('--swatch-color');
+      }
+    });
+  });
+  groupRow.querySelector('.icon-btn').addEventListener('click', () => {
+    parent.actions.splice(ai, 1);
+    if (parent.actions.length === 0) parent.actions.push(newAction());
+    refresh();
+  });
+  block.appendChild(groupRow);
+
+  const grid = document.createElement('div');
+  grid.className = 'presets-grid';
+  POOLS.forEach(pool => {
+    const p = action.presets[pool];
+    const def = defaults[pool] || { fade: '', delay: '' };
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+    row.style.setProperty('--pool-color', POOL_ACCENT[pool] || '#444');
+    row.innerHTML = `
+      <label title="${pool} — click to pick from pool">${POOL_ABBR[pool] || pool}</label>
+      <input type="text" class="preset-name" value="${escapeHtml(p.name)}" placeholder="(none)">
+      <div class="ptime">
+        <input type="number" step="0.1" min="0" class="preset-fade" value="${escapeHtml(p.fade)}" placeholder="${escapeHtml(def.fade)}" title="Fade">
+        <input type="number" step="0.1" min="0" class="preset-delay" value="${escapeHtml(p.delay)}" placeholder="${escapeHtml(def.delay)}" title="Delay">
+      </div>
+    `;
+    const presetInput = row.querySelector('.preset-name');
+    presetInput.addEventListener('input', e => {
+      p.name = e.target.value;
+      save();
+    });
+    row.querySelector('label').addEventListener('click', () => {
+      openPoolPicker(pool, p.name, (name) => {
+        p.name = name;
+        presetInput.value = name;
+        save();
+      });
+    });
+    row.querySelector('.preset-fade').addEventListener('input', e => {
+      p.fade = e.target.value;
+      save();
+    });
+    row.querySelector('.preset-delay').addEventListener('input', e => {
+      p.delay = e.target.value;
+      save();
+    });
+    grid.appendChild(row);
+  });
+  block.appendChild(grid);
+
+  return block;
+}
+
+function songToLuaEntry(song) {
+  const lines = [];
+  const seq = parseInt(song.sequence) || 1;
+  const songName = (song.name || '(untitled)').trim().replace(/"/g, '\\"');
+  lines.push(`  {name="${songName}", seq=${seq}, cues={`);
+  song.cues.forEach(cue => {
+    const actions = cue.actions
+      .filter(a => a.group && a.group.trim())
+      .map(a => {
+        const presets = Object.entries(a.presets)
+          .filter(([, v]) => v && v.name && String(v.name).trim())
+          .map(([k, v]) => {
+            const def = defaults[k] || { fade: '', delay: '' };
+            const fade  = (v.fade  != null && String(v.fade).trim()  !== '') ? v.fade  : def.fade;
+            const delay = (v.delay != null && String(v.delay).trim() !== '') ? v.delay : def.delay;
+            const parts = [`name="${String(v.name).trim().replace(/"/g, '\\"')}"`];
+            if (fade  != null && String(fade).trim()  !== '') parts.push(`fade=${fade}`);
+            if (delay != null && String(delay).trim() !== '') parts.push(`delay=${delay}`);
+            return `${k}={${parts.join(', ')}}`;
+          })
+          .join(', ');
+        return `      {group="${a.group.trim().replace(/"/g, '\\"')}", presets={${presets}}},`;
+      });
+
+    let header = `    {n=${cue.n}, name="${(cue.name || '').trim().replace(/"/g, '\\"')}"`;
+    if (cue.fade && String(cue.fade).trim()) header += `, fade=${cue.fade}`;
+    if (cue.delay && String(cue.delay).trim()) header += `, delay=${cue.delay}`;
+    if (actions.length === 0) {
+      lines.push(header + ', actions={}},');
+    } else {
+      lines.push(header + ', actions={');
+      actions.forEach(a => lines.push(a));
+      lines.push('    }},');
+    }
+  });
+  lines.push('  }},');
+  return lines;
+}
+
+function buildLua(songs, headerTitle) {
+  const mode = (state.storeMode === 'Merge') ? 'Merge' : 'Overwrite';
+  const lines = [];
+  lines.push('-- Generated by Cuelist Compiler');
+  lines.push(`-- ${headerTitle}`);
+  lines.push(`-- Generated: ${new Date().toISOString()}`);
+  lines.push(`-- Store mode: ${mode}`);
+  lines.push('-- WARNING: this plugin runs ClearAll before each cue. Run with an empty programmer.');
+  lines.push('');
+  lines.push('local POOL = {dimmer=1, position=2, gobo=3, color=4, beam=5, focus=6}');
+  lines.push(`local STORE_FLAG = "/${mode}"`);
+  lines.push('');
+  lines.push('local SONGS = {');
+  songs.forEach(song => {
+    songToLuaEntry(song).forEach(l => lines.push(l));
+  });
+  lines.push('}');
+  lines.push('');
+  lines.push('local function main()');
+  lines.push('  for _, song in ipairs(SONGS) do');
+  lines.push('    Printf("Cuelist Compiler: storing \\""..song.name.."\\" in Sequence "..song.seq)');
+  lines.push('    for _, c in ipairs(song.cues) do');
+  lines.push('      Cmd("ClearAll")');
+  lines.push('      for _, a in ipairs(c.actions) do');
+  lines.push('        Cmd(\'Group "\'..a.group..\'"\')');
+  lines.push('        for pool, p in pairs(a.presets) do');
+  lines.push('          Cmd(\'At Preset \'..POOL[pool]..\'."\'..p.name..\'"\')');
+  lines.push('          if p.fade  then Cmd(\'Fade \'..p.fade..\' FeatureGroup \'..POOL[pool])   end');
+  lines.push('          if p.delay then Cmd(\'Delay \'..p.delay..\' FeatureGroup \'..POOL[pool]) end');
+  lines.push('        end');
+  lines.push('      end');
+  lines.push('      if c.name ~= "" then');
+  lines.push('        Cmd(\'Store Sequence \'..song.seq..\' Cue \'..c.n..\' "\'..c.name..\'" \'..STORE_FLAG..\' /NoConfirmation\')');
+  lines.push('      else');
+  lines.push('        Cmd(\'Store Sequence \'..song.seq..\' Cue \'..c.n..\' \'..STORE_FLAG..\' /NoConfirmation\')');
+  lines.push('      end');
+  lines.push('      if c.fade  then Cmd(\'Set Sequence \'..song.seq..\' Cue \'..c.n..\' Fade \'..c.fade)   end');
+  lines.push('      if c.delay then Cmd(\'Set Sequence \'..song.seq..\' Cue \'..c.n..\' Delay \'..c.delay) end');
+  lines.push('    end');
+  lines.push('  end');
+  lines.push('  Cmd("ClearAll")');
+  lines.push('  Printf("Cuelist Compiler: done.")');
+  lines.push('end');
+  lines.push('');
+  lines.push('return main');
+  return lines.join('\n');
+}
+
+// Mirror of the runtime loop emitted by buildLua's main() — returns the actual
+// command-line strings that would be passed to Cmd(). Used by the OSC sender.
+// Keep in sync with buildLua's main() above.
+function buildCmdLines(songs) {
+  const mode = (state.storeMode === 'Merge') ? 'Merge' : 'Overwrite';
+  const STORE_FLAG = '/' + mode;
+  const out = [];
+  songs.forEach(song => {
+    const seq = parseInt(song.sequence) || 1;
+    (song.cues || []).forEach(cue => {
+      out.push('ClearAll');
+      const actions = (cue.actions || []).filter(a => a.group && a.group.trim());
+      actions.forEach(a => {
+        const groupName = a.group.trim().replace(/"/g, '\\"');
+        out.push(`Group "${groupName}"`);
+        POOLS.forEach(pool => {
+          const p = a.presets[pool];
+          if (!p || !p.name || !String(p.name).trim()) return;
+          const presetName = String(p.name).trim().replace(/"/g, '\\"');
+          out.push(`At Preset ${POOL_NUM[pool]}."${presetName}"`);
+          const def = defaults[pool] || { fade: '', delay: '' };
+          const fade  = (p.fade  != null && String(p.fade).trim()  !== '') ? p.fade  : def.fade;
+          const delay = (p.delay != null && String(p.delay).trim() !== '') ? p.delay : def.delay;
+          if (fade  != null && String(fade).trim()  !== '') out.push(`Fade ${fade} FeatureGroup ${POOL_NUM[pool]}`);
+          if (delay != null && String(delay).trim() !== '') out.push(`Delay ${delay} FeatureGroup ${POOL_NUM[pool]}`);
+        });
+      });
+      const cueName = (cue.name || '').trim().replace(/"/g, '\\"');
+      if (cueName) {
+        out.push(`Store Sequence ${seq} Cue ${cue.n} "${cueName}" ${STORE_FLAG} /NoConfirmation`);
+      } else {
+        out.push(`Store Sequence ${seq} Cue ${cue.n} ${STORE_FLAG} /NoConfirmation`);
+      }
+      if (cue.fade  && String(cue.fade).trim())  out.push(`Set Sequence ${seq} Cue ${cue.n} Fade ${cue.fade}`);
+      if (cue.delay && String(cue.delay).trim()) out.push(`Set Sequence ${seq} Cue ${cue.n} Delay ${cue.delay}`);
+    });
+  });
+  out.push('ClearAll');
+  return out;
+}
+
+function exportLua() {
+  const song = activeSong();
+  if (!song || song.cues.length === 0) {
+    alert('No cues to export in the active song.');
+    return;
+  }
+  const content = buildLua([song], `Song: ${song.name || '(untitled)'}`);
+  const filename = (song.name || 'song').replace(/[^a-zA-Z0-9_\-]+/g, '_') + '.lua';
+  download(content, filename, 'text/plain');
+}
+
+function exportAllLua() {
+  const songs = state.songs.filter(s => s.cues.length > 0);
+  if (songs.length === 0) {
+    alert('No cues in any song to export.');
+    return;
+  }
+  const content = buildLua(songs, `Show: ${songs.length} song(s)`);
+  download(content, 'show.lua', 'text/plain');
+}
+
+function saveProject() {
+  const filename = 'show.json';
+  download(JSON.stringify(state, null, 2), filename, 'application/json');
+}
+
+function loadProject(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const loaded = JSON.parse(e.target.result);
+      const isOldFormat = loaded && Array.isArray(loaded.cues);
+      const isNewFormat = loaded && Array.isArray(loaded.songs);
+      if (!isOldFormat && !isNewFormat) throw new Error('not a project');
+      // Drop any cached audio from the previous project — ids may collide and the files are stale.
+      audioCache.forEach(entry => {
+        try { entry.audioEl.pause(); } catch (e) {}
+        try { URL.revokeObjectURL(entry.audioEl.src); } catch (e) {}
+      });
+      audioCache.clear();
+      currentAudioSongId = null;
+      audioEl = null; audioBuffer = null; audioGainL = null; audioGainR = null; audioFileName = '';
+      state = migrateState(loaded);
+      saveState();
+      render();
+    } catch (err) {
+      alert('Invalid project file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function openMoodModal() {
+  document.getElementById('moodModal').classList.remove('hidden');
+  renderMoodModal();
+}
+
+function closeMoodModal() {
+  document.getElementById('moodModal').classList.add('hidden');
+  render();
+}
+
+function openDefaultsModal() {
+  document.getElementById('defaultsModal').classList.remove('hidden');
+  renderDefaultsModal();
+}
+
+function closeDefaultsModal() {
+  document.getElementById('defaultsModal').classList.add('hidden');
+  render();
+}
+
+function renderDefaultsModal() {
+  const list = document.getElementById('defaultsList');
+  list.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'defaults-row';
+  head.innerHTML = `<span></span><span class="col-head">Fade</span><span class="col-head">Delay</span>`;
+  list.appendChild(head);
+
+  POOLS.forEach(pool => {
+    const d = defaults[pool];
+    const row = document.createElement('div');
+    row.className = 'defaults-row';
+    row.innerHTML = `
+      <label>${pool}</label>
+      <input type="number" step="0.1" min="0" class="def-fade" value="${escapeHtml(d.fade)}" placeholder="—">
+      <input type="number" step="0.1" min="0" class="def-delay" value="${escapeHtml(d.delay)}" placeholder="—">
+    `;
+    row.querySelector('.def-fade').addEventListener('input', e => {
+      d.fade = e.target.value;
+      saveDefaults();
+    });
+    row.querySelector('.def-delay').addEventListener('input', e => {
+      d.delay = e.target.value;
+      saveDefaults();
+    });
+    list.appendChild(row);
+  });
+}
+
+function renderMoodModal() {
+  const list = document.getElementById('moodList');
+  list.innerHTML = '';
+  if (moods.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'mood-empty';
+    hint.textContent = 'No moods yet. Click "+ New Mood" to create one, or use "Save as mood" inside a cue.';
+    list.appendChild(hint);
+    return;
+  }
+  moods.forEach((mood, mi) => list.appendChild(renderMoodCard(mood, mi)));
+}
+
+function renderMoodCard(mood, mi) {
+  const card = document.createElement('div');
+  card.className = 'mood-card';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'mood-header';
+  hdr.innerHTML = `
+    <input type="text" class="mood-name" value="${escapeHtml(mood.name)}" placeholder="Mood name (e.g. Intimate Red Floor)">
+    <button class="icon-btn danger" title="Delete mood">&times;</button>
+  `;
+  hdr.querySelector('.mood-name').addEventListener('input', e => {
+    mood.name = e.target.value;
+    saveMoods();
+  });
+  hdr.querySelector('.icon-btn').addEventListener('click', () => {
+    if (confirm(`Delete mood "${mood.name || '(unnamed)'}"?`)) {
+      moods.splice(mi, 1);
+      saveMoods();
+      renderMoodModal();
+    }
+  });
+  card.appendChild(hdr);
+
+  mood.actions.forEach((action, ai) => card.appendChild(
+    renderAction(mood, action, ai, saveMoods, () => { saveMoods(); renderMoodModal(); })
+  ));
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'ghost add-action';
+  addBtn.textContent = '+ Add Group block';
+  addBtn.addEventListener('click', () => {
+    mood.actions.push(newAction());
+    saveMoods();
+    renderMoodModal();
+  });
+  card.appendChild(addBtn);
+
+  return card;
+}
+
+async function loadAudioFile(file) {
+  const targetSongId = state.activeSongId;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    const buf = await file.arrayBuffer();
+    const newBuffer = await audioCtx.decodeAudioData(buf.slice(0));
+
+    // Tear down any existing cache entry for this song before replacing.
+    const prev = audioCache.get(targetSongId);
+    if (prev) {
+      try { prev.audioEl.pause(); } catch (e) {}
+      try { URL.revokeObjectURL(prev.audioEl.src); } catch (e) {}
+    }
+
+    const newEl = new Audio();
+    newEl.src = URL.createObjectURL(file);
+    newEl.preservesPitch = false;
+
+    await new Promise((resolve, reject) => {
+      newEl.addEventListener('loadedmetadata', resolve, { once: true });
+      newEl.addEventListener('error', () => reject(new Error('audio load error')), { once: true });
+    });
+
+    const source = audioCtx.createMediaElementSource(newEl);
+    const ch = newBuffer.numberOfChannels;
+    let gL, gR;
+    if (ch >= 2) {
+      const splitter = audioCtx.createChannelSplitter(2);
+      const merger = audioCtx.createChannelMerger(2);
+      gL = audioCtx.createGain();
+      gR = audioCtx.createGain();
+      gL.gain.value = channelMute.L ? 0 : 1;
+      gR.gain.value = channelMute.R ? 0 : 1;
+      source.connect(splitter);
+      splitter.connect(gL, 0);
+      splitter.connect(gR, 1);
+      gL.connect(merger, 0, 0);
+      gR.connect(merger, 0, 1);
+      merger.connect(audioCtx.destination);
+    } else {
+      gL = audioCtx.createGain();
+      gR = null;
+      source.connect(gL);
+      gL.connect(audioCtx.destination);
+    }
+
+    newEl.addEventListener('play', startPlayheadLoop);
+    newEl.addEventListener('pause', stopPlayheadLoop);
+    newEl.addEventListener('ended', stopPlayheadLoop);
+
+    audioCache.set(targetSongId, {
+      audioEl: newEl,
+      audioBuffer: newBuffer,
+      audioGainL: gL,
+      audioGainR: gR,
+      fileName: file.name
+    });
+
+    const song = state.songs.find(s => s.id === targetSongId);
+    if (song) {
+      song.audioFileName = file.name;
+      saveState();
+    }
+
+    if (state.activeSongId === targetSongId) {
+      setActiveAudioFromCache(targetSongId);
+      renderAudioPanel();
+    }
+  } catch (err) {
+    alert('Audio load failed: ' + err.message);
+  }
+}
+
+function setActiveAudioFromCache(songId) {
+  // Pause whatever was active so it doesn't keep playing after the swap.
+  if (audioEl && currentAudioSongId !== songId) {
+    try { audioEl.pause(); } catch (e) {}
+  }
+  stopPlayheadLoop();
+  const entry = audioCache.get(songId);
+  if (entry) {
+    audioEl = entry.audioEl;
+    audioBuffer = entry.audioBuffer;
+    audioGainL = entry.audioGainL;
+    audioGainR = entry.audioGainR;
+    audioFileName = entry.fileName;
+    // Re-apply current channel mute settings to this song's gain nodes.
+    if (audioGainL) audioGainL.gain.value = channelMute.L ? 0 : 1;
+    if (audioGainR) audioGainR.gain.value = channelMute.R ? 0 : 1;
+  } else {
+    audioEl = null;
+    audioBuffer = null;
+    audioGainL = null;
+    audioGainR = null;
+    audioFileName = '';
+  }
+  currentAudioSongId = songId;
+}
+
+function setChannelMute(ch, muted) {
+  channelMute[ch] = muted;
+  if (ch === 'L' && audioGainL) audioGainL.gain.value = muted ? 0 : 1;
+  if (ch === 'R' && audioGainR) audioGainR.gain.value = muted ? 0 : 1;
+  document.querySelectorAll('.channel-toggle').forEach(btn => {
+    const c = btn.dataset.ch;
+    if (c) {
+      btn.classList.toggle('active', !channelMute[c]);
+      btn.classList.toggle('muted', channelMute[c]);
+    }
+  });
+}
+
+function drawWaveform(canvas, channelData) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = Math.max(1, Math.floor(w * dpr));
+  canvas.height = Math.max(1, Math.floor(h * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.strokeStyle = '#1f1f23';
+  ctx.beginPath();
+  ctx.moveTo(0, h / 2);
+  ctx.lineTo(w, h / 2);
+  ctx.stroke();
+
+  if (!channelData || channelData.length === 0) return;
+
+  const samplesPerPixel = Math.max(1, Math.floor(channelData.length / w));
+  ctx.fillStyle = '#5b8dd6';
+  for (let x = 0; x < w; x++) {
+    let min = 1, max = -1;
+    const start = x * samplesPerPixel;
+    const end = Math.min(channelData.length, start + samplesPerPixel);
+    for (let i = start; i < end; i++) {
+      const s = channelData[i];
+      if (s < min) min = s;
+      if (s > max) max = s;
+    }
+    const y1 = ((1 - max) / 2) * h;
+    const y2 = ((1 - min) / 2) * h;
+    ctx.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+  }
+}
+
+function renderAudioPanel() {
+  const panel = document.getElementById('audioPanel');
+  if (!audioEl || !audioBuffer) {
+    const song = activeSong();
+    const remembered = song && song.audioFileName ? song.audioFileName : '';
+    panel.className = 'empty';
+    panel.innerHTML = `
+      <button id="loadAudioBtn" class="ghost">${remembered ? 'Load Audio…' : 'Load Audio…'}</button>
+      <input type="file" id="loadAudio" accept="audio/*" style="display:none">
+      <span style="margin-left:8px;font-size:0.85em;">${
+        remembered
+          ? '🎵 ' + escapeHtml(remembered) + ' <span style="color:#888;">— click Load Audio to re-select</span>'
+          : 'no audio loaded'
+      }</span>
+    `;
+    wireLoadAudio();
+    return;
+  }
+
+  const ch = audioBuffer.numberOfChannels;
+  const dur = audioBuffer.duration;
+  panel.className = '';
+  panel.innerHTML = `
+    <div id="audioControls">
+      <button id="playBtn">${audioEl.paused ? '▶ Play' : '⏸ Pause'}</button>
+      ${ch >= 2 ? `
+        <button class="channel-toggle ${channelMute.L ? 'muted' : 'active'}" data-ch="L" title="Toggle Left channel">L</button>
+        <button class="channel-toggle ${channelMute.R ? 'muted' : 'active'}" data-ch="R" title="Toggle Right channel">R</button>
+      ` : ''}
+      <span class="filename" title="${escapeHtml(audioFileName)}">${escapeHtml(audioFileName)}</span>
+      <span class="time" id="audioTime">0:00 / ${secondsToMMSS(dur)}</span>
+      <button id="reloadAudioBtn" class="ghost" title="Load a different file">Change</button>
+      <input type="file" id="loadAudio" accept="audio/*" style="display:none">
+    </div>
+    <div id="timeline">
+      ${ch >= 2 ? `
+        <div class="channel-wave"><span class="chan-label">L</span><canvas id="waveL"></canvas></div>
+        <div class="channel-wave"><span class="chan-label">R</span><canvas id="waveR"></canvas></div>
+      ` : `
+        <div class="channel-wave" style="height:90px;"><canvas id="waveL"></canvas></div>
+      `}
+      <div class="markers" id="markers"></div>
+      <div class="playhead" id="playhead" style="left:0px"></div>
+    </div>
+  `;
+
+  document.getElementById('playBtn').addEventListener('click', togglePlay);
+  document.getElementById('reloadAudioBtn').addEventListener('click', () => document.getElementById('loadAudio').click());
+  document.getElementById('loadAudio').addEventListener('change', e => {
+    if (e.target.files[0]) loadAudioFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  panel.querySelectorAll('.channel-toggle').forEach(btn => {
+    btn.addEventListener('click', () => setChannelMute(btn.dataset.ch, !channelMute[btn.dataset.ch]));
+  });
+
+  const tl = document.getElementById('timeline');
+  tl.addEventListener('click', e => {
+    if (e.target.classList.contains('marker')) return;
+    const rect = tl.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audioEl.currentTime = Math.max(0, Math.min(dur, pct * dur));
+    updatePlayhead();
+  });
+
+  // Draw waveforms once panel is in DOM (with proper width)
+  requestAnimationFrame(() => {
+    const waveL = document.getElementById('waveL');
+    if (waveL) drawWaveform(waveL, audioBuffer.getChannelData(0));
+    if (ch >= 2) {
+      const waveR = document.getElementById('waveR');
+      if (waveR) drawWaveform(waveR, audioBuffer.getChannelData(1));
+    }
+    renderMarkers();
+    updatePlayhead();
+  });
+}
+
+function wireLoadAudio() {
+  const btn = document.getElementById('loadAudioBtn');
+  const input = document.getElementById('loadAudio');
+  if (!btn || !input) return;
+  btn.addEventListener('click', () => input.click());
+  input.addEventListener('change', e => {
+    if (e.target.files[0]) loadAudioFile(e.target.files[0]);
+    e.target.value = '';
+  });
+}
+
+function togglePlay() {
+  if (!audioEl) return;
+  if (audioEl.paused) {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    audioEl.play();
+  } else {
+    audioEl.pause();
+  }
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = audioEl.paused ? '▶ Play' : '⏸ Pause';
+}
+
+function startPlayheadLoop() {
+  stopPlayheadLoop();
+  const tick = () => {
+    updatePlayhead();
+    audioRAF = requestAnimationFrame(tick);
+  };
+  audioRAF = requestAnimationFrame(tick);
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = '⏸ Pause';
+}
+
+function stopPlayheadLoop() {
+  if (audioRAF != null) cancelAnimationFrame(audioRAF);
+  audioRAF = null;
+  updatePlayhead();
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = '▶ Play';
+}
+
+function updatePlayhead() {
+  if (!audioEl || !audioBuffer) return;
+  const tl = document.getElementById('timeline');
+  const ph = document.getElementById('playhead');
+  const timeEl = document.getElementById('audioTime');
+  if (!tl || !ph) return;
+  const dur = audioBuffer.duration;
+  const t = audioEl.currentTime;
+  const pct = dur > 0 ? t / dur : 0;
+  ph.style.left = (pct * tl.clientWidth) + 'px';
+  if (timeEl) timeEl.textContent = `${secondsToMMSS(t)} / ${secondsToMMSS(dur)}`;
+  updateCurrentMarker(t);
+}
+
+function updateCurrentMarker(t) {
+  const song = activeSong();
+  if (!song) return;
+  const positions = song.cues
+    .map(c => ({ c, s: timecodeToSeconds(c.position) }))
+    .filter(x => !isNaN(x.s));
+  if (positions.length === 0) return;
+  let currentId = null;
+  for (const { c, s } of positions) {
+    if (s <= t) currentId = c;
+    else break;
+  }
+  document.querySelectorAll('#markers .marker').forEach(m => {
+    m.classList.toggle('current', currentId && m.dataset.cueN === String(currentId.n));
+  });
+}
+
+function renderMarkers() {
+  const song = activeSong();
+  const markers = document.getElementById('markers');
+  if (!song || !markers || !audioBuffer) return;
+  markers.innerHTML = '';
+  const dur = audioBuffer.duration;
+  if (dur <= 0) return;
+  song.cues.forEach(cue => {
+    const s = timecodeToSeconds(cue.position);
+    if (isNaN(s)) return;
+    const pct = s / dur;
+    if (pct < 0 || pct > 1) return;
+    const m = document.createElement('div');
+    m.className = 'marker';
+    m.style.left = (pct * 100) + '%';
+    m.dataset.cueN = String(cue.n);
+    m.title = `${cue.position} — Cue ${cue.n}${cue.name ? ' "' + cue.name + '"' : ''}`;
+    const lbl = document.createElement('span');
+    lbl.className = 'marker-label';
+    lbl.textContent = cue.name || `Cue ${cue.n}`;
+    m.appendChild(lbl);
+    m.addEventListener('click', e => {
+      e.stopPropagation();
+      audioEl.currentTime = s;
+      song.cues.forEach(c => c.collapsed = (c.n !== cue.n));
+      saveState();
+      render();
+      updatePlayhead();
+    });
+    markers.appendChild(m);
+  });
+  updateCurrentMarker(audioEl ? audioEl.currentTime : 0);
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false, i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++;
+      } else { field += ch; i++; }
+    } else {
+      if (ch === '"') { inQuotes = true; i++; }
+      else if (ch === ',') { row.push(field); field = ''; i++; }
+      else if (ch === '\r') { i++; }
+      else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; }
+      else { field += ch; i++; }
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function importCsv(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const rows = parseCsv(e.target.result);
+      if (rows.length < 2) throw new Error('Empty CSV');
+      const header = rows[0].map(h => h.trim());
+      const trackIdx = header.indexOf('Track');
+      const cueNoIdx = header.indexOf('Cue No');
+      const labelIdx = header.indexOf('Label');
+      const posIdx = header.indexOf('Position');
+      if (trackIdx < 0 || labelIdx < 0) {
+        throw new Error('Missing required columns "Track" or "Label"');
+      }
+
+      const songsByTrack = new Map();
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row.length || row.every(c => c === '')) continue;
+        const track = (row[trackIdx] || '').trim();
+        const label = (row[labelIdx] || '').trim();
+        if (!track || !label) continue;
+        if (!songsByTrack.has(track)) songsByTrack.set(track, []);
+        const cueList = songsByTrack.get(track);
+        const cueN = cueNoIdx >= 0 ? parseFloat(row[cueNoIdx]) : NaN;
+        const position = posIdx >= 0 ? (row[posIdx] || '').trim() : '';
+        cueList.push({
+          n: isNaN(cueN) ? cueList.length + 1 : cueN,
+          name: label,
+          actions: [newAction()],
+          fade: '',
+          delay: '',
+          collapsed: true,
+          position
+        });
+      }
+
+      if (songsByTrack.size === 0) {
+        alert('No valid rows (need non-empty Track and Label).');
+        return;
+      }
+
+      // Prune the initial empty placeholder song if it's still pristine
+      state.songs = state.songs.filter(s => (s.name && s.name.trim()) || s.cues.length > 0);
+
+      let added = 0, totalCues = 0, lastId = null;
+      songsByTrack.forEach((cues, trackName) => {
+        const leadNum = trackName.match(/^(\d+)/);
+        const maxSeq = state.songs.reduce((m, s) => Math.max(m, parseInt(s.sequence) || 0), 0);
+        const sequence = leadNum ? parseInt(leadNum[1]) : maxSeq + 1;
+        const song = {
+          id: genId(),
+          name: trackName,
+          sequence,
+          cues,
+          audioFileName: ''
+        };
+        state.songs.push(song);
+        added++;
+        totalCues += cues.length;
+        lastId = song.id;
+      });
+
+      if (state.songs.length === 0) {
+        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+        state.songs.push(ns);
+        state.activeSongId = ns.id;
+      } else if (lastId) {
+        state.activeSongId = lastId;
+      }
+      saveState();
+      render();
+      alert(`Imported ${added} song(s), ${totalCues} cue(s) total.`);
+    } catch (err) {
+      alert('CSV import failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+document.getElementById('songName').addEventListener('input', e => {
+  const song = activeSong();
+  if (!song) return;
+  song.name = e.target.value;
+  saveState();
+  renderSidebar();
+});
+document.getElementById('sequence').addEventListener('input', e => {
+  const song = activeSong();
+  if (!song) return;
+  song.sequence = parseInt(e.target.value) || 1;
+  saveState();
+  renderSidebar();
+});
+document.getElementById('addCue').addEventListener('click', () => {
+  const song = activeSong();
+  if (!song) return;
+  song.cues.push(newCue());
+  saveState();
+  render();
+});
+document.getElementById('collapseAll').addEventListener('click', () => {
+  const song = activeSong();
+  if (!song) return;
+  song.cues.forEach(c => c.collapsed = true);
+  saveState();
+  render();
+});
+document.getElementById('expandAll').addEventListener('click', () => {
+  const song = activeSong();
+  if (!song) return;
+  song.cues.forEach(c => c.collapsed = false);
+  saveState();
+  render();
+});
+document.getElementById('addSong').addEventListener('click', () => {
+  const s = newSong();
+  state.songs.push(s);
+  state.activeSongId = s.id;
+  saveState();
+  render();
+});
+document.getElementById('storeMode').addEventListener('change', e => {
+  state.storeMode = e.target.value === 'Merge' ? 'Merge' : 'Overwrite';
+  saveState();
+});
+document.getElementById('export').addEventListener('click', exportLua);
+document.getElementById('exportAll').addEventListener('click', exportAllLua);
+document.getElementById('saveProject').addEventListener('click', saveProject);
+document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('loadProject').click());
+document.getElementById('loadProject').addEventListener('change', e => {
+  if (e.target.files[0]) loadProject(e.target.files[0]);
+  e.target.value = '';
+});
+document.getElementById('importCsvBtn').addEventListener('click', () => document.getElementById('importCsv').click());
+document.getElementById('importCsv').addEventListener('change', e => {
+  if (e.target.files[0]) importCsv(e.target.files[0]);
+  e.target.value = '';
+});
+document.getElementById('manageMoodsBtn').addEventListener('click', openMoodModal);
+document.getElementById('addMood').addEventListener('click', () => {
+  moods.push(newMood());
+  saveMoods();
+  renderMoodModal();
+});
+document.querySelector('#moodModal .close-modal').addEventListener('click', closeMoodModal);
+document.querySelector('#moodModal .modal-backdrop').addEventListener('click', closeMoodModal);
+
+document.getElementById('manageDefaultsBtn').addEventListener('click', openDefaultsModal);
+document.querySelector('#defaultsModal .close-modal').addEventListener('click', closeDefaultsModal);
+document.querySelector('#defaultsModal .modal-backdrop').addEventListener('click', closeDefaultsModal);
+
+function openPoolsModal() {
+  document.getElementById('poolsModal').classList.remove('hidden');
+  refreshPoolsStatus();
+  document.getElementById('poolsPaste').value = '';
+  document.getElementById('poolsPaste').focus();
+}
+function closePoolsModal() {
+  document.getElementById('poolsModal').classList.add('hidden');
+}
+function refreshPoolsStatus() {
+  const totals = ['groups', ...POOLS].map(k => `${k}=${pools[k].length}`).join(', ');
+  const total = ['groups', ...POOLS].reduce((s, k) => s + pools[k].length, 0);
+  document.getElementById('poolsStatus').textContent = total === 0
+    ? 'No pools loaded yet.'
+    : `Loaded ${total} items (${totals}).`;
+}
+document.getElementById('managePoolsBtn').addEventListener('click', openPoolsModal);
+document.querySelector('#poolsModal .close-modal').addEventListener('click', closePoolsModal);
+document.querySelector('#poolsModal .modal-backdrop').addEventListener('click', closePoolsModal);
+document.getElementById('poolsImportBtn').addEventListener('click', () => {
+  const text = document.getElementById('poolsPaste').value;
+  try {
+    const parsed = parsePoolsPaste(text);
+    pools = parsed;
+    savePools();
+    refreshPoolsStatus();
+    document.getElementById('poolsPaste').value = '';
+  } catch (err) {
+    alert('Import failed: ' + err.message);
+  }
+});
+document.getElementById('poolsClearBtn').addEventListener('click', () => {
+  if (!confirm('Clear all loaded pool data? Autocomplete will go back to free-text only.')) return;
+  pools = emptyPools();
+  savePools();
+  refreshPoolsStatus();
+});
+document.getElementById('poolsLoadFileBtn').addEventListener('click', () => document.getElementById('poolsLoadFile').click());
+document.getElementById('poolsLoadFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      pools = parsePoolsPaste(ev.target.result);
+      savePools();
+      refreshPoolsStatus();
+    } catch (err) {
+      alert('Load failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// --- OSC client (WebSocket to local proxy) ---------------------------------
+let oscWs = null;
+let oscState = 'offline'; // offline | connecting | online | sending
+let oscReconnectTimer = null;
+let oscSending = false;
+
+function setOscState(s, label) {
+  oscState = s;
+  const pill = document.getElementById('oscPill');
+  pill.className = 'osc-pill ' + s;
+  pill.textContent = label || ({
+    offline: '○ OSC offline',
+    connecting: '● connecting…',
+    online: '● OSC online',
+    sending: '● sending…'
+  })[s];
+  const canSend = (s === 'online');
+  document.getElementById('sendOscCurrent').disabled = !canSend;
+  document.getElementById('sendOscAll').disabled = !canSend;
+}
+
+function oscConnect() {
+  if (oscWs && (oscWs.readyState === WebSocket.OPEN || oscWs.readyState === WebSocket.CONNECTING)) return;
+  setOscState('connecting');
+  try {
+    oscWs = new WebSocket(OSC_PROXY_URL);
+  } catch (e) {
+    setOscState('offline');
+    return;
+  }
+  oscWs.addEventListener('open', () => {
+    setOscState('online');
+    if (oscReconnectTimer) { clearTimeout(oscReconnectTimer); oscReconnectTimer = null; }
+  });
+  oscWs.addEventListener('close', () => {
+    setOscState('offline');
+    // Auto-retry every 3s when offline (but not while user is actively sending).
+    if (!oscSending && !oscReconnectTimer) {
+      oscReconnectTimer = setTimeout(() => { oscReconnectTimer = null; oscConnect(); }, 3000);
+    }
+  });
+  oscWs.addEventListener('error', () => {
+    // 'close' will fire after this; nothing to do here.
+  });
+  oscWs.addEventListener('message', ev => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (msg.type === 'status' && msg.oscTarget) {
+      const pill = document.getElementById('oscPill');
+      pill.title = `OSC → ${msg.oscTarget} ${msg.oscAddress}\nClick to reconnect`;
+    } else if (msg.type === 'error') {
+      console.error('[osc proxy]', msg.msg);
+    }
+  });
+}
+
+function oscSendLine(line) {
+  return new Promise((resolve, reject) => {
+    if (!oscWs || oscWs.readyState !== WebSocket.OPEN) { reject(new Error('OSC offline')); return; }
+    try {
+      oscWs.send(JSON.stringify({ type: 'cmd', line }));
+      resolve();
+    } catch (e) { reject(e); }
+  });
+}
+
+async function sendCmdLinesViaOsc(lines, label) {
+  if (!lines || lines.length === 0) { alert('Nothing to send.'); return; }
+  if (oscState !== 'online') { alert('OSC proxy is offline. Start the bridge (proxy/start.bat) first.'); return; }
+  if (oscSending) return;
+  oscSending = true;
+  setOscState('sending', `● sending… 0 / ${lines.length}`);
+  try {
+    for (let i = 0; i < lines.length; i++) {
+      await oscSendLine(lines[i]);
+      if (i % 5 === 4 || i === lines.length - 1) {
+        setOscState('sending', `● sending… ${i + 1} / ${lines.length}`);
+      }
+      if (i < lines.length - 1) {
+        await new Promise(r => setTimeout(r, OSC_SEND_INTERVAL_MS));
+      }
+    }
+    setOscState('online');
+    console.log(`[osc] ${label}: ${lines.length} commands sent.`);
+  } catch (err) {
+    setOscState('offline');
+    alert('OSC send failed: ' + err.message + '\nProxy may have disconnected.');
+  } finally {
+    oscSending = false;
+  }
+}
+
+function sendCurrentViaOsc() {
+  const song = activeSong();
+  if (!song || song.cues.length === 0) { alert('No cues in the active song.'); return; }
+  const lines = buildCmdLines([song]);
+  sendCmdLinesViaOsc(lines, `current song "${song.name || '(untitled)'}"`);
+}
+
+function sendAllViaOsc() {
+  const songs = state.songs.filter(s => s.cues && s.cues.length > 0);
+  if (songs.length === 0) { alert('No songs with cues to send.'); return; }
+  const lines = buildCmdLines(songs);
+  sendCmdLinesViaOsc(lines, `${songs.length} song(s)`);
+}
+
+document.getElementById('sendOscCurrent').addEventListener('click', sendCurrentViaOsc);
+document.getElementById('sendOscAll').addEventListener('click', sendAllViaOsc);
+document.getElementById('oscPill').addEventListener('click', () => {
+  if (oscState === 'offline') oscConnect();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!document.getElementById('moodModal').classList.contains('hidden')) { closeMoodModal(); return; }
+    if (!document.getElementById('defaultsModal').classList.contains('hidden')) { closeDefaultsModal(); return; }
+    if (!document.getElementById('poolsModal').classList.contains('hidden')) { closePoolsModal(); return; }
+  }
+  if (e.code === 'Space' && audioEl) {
+    const tag = (e.target.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    e.preventDefault();
+    togglePlay();
+  }
+});
+
+wireLoadAudio();
+
+window.addEventListener('resize', () => {
+  if (!audioBuffer) return;
+  const waveL = document.getElementById('waveL');
+  const waveR = document.getElementById('waveR');
+  if (waveL) drawWaveform(waveL, audioBuffer.getChannelData(0));
+  if (waveR && audioBuffer.numberOfChannels >= 2) drawWaveform(waveR, audioBuffer.getChannelData(1));
+  updatePlayhead();
+});
+document.getElementById('clearAll').addEventListener('click', () => {
+  if (confirm('Clear the whole project (all songs)? This cannot be undone.')) {
+    state = newProject();
+    saveState();
+    render();
+  }
+});
+
+document.querySelector('#poolPickerModal .modal-backdrop').addEventListener('click', closePoolPicker);
+document.querySelector('#poolPickerModal .close-modal').addEventListener('click', closePoolPicker);
+document.getElementById('poolPickerSearch').addEventListener('input', e => renderPoolPickerGrid(e.target.value));
+document.getElementById('poolPickerClear').addEventListener('click', () => pickPoolValue(''));
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('poolPickerModal').classList.contains('hidden')) {
+    closePoolPicker();
+  }
+});
+
+render();
+oscConnect();
+</script>
+</body>
+</html>

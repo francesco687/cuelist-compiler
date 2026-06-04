@@ -1,0 +1,13 @@
+{
+  "name": "cuelist-compiler-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WebSocket -> OSC bridge for sending Cuelist Compiler output to grandMA3.",
+  "main": "ws2osc.js",
+  "scripts": {
+    "start": "node ws2osc.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "songName": "SONG 1",
+  "sequence": 666,
+  "cues": [
+    {
+      "n": 0.1,
+      "name": "DB CUE",
+      "fade": "5",
+      "delay": "",
+      "actions": [
+        {
+          "group": "AROLLA FLOOR",
+          "presets": {
+            "color": "BLUE",
+            "dimmer": "DIMMER 100",
+            "position": "LOW",
+            "gobo": "",
+            "beam": "",
+            "focus": "MEDIUM"
+          }
+        }
+      ]
+    },
+    {
+      "n": 1,
+      "name": "INTRO",
+      "fade": "6",
+      "delay": "",
+      "actions": [
+        {
+          "group": "AROLLA FLOOR",
+          "presets": {
+            "color": "RED",
+            "dimmer": "DIMMER 0",
+            "position": "AUD",
+            "gobo": "",
+            "beam": "",
+            "focus": "WIDE"
+          }
+        }
+      ]
+    }
+  ]
+}
