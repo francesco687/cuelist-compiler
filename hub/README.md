@@ -5,11 +5,31 @@ Receives a show from the iPhone over WebSocket, compiles it with the real
 
 ## Run
 
+Requires Node 20+. On Raspberry Pi OS, install via NodeSource so the binary
+lands at `/usr/bin/node` (the path the systemd unit expects):
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+Then:
+
 ```bash
 cd hub
 npm install
 npm start
 ```
+
+## Deploy as a service (Pi)
+
+```bash
+sudo cp deploy/cuelist-hub.service /etc/systemd/system/
+sudo systemctl enable --now cuelist-hub
+```
+
+If `node` is not at `/usr/bin/node` (e.g. installed via `nvm`), edit
+`ExecStart` in `deploy/cuelist-hub.service` to point at `$(which node)`.
 
 Configure via env:
 
