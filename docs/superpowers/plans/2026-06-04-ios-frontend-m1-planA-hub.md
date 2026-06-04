@@ -275,7 +275,6 @@ const webjs = (p) => fs.readFileSync(path.join(repo, 'web', 'js', p), 'utf8');
 
 const sandbox = {
   console,
-  window: {},
   localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
   document: {
     createElement: () => ({ click() {}, style: {}, setAttribute() {} }),
@@ -288,6 +287,9 @@ const sandbox = {
   setTimeout: () => {},
   Date, Math, JSON, parseInt, parseFloat, isNaN, isFinite, String, Number, Object, Array,
 };
+// Browser parity: in a browser window === globalThis, so the web modules'
+// `window.CC = window.CC || {}` namespace registers a real global `CC`.
+sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
@@ -429,7 +431,6 @@ function createCompiler({ webJsDir } = {}) {
 
   const sandbox = {
     console,
-    window: {},
     localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     document: {
       createElement: () => ({ click() {}, style: {}, setAttribute() {} }),
@@ -442,6 +443,9 @@ function createCompiler({ webJsDir } = {}) {
     setTimeout: () => {},
     Date, Math, JSON, parseInt, parseFloat, isNaN, isFinite, String, Number, Object, Array,
   };
+  // Browser parity: in a browser window === globalThis, so the web modules'
+  // `window.CC = window.CC || {}` namespace registers a real global `CC`.
+  sandbox.window = sandbox;
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
 
@@ -482,7 +486,9 @@ function compileShow(api, { project, defaults, selection }) {
     songs = migrated.songs.filter((s) => Array.isArray(s.cues) && s.cues.length);
   }
   if (songs.length === 0) throw new Error('no cues to send');
-  return api.buildCmdLines(songs);
+  // buildCmdLines returns a vm-realm Array (different Array.prototype than the host),
+  // which breaks assert.deepStrictEqual. Marshal back to a host string array.
+  return Array.from(api.buildCmdLines(songs)).map(String);
 }
 
 module.exports = { createCompiler, compileShow, normalizeDefaults };
