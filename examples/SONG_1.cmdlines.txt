@@ -1,0 +1,17 @@
+ClearAll
+Group "AROLLA FLOOR"
+At Preset 4."BLUE"
+At Preset 1."DIMMER 100"
+At Preset 2."LOW"
+At Preset 6."MEDIUM"
+Store Sequence 666 Cue 0.1 "DB CUE" /Overwrite /NoConfirmation
+Set Sequence 666 Cue 0.1 Fade 5
+ClearAll
+Group "AROLLA FLOOR"
+At Preset 4."RED"
+At Preset 1."DIMMER 0"
+At Preset 2."AUD"
+At Preset 6."WIDE"
+Store Sequence 666 Cue 1 "INTRO" /Overwrite /NoConfirmation
+Set Sequence 666 Cue 1 Fade 6
+ClearAll
