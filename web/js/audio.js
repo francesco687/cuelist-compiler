@@ -1,0 +1,351 @@
+// audio.js — WebAudio decode/playback, channel gain, waveform, playhead, cue markers. Depends on: constants, util, state, render.
+
+// Audio state (per-session, not persisted on disk)
+// audioCache holds decoded audio per song id; the globals below mirror the
+// entry for the currently-active song and get swapped on song switch.
+let audioCtx = null;
+let audioEl = null;
+let audioBuffer = null;
+let audioGainL = null, audioGainR = null;
+let audioFileName = '';
+let audioRAF = null;
+const audioCache = new Map(); // songId -> { audioEl, audioBuffer, audioGainL, audioGainR, fileName }
+let currentAudioSongId = null;
+const channelMute = { L: false, R: false };
+
+async function loadAudioFile(file) {
+  const targetSongId = state.activeSongId;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    const buf = await file.arrayBuffer();
+    const newBuffer = await audioCtx.decodeAudioData(buf.slice(0));
+
+    // Tear down any existing cache entry for this song before replacing.
+    const prev = audioCache.get(targetSongId);
+    if (prev) {
+      try { prev.audioEl.pause(); } catch (e) {}
+      try { URL.revokeObjectURL(prev.audioEl.src); } catch (e) {}
+    }
+
+    const newEl = new Audio();
+    newEl.src = URL.createObjectURL(file);
+    newEl.preservesPitch = false;
+
+    await new Promise((resolve, reject) => {
+      newEl.addEventListener('loadedmetadata', resolve, { once: true });
+      newEl.addEventListener('error', () => reject(new Error('audio load error')), { once: true });
+    });
+
+    const source = audioCtx.createMediaElementSource(newEl);
+    const ch = newBuffer.numberOfChannels;
+    let gL, gR;
+    if (ch >= 2) {
+      const splitter = audioCtx.createChannelSplitter(2);
+      const merger = audioCtx.createChannelMerger(2);
+      gL = audioCtx.createGain();
+      gR = audioCtx.createGain();
+      gL.gain.value = channelMute.L ? 0 : 1;
+      gR.gain.value = channelMute.R ? 0 : 1;
+      source.connect(splitter);
+      splitter.connect(gL, 0);
+      splitter.connect(gR, 1);
+      gL.connect(merger, 0, 0);
+      gR.connect(merger, 0, 1);
+      merger.connect(audioCtx.destination);
+    } else {
+      gL = audioCtx.createGain();
+      gR = null;
+      source.connect(gL);
+      gL.connect(audioCtx.destination);
+    }
+
+    newEl.addEventListener('play', startPlayheadLoop);
+    newEl.addEventListener('pause', stopPlayheadLoop);
+    newEl.addEventListener('ended', stopPlayheadLoop);
+
+    audioCache.set(targetSongId, {
+      audioEl: newEl,
+      audioBuffer: newBuffer,
+      audioGainL: gL,
+      audioGainR: gR,
+      fileName: file.name
+    });
+
+    const song = state.songs.find(s => s.id === targetSongId);
+    if (song) {
+      song.audioFileName = file.name;
+      saveState();
+    }
+
+    if (state.activeSongId === targetSongId) {
+      setActiveAudioFromCache(targetSongId);
+      renderAudioPanel();
+    }
+  } catch (err) {
+    alert('Audio load failed: ' + err.message);
+  }
+}
+
+function setActiveAudioFromCache(songId) {
+  // Pause whatever was active so it doesn't keep playing after the swap.
+  if (audioEl && currentAudioSongId !== songId) {
+    try { audioEl.pause(); } catch (e) {}
+  }
+  stopPlayheadLoop();
+  const entry = audioCache.get(songId);
+  if (entry) {
+    audioEl = entry.audioEl;
+    audioBuffer = entry.audioBuffer;
+    audioGainL = entry.audioGainL;
+    audioGainR = entry.audioGainR;
+    audioFileName = entry.fileName;
+    // Re-apply current channel mute settings to this song's gain nodes.
+    if (audioGainL) audioGainL.gain.value = channelMute.L ? 0 : 1;
+    if (audioGainR) audioGainR.gain.value = channelMute.R ? 0 : 1;
+  } else {
+    audioEl = null;
+    audioBuffer = null;
+    audioGainL = null;
+    audioGainR = null;
+    audioFileName = '';
+  }
+  currentAudioSongId = songId;
+}
+
+function setChannelMute(ch, muted) {
+  channelMute[ch] = muted;
+  if (ch === 'L' && audioGainL) audioGainL.gain.value = muted ? 0 : 1;
+  if (ch === 'R' && audioGainR) audioGainR.gain.value = muted ? 0 : 1;
+  document.querySelectorAll('.channel-toggle').forEach(btn => {
+    const c = btn.dataset.ch;
+    if (c) {
+      btn.classList.toggle('active', !channelMute[c]);
+      btn.classList.toggle('muted', channelMute[c]);
+    }
+  });
+}
+
+function drawWaveform(canvas, channelData) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = Math.max(1, Math.floor(w * dpr));
+  canvas.height = Math.max(1, Math.floor(h * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.strokeStyle = '#1f1f23';
+  ctx.beginPath();
+  ctx.moveTo(0, h / 2);
+  ctx.lineTo(w, h / 2);
+  ctx.stroke();
+
+  if (!channelData || channelData.length === 0) return;
+
+  const samplesPerPixel = Math.max(1, Math.floor(channelData.length / w));
+  ctx.fillStyle = '#5b8dd6';
+  for (let x = 0; x < w; x++) {
+    let min = 1, max = -1;
+    const start = x * samplesPerPixel;
+    const end = Math.min(channelData.length, start + samplesPerPixel);
+    for (let i = start; i < end; i++) {
+      const s = channelData[i];
+      if (s < min) min = s;
+      if (s > max) max = s;
+    }
+    const y1 = ((1 - max) / 2) * h;
+    const y2 = ((1 - min) / 2) * h;
+    ctx.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+  }
+}
+
+function renderAudioPanel() {
+  const panel = document.getElementById('audioPanel');
+  if (!audioEl || !audioBuffer) {
+    const song = activeSong();
+    const remembered = song && song.audioFileName ? song.audioFileName : '';
+    panel.className = 'empty';
+    panel.innerHTML = `
+      <button id="loadAudioBtn" class="ghost">${remembered ? 'Load Audio…' : 'Load Audio…'}</button>
+      <input type="file" id="loadAudio" accept="audio/*" style="display:none">
+      <span style="margin-left:8px;font-size:0.85em;">${
+        remembered
+          ? '🎵 ' + escapeHtml(remembered) + ' <span style="color:#888;">— click Load Audio to re-select</span>'
+          : 'no audio loaded'
+      }</span>
+    `;
+    wireLoadAudio();
+    return;
+  }
+
+  const ch = audioBuffer.numberOfChannels;
+  const dur = audioBuffer.duration;
+  panel.className = '';
+  panel.innerHTML = `
+    <div id="audioControls">
+      <button id="playBtn">${audioEl.paused ? '▶ Play' : '⏸ Pause'}</button>
+      ${ch >= 2 ? `
+        <button class="channel-toggle ${channelMute.L ? 'muted' : 'active'}" data-ch="L" title="Toggle Left channel">L</button>
+        <button class="channel-toggle ${channelMute.R ? 'muted' : 'active'}" data-ch="R" title="Toggle Right channel">R</button>
+      ` : ''}
+      <span class="filename" title="${escapeHtml(audioFileName)}">${escapeHtml(audioFileName)}</span>
+      <span class="time" id="audioTime">0:00 / ${secondsToMMSS(dur)}</span>
+      <button id="reloadAudioBtn" class="ghost" title="Load a different file">Change</button>
+      <input type="file" id="loadAudio" accept="audio/*" style="display:none">
+    </div>
+    <div id="timeline">
+      ${ch >= 2 ? `
+        <div class="channel-wave"><span class="chan-label">L</span><canvas id="waveL"></canvas></div>
+        <div class="channel-wave"><span class="chan-label">R</span><canvas id="waveR"></canvas></div>
+      ` : `
+        <div class="channel-wave" style="height:90px;"><canvas id="waveL"></canvas></div>
+      `}
+      <div class="markers" id="markers"></div>
+      <div class="playhead" id="playhead" style="left:0px"></div>
+    </div>
+  `;
+
+  document.getElementById('playBtn').addEventListener('click', togglePlay);
+  document.getElementById('reloadAudioBtn').addEventListener('click', () => document.getElementById('loadAudio').click());
+  document.getElementById('loadAudio').addEventListener('change', e => {
+    if (e.target.files[0]) loadAudioFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  panel.querySelectorAll('.channel-toggle').forEach(btn => {
+    btn.addEventListener('click', () => setChannelMute(btn.dataset.ch, !channelMute[btn.dataset.ch]));
+  });
+
+  const tl = document.getElementById('timeline');
+  tl.addEventListener('click', e => {
+    if (e.target.classList.contains('marker')) return;
+    const rect = tl.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audioEl.currentTime = Math.max(0, Math.min(dur, pct * dur));
+    updatePlayhead();
+  });
+
+  // Draw waveforms once panel is in DOM (with proper width)
+  requestAnimationFrame(() => {
+    const waveL = document.getElementById('waveL');
+    if (waveL) drawWaveform(waveL, audioBuffer.getChannelData(0));
+    if (ch >= 2) {
+      const waveR = document.getElementById('waveR');
+      if (waveR) drawWaveform(waveR, audioBuffer.getChannelData(1));
+    }
+    renderMarkers();
+    updatePlayhead();
+  });
+}
+
+function wireLoadAudio() {
+  const btn = document.getElementById('loadAudioBtn');
+  const input = document.getElementById('loadAudio');
+  if (!btn || !input) return;
+  btn.addEventListener('click', () => input.click());
+  input.addEventListener('change', e => {
+    if (e.target.files[0]) loadAudioFile(e.target.files[0]);
+    e.target.value = '';
+  });
+}
+
+function togglePlay() {
+  if (!audioEl) return;
+  if (audioEl.paused) {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    audioEl.play();
+  } else {
+    audioEl.pause();
+  }
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = audioEl.paused ? '▶ Play' : '⏸ Pause';
+}
+
+function startPlayheadLoop() {
+  stopPlayheadLoop();
+  const tick = () => {
+    updatePlayhead();
+    audioRAF = requestAnimationFrame(tick);
+  };
+  audioRAF = requestAnimationFrame(tick);
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = '⏸ Pause';
+}
+
+function stopPlayheadLoop() {
+  if (audioRAF != null) cancelAnimationFrame(audioRAF);
+  audioRAF = null;
+  updatePlayhead();
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = '▶ Play';
+}
+
+function updatePlayhead() {
+  if (!audioEl || !audioBuffer) return;
+  const tl = document.getElementById('timeline');
+  const ph = document.getElementById('playhead');
+  const timeEl = document.getElementById('audioTime');
+  if (!tl || !ph) return;
+  const dur = audioBuffer.duration;
+  const t = audioEl.currentTime;
+  const pct = dur > 0 ? t / dur : 0;
+  ph.style.left = (pct * tl.clientWidth) + 'px';
+  if (timeEl) timeEl.textContent = `${secondsToMMSS(t)} / ${secondsToMMSS(dur)}`;
+  updateCurrentMarker(t);
+}
+
+function updateCurrentMarker(t) {
+  const song = activeSong();
+  if (!song) return;
+  const positions = song.cues
+    .map(c => ({ c, s: timecodeToSeconds(c.position) }))
+    .filter(x => !isNaN(x.s));
+  if (positions.length === 0) return;
+  let currentId = null;
+  for (const { c, s } of positions) {
+    if (s <= t) currentId = c;
+    else break;
+  }
+  document.querySelectorAll('#markers .marker').forEach(m => {
+    m.classList.toggle('current', currentId && m.dataset.cueN === String(currentId.n));
+  });
+}
+
+function renderMarkers() {
+  const song = activeSong();
+  const markers = document.getElementById('markers');
+  if (!song || !markers || !audioBuffer) return;
+  markers.innerHTML = '';
+  const dur = audioBuffer.duration;
+  if (dur <= 0) return;
+  song.cues.forEach(cue => {
+    const s = timecodeToSeconds(cue.position);
+    if (isNaN(s)) return;
+    const pct = s / dur;
+    if (pct < 0 || pct > 1) return;
+    const m = document.createElement('div');
+    m.className = 'marker';
+    m.style.left = (pct * 100) + '%';
+    m.dataset.cueN = String(cue.n);
+    m.title = `${cue.position} — Cue ${cue.n}${cue.name ? ' "' + cue.name + '"' : ''}`;
+    const lbl = document.createElement('span');
+    lbl.className = 'marker-label';
+    lbl.textContent = cue.name || `Cue ${cue.n}`;
+    m.appendChild(lbl);
+    m.addEventListener('click', e => {
+      e.stopPropagation();
+      audioEl.currentTime = s;
+      song.cues.forEach(c => c.collapsed = (c.n !== cue.n));
+      saveState();
+      render();
+      updatePlayhead();
+    });
+    markers.appendChild(m);
+  });
+  updateCurrentMarker(audioEl ? audioEl.currentTime : 0);
+}
+
+// --- public surface
+window.CC = window.CC || {};
+CC.audio = { loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel, wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead, updateCurrentMarker, renderMarkers };
