@@ -7,6 +7,7 @@ struct CuelistCompilerApp: App {
     @State private var hub = HubClient(makeConnection: { url in
         URLSessionWebSocketConnection(url: url)
     })
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -14,6 +15,9 @@ struct CuelistCompilerApp: App {
                 .environment(store)
                 .environment(hub)
                 .onAppear { if !hub.host.isEmpty { hub.connect() } }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { store.saveNow() }
         }
     }
 }
