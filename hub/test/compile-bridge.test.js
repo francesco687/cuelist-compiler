@@ -42,3 +42,25 @@ test('defaults supply fade fallback', () => {
   const lines = compileShow(api, { project, defaults, selection: 'all' });
   assert.ok(lines.includes('Fade 3 FeatureGroup 4'), lines.join('\n'));
 });
+
+test('selection: current returns only the active song; all returns both', () => {
+  const api = createCompiler();
+  const mk = (id, seq, group, presetName, cueName) => ({
+    id, name: id, sequence: seq,
+    cues: [{ n: 1, name: cueName, fade: '', delay: '', actions: [
+      { group, presets: { color: { name: presetName, fade: '', delay: '' } } }
+    ] }],
+  });
+  const project = {
+    songs: [ mk('s1', 1, 'G1', 'C1', 'CUE_ONE'), mk('s2', 2, 'G2', 'C2', 'CUE_TWO') ],
+    activeSongId: 's2', storeMode: 'Overwrite',
+  };
+
+  const all = compileShow(api, { project, selection: 'all' });
+  const current = compileShow(api, { project, selection: 'current' });
+
+  // 'all' includes both songs' groups/cues; 'current' includes only the active (s2) song's.
+  assert.ok(all.includes('Group "G1"') && all.includes('Group "G2"'), all.join('\n'));
+  assert.ok(current.includes('Group "G2"'), current.join('\n'));
+  assert.ok(!current.includes('Group "G1"'), 'current must exclude the non-active song: ' + current.join('\n'));
+});
