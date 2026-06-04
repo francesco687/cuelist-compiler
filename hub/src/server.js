@@ -16,6 +16,10 @@ function startServer(config) {
 
   const send = (ws, obj) => { try { ws.send(JSON.stringify(obj)); } catch { /* socket gone */ } };
 
+  // Single-operator hub: relays are NOT serialized across connections. compileShow is
+  // synchronous so the compiler's VM state can't corrupt mid-compile, but two overlapping
+  // compile-send relays would interleave OSC datagrams on the wire. Acceptable for one phone;
+  // if a second client is ever added, gate concurrent compile-send with an in-flight flag.
   async function relayLines(ws, lines) {
     for (let i = 0; i < lines.length; i++) {
       await sender.send(lines[i]);
@@ -56,7 +60,11 @@ function startServer(config) {
   return {
     wss,
     close() {
-      return new Promise((resolve) => { sender.close(); wss.close(resolve); });
+      return new Promise((resolve) => {
+        for (const client of wss.clients) client.terminate();
+        sender.close();
+        wss.close(resolve);
+      });
     },
   };
 }
