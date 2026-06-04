@@ -13,3 +13,6 @@ ios/DerivedData/
 *.xcuserstate
 xcuserdata/
 .swiftpm/
+
+# Superpowers brainstorm scratch
+.superpowers/
