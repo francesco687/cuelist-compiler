@@ -47,6 +47,7 @@ public final class HubClient {
     public func connect() {
         guard let url else { state = .error("set hub host first"); return }
         state = .connecting
+        connection?.close()                 // tear down any prior socket before replacing
         let conn = makeConnection(url)
         connection = conn
         conn.connect { [weak self] event in

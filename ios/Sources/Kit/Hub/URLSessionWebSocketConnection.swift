@@ -30,6 +30,7 @@ public final class URLSessionWebSocketConnection: NSObject, HubConnection, URLSe
     public func close() {
         task?.cancel(with: .normalClosure, reason: nil)
         task = nil
+        session.invalidateAndCancel()   // breaks the URLSession↔delegate retain cycle
     }
 
     private func receive() {
