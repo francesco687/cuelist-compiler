@@ -1,0 +1,67 @@
+name: CuelistCompiler
+options:
+  bundleIdPrefix: com.blearred
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    DEVELOPMENT_TEAM: UWJSLFQDGL
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+targets:
+  CuelistCompilerKit:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/Kit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.cuelistcompiler.kit
+        ENABLE_TESTABILITY: YES
+        GENERATE_INFOPLIST_FILE: YES
+  CuelistCompiler:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/App
+    dependencies:
+      - target: CuelistCompilerKit
+    info:
+      path: Sources/App/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSLocalNetworkUsageDescription: "Cuelist Compiler connects to your hub on the local network to send shows to your console."
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.cuelistcompiler
+  CuelistCompilerKitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/KitTests
+      - path: ../examples/SONG_1.json
+        buildPhase: resources
+    dependencies:
+      - target: CuelistCompilerKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.cuelistcompiler.kittests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  CuelistCompilerKit:
+    build:
+      targets:
+        CuelistCompilerKit: all
+    test:
+      targets:
+        - CuelistCompilerKitTests
+  CuelistCompiler:
+    build:
+      targets:
+        CuelistCompiler: all
