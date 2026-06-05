@@ -86,4 +86,13 @@ final class ProjectStoreMutationTests: XCTestCase {
         s.removeCues(ids: ids)
         XCTAssertEqual(s.activeSong.cues.map(\.n), [2])     // middle one survives
     }
+
+    func testRenumberFromOneAssignsSequentialIntegers() {
+        let s = store()
+        s.addCue(); s.addCue(); s.addCue()
+        s.updateActiveCue(id: s.activeSong.cues[0].id) { $0.n = 10 }
+        s.updateActiveCue(id: s.activeSong.cues[1].id) { $0.n = 2.5 }
+        s.renumberFromOne()
+        XCTAssertEqual(s.activeSong.cues.map(\.n), [1, 2, 3])   // display order, integer steps
+    }
 }

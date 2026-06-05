@@ -54,6 +54,14 @@ public extension ProjectStore {
         project.songs[i].cues.sort { $0.n < $1.n }
     }
 
+    /// Reassign cue numbers 1,2,3… in current display (array) order. Integer steps.
+    func renumberFromOne() {
+        let i = activeSongIndex()
+        for k in project.songs[i].cues.indices {
+            project.songs[i].cues[k].n = Double(k + 1)
+        }
+    }
+
     /// Bulk-remove cues of the active song whose id is in `ids`.
     func removeCues(ids: Set<UUID>) {
         let i = activeSongIndex()
