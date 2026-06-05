@@ -57,6 +57,7 @@ struct CueCardView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .allowsHitTesting(!isEditing)
 
             if !cue.notes.isEmpty {
                 Button { editingNote = true } label: {
