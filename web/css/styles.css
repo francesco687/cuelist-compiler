@@ -88,35 +88,29 @@
 
   input, button, select { font: inherit; }
   input[type="text"], input[type="number"] {
-    background: #2a2a2e;
-    border: 1px solid #444;
-    color: #e8e8e8;
-    padding: 4px 8px;
-    border-radius: 4px;
-    outline: none;
-    font-size: 0.9em;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); padding: 5px 9px; border-radius: var(--radius-sm);
+    outline: none; font-size: 0.9em; transition: border-color .12s, box-shadow .12s;
   }
-  input[type="text"]:focus, input[type="number"]:focus { border-color: #5b8dd6; }
+  input[type="text"]:focus, input[type="number"]:focus {
+    border-color: var(--accent-solid);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
   button {
-    background: #3d6ec6;
-    border: none;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 0.9em;
+    background: var(--accent); border: none; color: #fff;
+    padding: 7px 13px; border-radius: var(--radius-sm); cursor: pointer;
+    font-weight: 600; font-size: 0.9em; transition: filter .12s, transform .05s;
+    box-shadow: 0 1px 8px rgba(122,92,255,.25);
   }
-  button:hover { background: #4d80d6; }
-  button.danger { background: #c63d3d; }
-  button.danger:hover { background: #d65555; }
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: translateY(0.5px); }
+  button.danger { background: var(--danger); box-shadow: none; }
+  button.danger:hover { filter: brightness(1.08); }
   button.ghost {
-    background: transparent;
-    border: 1px dashed #555;
-    color: #aaa;
-    font-weight: 400;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-dim); font-weight: 500; box-shadow: none;
   }
-  button.ghost:hover { border-color: #888; color: #ddd; }
+  button.ghost:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
 
   #header {
     display: flex; gap: 10px; margin-bottom: 16px;
