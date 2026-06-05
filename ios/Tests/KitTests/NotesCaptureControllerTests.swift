@@ -28,6 +28,17 @@ final class NotesCaptureControllerTests: XCTestCase {
         await c.routeText("x", project: project(), targetCue: nil)
         if case .error = c.phase {} else { XCTFail("expected error phase") }
     }
+    func testRemoveRouteDropsOneEditByIndex() async {
+        let c = NotesCaptureController(recorder: NoopRecorder(), transcriber: NoopTranscriber(text: ""),
+                                       router: StubRouter(result: [NoteEdit(cue: 1, text: "dim"),
+                                                                    NoteEdit(cue: 2, text: "hard")]))
+        await c.routeText("two notes", project: project(), targetCue: nil)
+        XCTAssertEqual(c.routed.count, 2)
+        c.removeRoute(at: 0)
+        XCTAssertEqual(c.routed, [NoteEdit(cue: 2, text: "hard")])
+        c.removeRoute(at: 5)                       // out of range — no-op
+        XCTAssertEqual(c.routed.count, 1)
+    }
 }
 
 // Stubs adjusted to match real AudioRecorder/Transcriber protocol signatures:
