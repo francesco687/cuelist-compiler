@@ -39,12 +39,16 @@ public final class KeychainAIKeyStore: AIKeyStore, @unchecked Sendable {
         guard !value.isEmpty else { return }
         var q = baseQuery(provider)
         q[kSecValueData as String] = Data(value.utf8)
-        SecItemAdd(q as CFDictionary, nil)
+        let status = SecItemAdd(q as CFDictionary, nil)
+        #if !targetEnvironment(simulator)
+        assert(status == errSecSuccess, "KeychainAIKeyStore.set: SecItemAdd failed (\(status))")
+        #endif
     }
 
     private func baseQuery(_ provider: AIProvider) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
          kSecAttrService as String: service,
-         kSecAttrAccount as String: provider.rawValue]
+         kSecAttrAccount as String: provider.rawValue,
+         kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock]
     }
 }
