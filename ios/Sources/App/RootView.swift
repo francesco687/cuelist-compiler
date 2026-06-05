@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(VoiceCaptureController.self) private var voice
     @State private var showSettings = false
     @State private var showDefaults = false
+    @State private var showPull = false
 
     var body: some View {
         NavigationStack {
@@ -20,6 +21,8 @@ struct RootView: View {
                 ToolbarItem(placement: .topBarLeading) { micButton }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button { showPull = true } label: { Label("Pull from MA…", systemImage: "arrow.down.circle") }
+                        Divider()
                         Button("Defaults…") { showDefaults = true }
                         Button("Settings…") { showSettings = true }
                     } label: { Image(systemName: "slider.horizontal.3") }
@@ -27,6 +30,7 @@ struct RootView: View {
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showDefaults) { DefaultsView() }
+            .sheet(isPresented: $showPull) { PullSequencesView() }
             .sheet(isPresented: previewBinding) {
                 if let pending = voice.pending {
                     VoicePreviewSheet(

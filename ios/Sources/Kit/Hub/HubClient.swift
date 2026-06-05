@@ -24,6 +24,11 @@ public final class HubClient {
     public private(set) var progress: SendProgress?
     public private(set) var lastResult: SendResult?
 
+    // Pull side: request the showfile's sequence list from the desk.
+    public private(set) var isPulling = false
+    public private(set) var sequences: [PulledSequence]?
+    public private(set) var pullError: String?
+
     public var host: String { didSet { defaults.set(host, forKey: Keys.host) } }
     public var port: Int    { didSet { defaults.set(port, forKey: Keys.port) } }
 
@@ -78,6 +83,21 @@ public final class HubClient {
         }
     }
 
+    /// Ask the desk for the sequence list currently in the loaded showfile.
+    public func pullSequences() {
+        if !state.isOnline { connect() }
+        guard let conn = connection else { return }
+        do {
+            let text = try OutgoingMessage.pullSequences.jsonString()
+            isPulling = true
+            pullError = nil
+            conn.send(text)
+        } catch {
+            isPulling = false
+            pullError = "encode failed: \(error.localizedDescription)"
+        }
+    }
+
     private func handle(_ text: String) {
         guard let msg = try? IncomingMessage.decode(text) else { return }
         switch msg {
@@ -89,6 +109,12 @@ public final class HubClient {
         case let .error(message):
             progress = nil
             lastResult = .failed(message)
+        case let .sequences(_, seqs):
+            isPulling = false
+            sequences = seqs
+        case let .pullError(message):
+            isPulling = false
+            pullError = message
         case .other:
             break
         }

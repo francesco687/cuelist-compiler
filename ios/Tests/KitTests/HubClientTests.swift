@@ -68,6 +68,33 @@ final class HubClientTests: XCTestCase {
         XCTAssertEqual(client.state, .error("socket dropped"))
     }
 
+    func testPullSequencesEmitsRequestAndStoresList() throws {
+        let (client, mock) = makeClient()
+        client.connect(); mock.emit(.opened)
+        client.pullSequences()
+
+        XCTAssertTrue(client.isPulling)
+        XCTAssertEqual(mock.sent.count, 1)
+        let obj = try JSONSerialization.jsonObject(with: Data(mock.sent[0].utf8)) as! [String: Any]
+        XCTAssertEqual(obj["type"] as? String, "pull-sequences")
+
+        mock.emit(.text(#"{"type":"sequences","version":1,"sequences":[{"no":1,"name":"A"},{"no":666,"name":"B"}]}"#))
+        XCTAssertFalse(client.isPulling)
+        XCTAssertEqual(client.sequences?.count, 2)
+        XCTAssertEqual(client.sequences?.first, PulledSequence(no: 1, name: "A"))
+        XCTAssertNil(client.pullError)
+    }
+
+    func testPullErrorSetsPullError() {
+        let (client, mock) = makeClient()
+        client.connect(); mock.emit(.opened)
+        client.pullSequences()
+        mock.emit(.text(#"{"type":"pull-error","message":"timed out"}"#))
+        XCTAssertFalse(client.isPulling)
+        XCTAssertEqual(client.pullError, "timed out")
+        XCTAssertNil(client.sequences)
+    }
+
     func testHostPortPersist() {
         let suite = "cc-test-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!
