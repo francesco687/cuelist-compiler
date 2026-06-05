@@ -167,7 +167,9 @@ public enum ShowEditApplier {
             if let fade { preset.fade = fade }
             if let delay { preset.delay = delay }
             d.values[pool] = preset
-            summary.append("Default \(pool.rawValue) \u{00B7} fade \(preset.fade) delay \(preset.delay)")
+            let fStr = preset.fade.isEmpty  ? "" : " fade \(preset.fade)"
+            let dStr = preset.delay.isEmpty ? "" : " delay \(preset.delay)"
+            summary.append("Default \(pool.rawValue) \u{00B7}\(fStr)\(dStr)")
 
         case let .setStoreMode(mode):
             p.storeMode = mode

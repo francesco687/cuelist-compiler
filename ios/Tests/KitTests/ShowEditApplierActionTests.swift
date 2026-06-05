@@ -52,5 +52,26 @@ final class ShowEditApplierActionTests: XCTestCase {
         ], to: base(), defaults: Defaults())
         XCTAssertEqual(r.defaults.fade(.dimmer), "3")
         XCTAssertEqual(r.project.storeMode, .merge)
+        XCTAssertEqual(r.summary, ["Default dimmer · fade 3", "Store mode → Merge"])
+    }
+
+    func testSetPresetMissingActionBlockWarns() {
+        let r = ShowEditApplier.apply([.setPreset(song: nil, cue: 1, pool: .color,
+                                                   name: "Blue", fade: nil, delay: nil, block: 99)],
+                                      to: base(), defaults: Defaults())
+        XCTAssertEqual(r.warnings, ["Cue 1 has no action block 99 — skipped setPreset"])
+        XCTAssertTrue(r.summary.isEmpty)
+    }
+
+    func testSetPresetNilFieldsLeaveExistingUntouched() {
+        var p = base()
+        p.songs[0].cues[0].actions[0].presets[.color] = Preset(name: "Blue", fade: "5", delay: "1")
+        let r = ShowEditApplier.apply([.setPreset(song: nil, cue: 1, pool: .color,
+                                                   name: nil, fade: nil, delay: nil, block: nil)],
+                                      to: p, defaults: Defaults())
+        let preset = r.project.songs[0].cues[0].actions[0].presets[.color]
+        XCTAssertEqual(preset?.name, "Blue")    // unchanged
+        XCTAssertEqual(preset?.fade, "5")       // unchanged
+        XCTAssertEqual(preset?.delay, "1")      // unchanged
     }
 }
