@@ -2,6 +2,8 @@ import Foundation
 import AVFoundation
 import CuelistCompilerKit
 
+enum RecorderError: Error { case couldNotStart }
+
 /// Concrete AudioRecorder backed by AVAudioRecorder. Records ~AAC m4a to a temp file.
 @MainActor
 final class AVAudioFileRecorder: AudioRecorder {
@@ -27,7 +29,7 @@ final class AVAudioFileRecorder: AudioRecorder {
             AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
         ]
         let rec = try AVAudioRecorder(url: url, settings: settings)
-        rec.record()
+        guard rec.record() else { throw RecorderError.couldNotStart }
         recorder = rec; fileURL = url
     }
 
@@ -35,6 +37,8 @@ final class AVAudioFileRecorder: AudioRecorder {
         recorder?.stop()
         recorder = nil
         try? AVAudioSession.sharedInstance().setActive(false)
-        return fileURL
+        let url = fileURL
+        fileURL = nil
+        return url
     }
 }
