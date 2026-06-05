@@ -1,7 +1,7 @@
 // osc.js — WebSocket client to the proxy; throttled command send; status pill. Depends on: constants, compile (buildCmdLines), state.
 
 // --- OSC client (WebSocket to local proxy) ---------------------------------
-let oscWs = null;
+let transport = null;
 let oscState = 'offline'; // offline | connecting | online | sending
 let oscReconnectTimer = null;
 let oscSending = false;
@@ -22,48 +22,31 @@ function setOscState(s, label) {
 }
 
 function oscConnect() {
-  if (oscWs && (oscWs.readyState === WebSocket.OPEN || oscWs.readyState === WebSocket.CONNECTING)) return;
-  setOscState('connecting');
-  try {
-    oscWs = new WebSocket(OSC_PROXY_URL);
-  } catch (e) {
-    setOscState('offline');
-    return;
+  if (!transport) {
+    transport = CC.transport.make(window, { proxyUrl: OSC_PROXY_URL });
+    transport.onStatus = (s) => {
+      if (oscSending) return;            // don't clobber the sending label
+      if (s === 'online') { setOscState('online'); if (oscReconnectTimer) { clearTimeout(oscReconnectTimer); oscReconnectTimer = null; } }
+      else if (s === 'connecting') setOscState('connecting');
+      else { setOscState('offline'); if (!oscReconnectTimer) oscReconnectTimer = setTimeout(() => { oscReconnectTimer = null; oscConnect(); }, 3000); }
+    };
+    // Proxy status/error messages (WebSocket transport only) → pill title + log.
+    transport.onMessage = (msg) => {
+      if (msg.type === 'status' && msg.oscTarget) {
+        const pill = document.getElementById('oscPill');
+        pill.title = `OSC → ${msg.oscTarget} ${msg.oscAddress}\nClick to reconnect`;
+      } else if (msg.type === 'error') {
+        console.error('[osc proxy]', msg.msg);
+      }
+    };
   }
-  oscWs.addEventListener('open', () => {
-    setOscState('online');
-    if (oscReconnectTimer) { clearTimeout(oscReconnectTimer); oscReconnectTimer = null; }
-  });
-  oscWs.addEventListener('close', () => {
-    setOscState('offline');
-    // Auto-retry every 3s when offline (but not while user is actively sending).
-    if (!oscSending && !oscReconnectTimer) {
-      oscReconnectTimer = setTimeout(() => { oscReconnectTimer = null; oscConnect(); }, 3000);
-    }
-  });
-  oscWs.addEventListener('error', () => {
-    // 'close' will fire after this; nothing to do here.
-  });
-  oscWs.addEventListener('message', ev => {
-    let msg;
-    try { msg = JSON.parse(ev.data); } catch (e) { return; }
-    if (msg.type === 'status' && msg.oscTarget) {
-      const pill = document.getElementById('oscPill');
-      pill.title = `OSC → ${msg.oscTarget} ${msg.oscAddress}\nClick to reconnect`;
-    } else if (msg.type === 'error') {
-      console.error('[osc proxy]', msg.msg);
-    }
-  });
+  if (oscState === 'online' || oscState === 'connecting') return;
+  transport.connect().catch(() => setOscState('offline'));
 }
 
 function oscSendLine(line) {
-  return new Promise((resolve, reject) => {
-    if (!oscWs || oscWs.readyState !== WebSocket.OPEN) { reject(new Error('OSC offline')); return; }
-    try {
-      oscWs.send(JSON.stringify({ type: 'cmd', line }));
-      resolve();
-    } catch (e) { reject(e); }
-  });
+  if (!transport) return Promise.reject(new Error('OSC offline'));
+  return transport.sendLine(line);
 }
 
 async function sendCmdLinesViaOsc(lines, label) {
