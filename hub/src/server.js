@@ -59,8 +59,10 @@ function startServer(config) {
             file: config.pullFile,
             timeoutMs: config.pullTimeoutMs,
           });
+          console.log(`[hub] pull ok: ${data.sequences.length} sequences -> relaying`);
           send(ws, { type: 'sequences', version: data.version ?? 1, sequences: data.sequences });
         } catch (e) {
+          console.log(`[hub] pull failed: ${e.message}`);
           send(ws, { type: 'pull-error', message: e.message });
         }
       } else if (msg.type === 'ping') {
