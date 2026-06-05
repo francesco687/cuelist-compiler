@@ -37,4 +37,25 @@ final class WhisperTranscriberTests: XCTestCase {
         catch let VoiceError.api(status, _) { XCTAssertEqual(status, 401) }
         catch { XCTFail("wrong error: \(error)") }
     }
+
+    func testEmptyKeyThrowsMissingKey() async {
+        let t = WhisperTranscriber(apiKey: "", transport: MockHTTPTransport())
+        do { _ = try await t.transcribe(URL(fileURLWithPath: "/tmp/x.m4a")); XCTFail("expected throw") }
+        catch VoiceError.missingKey(let provider) { XCTAssertEqual(provider, "OpenAI") }
+        catch { XCTFail("wrong error: \(error)") }
+    }
+
+    func testMalformed200ThrowsBadResponse() async throws {
+        let mock = MockHTTPTransport()
+        mock.handler = { req in
+            (Data("<html>error</html>".utf8),
+             HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("bad.m4a")
+        try Data([0x00]).write(to: tmp)
+        let t = WhisperTranscriber(apiKey: "sk-test", transport: mock)
+        do { _ = try await t.transcribe(tmp); XCTFail("expected throw") }
+        catch VoiceError.badResponse(_) { }
+        catch { XCTFail("wrong error: \(error)") }
+    }
 }

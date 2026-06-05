@@ -23,10 +23,13 @@ public struct WhisperTranscriber: Transcriber {
 
         let (data, resp) = try await transport.send(req)
         guard resp.statusCode == 200 else {
-            throw VoiceError.api(status: resp.statusCode, message: String(decoding: data, as: UTF8.self))
+            throw VoiceError.api(status: resp.statusCode, message: String(decoding: data.prefix(512), as: UTF8.self))
         }
         struct R: Decodable { let text: String }
-        let text = (try? JSONDecoder().decode(R.self, from: data).text) ?? ""
+        guard let parsed = try? JSONDecoder().decode(R.self, from: data) else {
+            throw VoiceError.badResponse(String(decoding: data.prefix(512), as: UTF8.self))
+        }
+        let text = parsed.text
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw VoiceError.emptyTranscript
         }
@@ -34,6 +37,7 @@ public struct WhisperTranscriber: Transcriber {
     }
 
     private func multipartBody(boundary: String, audio: URL) throws -> Data {
+        let ext = audio.pathExtension.isEmpty ? "m4a" : audio.pathExtension
         var body = Data()
         func field(_ name: String, _ value: String) {
             body.append(Data("--\(boundary)\r\n".utf8))
@@ -43,7 +47,7 @@ public struct WhisperTranscriber: Transcriber {
         field("model", "whisper-1")
         let audioData = try Data(contentsOf: audio)
         body.append(Data("--\(boundary)\r\n".utf8))
-        body.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"audio.\(ext)\"\r\n".utf8))
         body.append(Data("Content-Type: audio/m4a\r\n\r\n".utf8))
         body.append(audioData)
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
