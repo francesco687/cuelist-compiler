@@ -25,6 +25,14 @@ function secondsToMMSS(s) {
   return `${mm}:${String(ss).padStart(2,'0')}`;
 }
 
+function isValidSmpte(s) {
+  if (typeof s !== 'string') return false;
+  const m = /^(\d{2}):(\d{2}):(\d{2}):(\d{2})$/.exec(s);
+  if (!m) return false;
+  const [, , mm, ss, ff] = m;
+  return Number(mm) < 60 && Number(ss) < 60 && Number(ff) < FPS;
+}
+
 function genId() {
   return 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 }
@@ -49,4 +57,4 @@ function download(content, filename, mime) {
 
 // --- public surface
 window.CC = window.CC || {};
-CC.util = { timecodeToSeconds, secondsToTimecode, secondsToMMSS, genId, escapeHtml, download };
+window.CC.util = { timecodeToSeconds, secondsToTimecode, secondsToMMSS, isValidSmpte, genId, escapeHtml, download };
