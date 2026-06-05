@@ -28,4 +28,27 @@ final class ProjectStoreNotesTests: XCTestCase {
         XCTAssertEqual(s.project.songs[0].cues[0].notes, "")
         XCTAssertEqual(s.project.songs[0].cues[1].notes, "")
     }
+    func testSetNoteOverwritesExisting() {
+        let s = store()
+        s.appendNote(cueN: 1, text: "old")
+        s.setNote(cueN: 1, text: "new note")
+        XCTAssertEqual(s.project.songs[0].cues[0].notes, "new note")
+    }
+    func testSetNoteClearsOnWhitespace() {
+        let s = store()
+        s.appendNote(cueN: 1, text: "remove me")
+        s.setNote(cueN: 1, text: "   ")
+        XCTAssertEqual(s.project.songs[0].cues[0].notes, "")
+    }
+    func testSetNoteIgnoresUnknownCue() {
+        let s = store()
+        s.appendNote(cueN: 1, text: "stay")
+        s.setNote(cueN: 99, text: "lost")
+        XCTAssertEqual(s.project.songs[0].cues[0].notes, "stay")
+    }
+    func testSetNoteTrims() {
+        let s = store()
+        s.setNote(cueN: 2, text: "  trimmed  ")
+        XCTAssertEqual(s.project.songs[0].cues[1].notes, "trimmed")
+    }
 }

@@ -94,10 +94,16 @@ struct NotesCaptureView: View {
     private var routingPreview: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Routes to").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textDim)
-            ForEach(Array(notes.routed.enumerated()), id: \.offset) { _, e in
+            ForEach(Array(notes.routed.enumerated()), id: \.offset) { idx, e in
                 HStack(spacing: 8) {
                     Text("Cue \(formatN(e.cue))").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.aqua)
                     Text(e.text).font(.system(size: 12)).foregroundStyle(Theme.text)
+                    Spacer(minLength: 4)
+                    Button { notes.removeRoute(at: idx) } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14)).foregroundStyle(Theme.textFaint)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.vertical, 6).padding(.horizontal, 10)
                 .background(Theme.aquaTint, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))

@@ -16,14 +16,23 @@ struct RootView: View {
     }
 
     var body: some View {
+        TabView {
+            authorTab
+                .tabItem { Label("Author", systemImage: "square.and.pencil") }
+            SendView()
+                .tabItem { Label("Send", systemImage: "paperplane") }
+        }
+        .tint(Theme.accentSolid)
+    }
+
+    private var authorTab: some View {
         @Bindable var store = store
-        NavigationStack {
+        return NavigationStack {
             ZStack {
                 Theme.canvas
                 VStack(spacing: 0) {
                     subbar
                     CueListView()
-                    SendBarView(onOpenNotes: { showNotes = true })
                     TalkBarView()
                 }
             }
@@ -31,11 +40,16 @@ struct RootView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) { songMenu }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { showNotes = true } label: {
+                        Image(systemName: "square.and.pencil").foregroundStyle(Theme.aqua)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button { showPull = true } label: { Label("Pull from MA…", systemImage: "arrow.down.circle") }
+                        Button { showPull = true } label: { Label("Pull from MA\u{2026}", systemImage: "arrow.down.circle") }
                         Divider()
-                        Button("Defaults…") { showDefaults = true }
-                        Button("Settings…") { showSettings = true }
+                        Button("Defaults\u{2026}") { showDefaults = true }
+                        Button("Settings\u{2026}") { showSettings = true }
                     } label: { Image(systemName: "slider.horizontal.3") }
                 }
             }
@@ -102,13 +116,20 @@ struct RootView: View {
     @ViewBuilder private var subbar: some View {
         @Bindable var store = store
         if let i = activeIndex {
-            HStack(spacing: 10) {
-                Stepper(value: $store.project.songs[i].sequence, in: 1...9999) {
-                    Text("Seq \(store.project.songs[i].sequence)")
-                        .font(.system(size: 12, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Theme.textDim)
+            HStack(spacing: 12) {
+                SeqField(sequence: $store.project.songs[i].sequence)
+                if !store.project.songs[i].cues.isEmpty {
+                    Button { withAnimation(.snappy(duration: 0.2)) { store.collapseAllCues() } } label: {
+                        Image(systemName: "rectangle.compress.vertical")
+                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                    }
+                    .buttonStyle(.plain)
+                    Button { withAnimation(.snappy(duration: 0.2)) { store.expandAllCues() } } label: {
+                        Image(systemName: "rectangle.expand.vertical")
+                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .fixedSize()
                 Spacer()
                 Text("\(store.project.songs[i].cues.count) cue\(store.project.songs[i].cues.count == 1 ? "" : "s")")
                     .font(.system(size: 11)).foregroundStyle(Theme.textFaint)

@@ -100,6 +100,26 @@ public extension ProjectStore {
         applyNotes([NoteEdit(cue: cueN, text: text)])
     }
 
+    /// Overwrite (or clear) the note of the active song's cue number `n`.
+    /// Empty/whitespace text clears the note. Unknown cue numbers are ignored.
+    func setNote(cueN n: Double, text: String) {
+        let i = activeSongIndex()
+        guard let c = project.songs[i].cues.firstIndex(where: { $0.n == n }) else { return }
+        project.songs[i].cues[c].notes = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Collapse every cue of the active song.
+    func collapseAllCues() {
+        let i = activeSongIndex()
+        for c in project.songs[i].cues.indices { project.songs[i].cues[c].collapsed = true }
+    }
+
+    /// Expand every cue of the active song.
+    func expandAllCues() {
+        let i = activeSongIndex()
+        for c in project.songs[i].cues.indices { project.songs[i].cues[c].collapsed = false }
+    }
+
     /// Commit a precomputed voice-edit result (project + defaults) in one shot.
     /// Triggers the store's normal debounced save via the `project`/`defaults` didSet.
     func apply(_ result: ApplyResult) {

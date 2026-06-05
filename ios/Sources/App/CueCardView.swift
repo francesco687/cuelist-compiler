@@ -7,6 +7,7 @@ struct CueCardView: View {
     @Binding var cue: Cue
     @State private var confirmingDelete = false
     @State private var addingNote = false
+    @State private var editingNote = false
 
     private var cueLabel: String {
         let name = cue.name.trimmingCharacters(in: .whitespaces)
@@ -49,15 +50,20 @@ struct CueCardView: View {
             .buttonStyle(.plain)
 
             if !cue.notes.isEmpty {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "square.and.pencil").font(.system(size: 10)).foregroundStyle(Theme.aqua)
-                    Text(cue.notes).font(.system(size: 11)).foregroundStyle(Theme.text.opacity(0.85))
-                        .lineLimit(cue.collapsed ? 2 : nil)
-                    Spacer(minLength: 0)
+                Button { editingNote = true } label: {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "square.and.pencil").font(.system(size: 10)).foregroundStyle(Theme.aqua)
+                        Text(cue.notes).font(.system(size: 11)).foregroundStyle(Theme.text.opacity(0.85))
+                            .lineLimit(cue.collapsed ? 2 : nil)
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 5).padding(.horizontal, 8)
+                    .background(Theme.aquaTint, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                    .overlay(Rectangle().frame(width: 2).foregroundStyle(Theme.aqua.opacity(0.5)), alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .padding(.vertical, 5).padding(.horizontal, 8)
-                .background(Theme.aquaTint, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
-                .overlay(Rectangle().frame(width: 2).foregroundStyle(Theme.aqua.opacity(0.5)), alignment: .leading)
+                .buttonStyle(.plain)
             }
 
             if cue.collapsed {
@@ -118,6 +124,7 @@ struct CueCardView: View {
             Button("Cancel", role: .cancel) { }
         }
         .sheet(isPresented: $addingNote) { NotesCaptureView(targetCue: cue.n) }
+        .sheet(isPresented: $editingNote) { EditNoteView(cueN: cue.n, initialText: cue.notes) }
         .padding(13)
         .cardSurface()
     }

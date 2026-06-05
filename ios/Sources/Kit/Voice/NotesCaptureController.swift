@@ -63,6 +63,12 @@ public final class NotesCaptureController {
         }
     }
 
+    /// Drop one pending routed note (preview stage) by index. Out-of-range is ignored.
+    public func removeRoute(at index: Int) {
+        guard routed.indices.contains(index) else { return }
+        routed.remove(at: index)
+    }
+
     public func reset() { phase = .idle; routed = []; transcript = "" }
 }
 
