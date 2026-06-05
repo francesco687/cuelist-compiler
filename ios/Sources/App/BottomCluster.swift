@@ -23,7 +23,7 @@ struct BottomCluster: View {
             }
             .buttonStyle(.plain)
 
-            VoiceButton(fullWidth: false, showLabel: false)
+            VoiceButton(fullWidth: true, showLabel: false)
         }
         .padding(.horizontal, 12).padding(.bottom, 12).padding(.top, 4)
     }
