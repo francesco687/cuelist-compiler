@@ -12,11 +12,13 @@
 
 ## Prerequisite (HARD — read before Task 1)
 
-This branch (`feat/desktop-app`) is based on `v2`, which **does not yet contain `hub/`** — `hub/` lives on `feat/ios-shell` (PR #2, open into `v2`, not yet merged). The desktop app `require()`s `hub/src/*`, so `hub/` MUST be on the branch before any task runs.
+**Branch reality (updated 2026-06-05):** `main` was fast-forwarded to the old `v2` tip (`348b773`); `main == v2 == 348b773` and the original line is preserved as `old-version`. PR #1 auto-merged. This branch (`feat/desktop-app`) is based on `348b773`, so **its base is already the `main` line** — no base rebase needed. **Branch new work off `main` going forward.**
+
+What's still missing is `hub/`: `main` (`348b773`) **does not yet contain `hub/`** — `hub/` lives on `feat/ios-shell` (PR #2, now open into `main`, not yet merged). The desktop app `require()`s `hub/src/*`, so `hub/` MUST be on the branch before any task runs.
 
 **Resolve one of these before Task 1, then verify `ls hub/src` shows `osc.js server.js compile-bridge.js config.js index.js`:**
 
-- **Preferred:** wait for PR #2 (`feat/ios-shell` → `v2`) to merge, then `git rebase v2` this branch.
+- **Preferred:** wait for PR #2 (`feat/ios-shell` → `main`) to merge, then `git rebase main` this branch.
 - **Unblock early:** `git rebase feat/ios-shell` this branch (couples desktop to unmerged iOS commits — acceptable since the desktop tasks below touch only `desktop/` and `web/js/{osc,constants}.js` + `web/index.html`, none of which the iOS work modifies).
 
 **Coordination (do not break — see spec "Shared contracts"):** the hub WebSocket protocol (`compile-send`/`progress`/`done`/`error` on port 9000) and the project-JSON shape `compile.js` consumes are FROZEN and shared with the iOS session. This plan only *imports* `hub/src/*`; it must not modify those files or the protocol.
