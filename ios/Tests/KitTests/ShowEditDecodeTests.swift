@@ -42,4 +42,18 @@ final class ShowEditDecodeTests: XCTestCase {
         XCTAssertTrue(input.edits.isEmpty)
         XCTAssertEqual(input.clarification, "Which song?")
     }
+
+    func testUnknownOpThrows() {
+        XCTAssertThrowsError(try decode(#"{"edits":[{"op":"explodeDesk"}]}"#))
+    }
+
+    func testBadPoolThrows() {
+        XCTAssertThrowsError(try decode(#"{"edits":[{"op":"setPreset","cue":1,"pool":"strobe"}]}"#))
+    }
+
+    func testStoreModeOverwriteAndGarbage() throws {
+        let ok = try decode(#"{"edits":[{"op":"setStoreMode","mode":"Overwrite"}]}"#)
+        XCTAssertEqual(ok.edits, [.setStoreMode(mode: .overwrite)])
+        XCTAssertThrowsError(try decode(#"{"edits":[{"op":"setStoreMode","mode":"nonsense"}]}"#))
+    }
 }

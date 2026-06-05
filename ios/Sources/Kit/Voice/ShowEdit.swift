@@ -70,7 +70,7 @@ extension ShowEdit: Decodable {
         case "copyActions": self = .copyActions(song: optStr(.song), fromCue: try dbl(.fromCue), toCue: try dbl(.toCue))
         case "setDefault":  self = .setDefault(pool: try pool(.pool), fade: optStr(.fade), delay: optStr(.delay))
         case "setStoreMode":
-            self = .setStoreMode(mode: (try str(.mode)) == "Merge" ? .merge : .overwrite)
+            self = .setStoreMode(mode: try c.decode(StoreMode.self, forKey: .mode))
         default:
             throw DecodingError.dataCorruptedError(forKey: .op, in: c, debugDescription: "unknown op \(op)")
         }
