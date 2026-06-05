@@ -77,3 +77,19 @@ public final class VoiceCaptureController {
         pending = nil
     }
 }
+
+public extension VoiceCaptureController.Phase {
+    /// Label for the bottom talk bar. Pure presentation — kept in Kit so it's testable.
+    var talkBarLabel: String {
+        switch self {
+        case .idle, .error:                 return "Tap to talk"
+        case .recording:                    return "Listening\u{2026} tap to stop"
+        case .transcribing, .interpreting:  return "Thinking\u{2026}"
+        case .preview:                      return "Reviewing\u{2026}"
+        }
+    }
+    var isRecording: Bool { if case .recording = self { return true } else { return false } }
+    var isBusy: Bool {
+        switch self { case .transcribing, .interpreting: return true; default: return false }
+    }
+}
