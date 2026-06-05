@@ -8,8 +8,10 @@ send them live over OSC.
 | Path | What |
 |------|------|
 | `web/` | The authoring web app (open `web/index.html` — no build). |
-| `ios/` | Native SwiftUI frontend (planned). |
-| `proxy/` | WebSocket→OSC bridge for live send. |
+| `desktop/` | **Desktop app (Electron) — recommended for operators.** Packages the web UI, sends OSC/UDP directly to the desk, and embeds the hub so an iPhone can connect as a companion. |
+| `ios/` | Native SwiftUI frontend (companion controller). |
+| `proxy/` | WebSocket→OSC bridge for live send (browser/dev). |
+| `hub/` | WebSocket→compile→OSC hub — used by the iPhone app and embedded in the desktop app. |
 | `shared/` | `ma3-command-spec.md` — the command contract both frontends implement. |
 | `plugins/` | `export_pools.lua` — MA3 plugin to import Group + preset pool names. |
 | `examples/` | Sample project + its `.lua` export (regression anchor). |
@@ -23,6 +25,25 @@ send them live over OSC.
 3. Import a CuePoints `.csv`, or add songs manually.
 4. Fill in cues (Group + preset names + fade/delay).
 5. **Export .lua** and paste into a gma3 plugin slot, or use **live OSC** below.
+
+## Desktop app (recommended for operators)
+
+For running a show on a laptop, the **desktop app** (`desktop/`) is the recommended
+path. It wraps the same authoring UI in a native window, sends OSC/UDP **directly**
+to the desk (no separate proxy to start), and **embeds the hub** so an iPhone can
+connect to the laptop as a companion controller.
+
+1. Run from source: `cd desktop && npm install && npm start`.
+2. Build installers: `cd desktop && npm run dist` — macOS `.dmg` (signed + notarized)
+   and Windows `.exe`.
+3. In **⚙ Settings**: set the MA3 host / UDP port / OSC prefix, and toggle the
+   embedded hub (default port `9000`) for the iPhone companion. The status row shows
+   the live OSC target and whether a phone is connected.
+
+This **supersedes the Raspberry Pi hub** (`hub/deploy/cuelist-hub.service`): the
+laptop now does what the Pi did, so a dedicated Pi is no longer required. The systemd
+unit remains for headless / always-on deployments but is no longer the recommended
+setup.
 
 ## Features
 
