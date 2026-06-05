@@ -7,6 +7,7 @@ struct RootView: View {
     @State private var showSettings = false
     @State private var showDefaults = false
     @State private var showPull = false
+    @State private var showNotes = false
     @State private var showRename = false
     @State private var renameText = ""
 
@@ -22,12 +23,12 @@ struct RootView: View {
                 VStack(spacing: 0) {
                     subbar
                     CueListView()
-                    SendBarView()
+                    SendBarView(onOpenNotes: { showNotes = true })
+                    TalkBarView()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { micButton }
                 ToolbarItem(placement: .principal) { songMenu }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -42,6 +43,7 @@ struct RootView: View {
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showDefaults) { DefaultsView() }
             .sheet(isPresented: $showPull) { PullSequencesView() }
+            .sheet(isPresented: $showNotes) { NotesCaptureView(targetCue: nil) }
             .sheet(isPresented: previewBinding) {
                 if let pending = voice.pending {
                     VoicePreviewSheet(
@@ -112,23 +114,6 @@ struct RootView: View {
                     .font(.system(size: 11)).foregroundStyle(Theme.textFaint)
             }
             .padding(.horizontal, 16).padding(.bottom, 8)
-        }
-    }
-
-    // MARK: Mic
-
-    @ViewBuilder private var micButton: some View {
-        switch voice.phase {
-        case .idle, .error:
-            Button { Task { await voice.startRecording() } } label: { Image(systemName: "mic") }
-        case .recording:
-            Button {
-                Task { await voice.stopAndProcess(project: store.project, defaults: store.defaults) }
-            } label: { Image(systemName: "stop.circle.fill").foregroundStyle(Theme.danger) }
-        case .transcribing, .interpreting:
-            ProgressView()
-        case .preview:
-            Image(systemName: "mic").foregroundStyle(Theme.textFaint)
         }
     }
 

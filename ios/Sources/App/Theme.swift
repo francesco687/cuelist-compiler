@@ -14,6 +14,16 @@ enum Theme {
     }
     static let accentTint = Color(hex: "#7a5cff")!.opacity(0.12)   // group-card fill
 
+    // Aqua — the iOS "capture/voice" accent (talk bar, notes). Distinct from the
+    // violet→blue accent, which stays the "commit to MA" action. Tunable hex.
+    static let aqua = Color(hex: "#21D4C4")!
+    static var aquaGradient: RadialGradient {
+        RadialGradient(colors: [Color(hex: "#3DF0DC")!, Color(hex: "#16C6B4")!],
+                       center: UnitPoint(x: 0.38, y: 0.28), startRadius: 2, endRadius: 220)
+    }
+    static let aquaTint = Color(hex: "#21D4C4")!.opacity(0.10)
+    static let aquaInk = Color(hex: "#04302b")!   // dark text/icon on aqua surfaces
+
     // Surfaces / borders (white over the dark canvas).
     static let surface1 = Color.white.opacity(0.045)
     static let surface2 = Color.white.opacity(0.06)
@@ -34,6 +44,7 @@ enum Theme {
     // Radii.
     static let radius: CGFloat = 11
     static let radiusSmall: CGFloat = 7
+    static let radiusLarge: CGFloat = 16          // pill CTAs (talk bar)
 
     /// Full-screen app canvas (radial dark gradient). Use as a background.
     static var canvas: some View {

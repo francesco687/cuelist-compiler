@@ -12,6 +12,12 @@ struct CuelistCompilerApp: App {
         transcriber: WhisperTranscriber(apiKey: KeychainAIKeyStore().key(for: .openAI) ?? ""),
         interpreter: AnthropicInterpreter(apiKey: KeychainAIKeyStore().key(for: .anthropic) ?? "")
     )
+    // Note capture shares the device audio session with `voice`; the UI never records both at once.
+    @State private var notes = NotesCaptureController(
+        recorder: AVAudioFileRecorder(),
+        transcriber: WhisperTranscriber(apiKey: KeychainAIKeyStore().key(for: .openAI) ?? ""),
+        router: AnthropicNoteRouter(apiKey: KeychainAIKeyStore().key(for: .anthropic) ?? "")
+    )
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -20,6 +26,7 @@ struct CuelistCompilerApp: App {
                 .environment(store)
                 .environment(hub)
                 .environment(voice)
+                .environment(notes)
                 .tint(Theme.accentSolid)
                 .preferredColorScheme(.dark)
                 .onAppear { if !hub.host.isEmpty { hub.connect() } }

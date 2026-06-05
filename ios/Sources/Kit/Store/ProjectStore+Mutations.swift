@@ -83,6 +83,23 @@ public extension ProjectStore {
         updateActiveCue(id: dst) { $0.actions = cloned }
     }
 
+    /// Append notes onto cues of the active song by cue number `n`. Newline-joins
+    /// onto any existing note; trims and skips empty text or unknown cue numbers.
+    func applyNotes(_ edits: [NoteEdit]) {
+        let i = activeSongIndex()
+        for e in edits {
+            let t = e.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !t.isEmpty,
+                  let c = project.songs[i].cues.firstIndex(where: { $0.n == e.cue }) else { continue }
+            let existing = project.songs[i].cues[c].notes
+            project.songs[i].cues[c].notes = existing.isEmpty ? t : existing + "\n" + t
+        }
+    }
+    /// Convenience for the per-cue note button.
+    func appendNote(cueN: Double, text: String) {
+        applyNotes([NoteEdit(cue: cueN, text: text)])
+    }
+
     /// Commit a precomputed voice-edit result (project + defaults) in one shot.
     /// Triggers the store's normal debounced save via the `project`/`defaults` didSet.
     func apply(_ result: ApplyResult) {

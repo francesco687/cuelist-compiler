@@ -3,7 +3,18 @@ import CuelistCompilerKit
 
 struct CueCardView: View {
     @Environment(ProjectStore.self) private var store
+    @Environment(NotesCaptureController.self) private var notes
     @Binding var cue: Cue
+    @State private var confirmingDelete = false
+    @State private var addingNote = false
+
+    private var cueLabel: String {
+        let name = cue.name.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? formatN(cue.n) : "\(formatN(cue.n)) \"\(name)\""
+    }
+    private func formatN(_ n: Double) -> String {
+        n.rounded() == n ? String(Int(n)) : String(n)
+    }
 
     private var groupChips: [String] {
         cue.actions.map { $0.group.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -30,16 +41,24 @@ struct CueCardView: View {
                         .autocorrectionDisabled()
                         .disabled(cue.collapsed)            // tap toggles when collapsed
                     Spacer(minLength: 4)
-                    Button(role: .destructive) {
-                        store.removeCue(id: cue.id)
-                    } label: { Image(systemName: "trash").font(.system(size: 13)).foregroundStyle(Theme.danger) }
-                    .buttonStyle(.plain)
                     Image(systemName: cue.collapsed ? "chevron.right" : "chevron.down")
                         .font(.caption).foregroundStyle(Theme.textFaint)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
+            if !cue.notes.isEmpty {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "square.and.pencil").font(.system(size: 10)).foregroundStyle(Theme.aqua)
+                    Text(cue.notes).font(.system(size: 11)).foregroundStyle(Theme.text.opacity(0.85))
+                        .lineLimit(cue.collapsed ? 2 : nil)
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 5).padding(.horizontal, 8)
+                .background(Theme.aquaTint, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                .overlay(Rectangle().frame(width: 2).foregroundStyle(Theme.aqua.opacity(0.5)), alignment: .leading)
+            }
 
             if cue.collapsed {
                 if !groupChips.isEmpty || presetCount > 0 {
@@ -68,8 +87,37 @@ struct CueCardView: View {
                     Spacer()
                 }
                 .padding(.top, 2)
+
+                HStack {
+                    Spacer()
+                    Button { addingNote = true } label: {
+                        Label("Note", systemImage: "square.and.pencil")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.aqua)
+                            .padding(.vertical, 6).padding(.horizontal, 11)
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                                .strokeBorder(Theme.aqua.opacity(0.35), lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                    Button(role: .destructive) { confirmingDelete = true } label: {
+                        Label("Delete cue", systemImage: "trash")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.danger)
+                            .padding(.vertical, 6).padding(.horizontal, 11)
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                                .strokeBorder(Theme.danger.opacity(0.35), lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 4)
             }
         }
+        .confirmationDialog("Delete cue \(cueLabel)?",
+                            isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { store.removeCue(id: cue.id) }
+            Button("Cancel", role: .cancel) { }
+        }
+        .sheet(isPresented: $addingNote) { NotesCaptureView(targetCue: cue.n) }
         .padding(13)
         .cardSurface()
     }
