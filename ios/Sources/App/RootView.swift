@@ -23,11 +23,11 @@ struct RootView: View {
                     subbar
                     CueListView()
                     SendBarView()
+                    TalkBarView()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { micButton }
                 ToolbarItem(placement: .principal) { songMenu }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -112,23 +112,6 @@ struct RootView: View {
                     .font(.system(size: 11)).foregroundStyle(Theme.textFaint)
             }
             .padding(.horizontal, 16).padding(.bottom, 8)
-        }
-    }
-
-    // MARK: Mic
-
-    @ViewBuilder private var micButton: some View {
-        switch voice.phase {
-        case .idle, .error:
-            Button { Task { await voice.startRecording() } } label: { Image(systemName: "mic") }
-        case .recording:
-            Button {
-                Task { await voice.stopAndProcess(project: store.project, defaults: store.defaults) }
-            } label: { Image(systemName: "stop.circle.fill").foregroundStyle(Theme.danger) }
-        case .transcribing, .interpreting:
-            ProgressView()
-        case .preview:
-            Image(systemName: "mic").foregroundStyle(Theme.textFaint)
         }
     }
 

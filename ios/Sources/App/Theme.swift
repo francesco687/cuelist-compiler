@@ -22,6 +22,7 @@ enum Theme {
                        center: UnitPoint(x: 0.38, y: 0.28), startRadius: 2, endRadius: 220)
     }
     static let aquaTint = Color(hex: "#21D4C4")!.opacity(0.10)
+    static let aquaInk = Color(hex: "#04302b")!   // dark text/icon on aqua surfaces
 
     // Surfaces / borders (white over the dark canvas).
     static let surface1 = Color.white.opacity(0.045)
@@ -43,6 +44,7 @@ enum Theme {
     // Radii.
     static let radius: CGFloat = 11
     static let radiusSmall: CGFloat = 7
+    static let radiusLarge: CGFloat = 16          // pill CTAs (talk bar)
 
     /// Full-screen app canvas (radial dark gradient). Use as a background.
     static var canvas: some View {

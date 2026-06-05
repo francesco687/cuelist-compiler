@@ -20,5 +20,11 @@ final class TalkBarLabelTests: XCTestCase {
         XCTAssertTrue(Phase.interpreting.isBusy)
         XCTAssertFalse(Phase.idle.isBusy)
         XCTAssertFalse(Phase.recording.isBusy)
+        XCTAssertFalse(Phase.preview.isRecording)
+        XCTAssertFalse(Phase.error("x").isRecording)
+        XCTAssertFalse(Phase.transcribing.isRecording)
+        XCTAssertFalse(Phase.interpreting.isRecording)
+        XCTAssertFalse(Phase.preview.isBusy)
+        XCTAssertFalse(Phase.error("x").isBusy)
     }
 }
