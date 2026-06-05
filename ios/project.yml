@@ -35,6 +35,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSLocalNetworkUsageDescription: "Cuelist Compiler connects to your hub on the local network to send shows to your console."
+        NSMicrophoneUsageDescription: "Cuelist Compiler records short voice commands to author cues."
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
