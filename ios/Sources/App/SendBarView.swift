@@ -5,6 +5,8 @@ struct SendBarView: View {
     @Environment(ProjectStore.self) private var store
     @Environment(HubClient.self) private var hub
 
+    var onOpenNotes: () -> Void = {}
+
     var body: some View {
         @Bindable var store = store
         VStack(spacing: 8) {
@@ -19,30 +21,41 @@ struct SendBarView: View {
                 .frame(width: 180)
             }
             HStack(spacing: 10) {
-                Button {
-                    hub.send(project: store.project, defaults: store.defaults, selection: .current)
-                } label: {
-                    Label("Send → MA", systemImage: "paperplane.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(Theme.accentGradient, in: RoundedRectangle(cornerRadius: Theme.radius))
-                        .foregroundStyle(.white)
-                        .shadow(color: Theme.accentSolid.opacity(0.4), radius: 12, y: 3)
+                HStack(spacing: 10) {
+                    Button {
+                        hub.send(project: store.project, defaults: store.defaults, selection: .current)
+                    } label: {
+                        Label("Send \u{2192} MA", systemImage: "paperplane.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(Theme.accentGradient, in: RoundedRectangle(cornerRadius: Theme.radius))
+                            .foregroundStyle(.white)
+                            .shadow(color: Theme.accentSolid.opacity(0.4), radius: 12, y: 3)
+                    }
+                    Button {
+                        hub.send(project: store.project, defaults: store.defaults, selection: .all)
+                    } label: {
+                        Text("All")
+                            .font(.system(size: 13, weight: .medium))
+                            .padding(.vertical, 11).padding(.horizontal, 18)
+                            .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radius))
+                            .foregroundStyle(Theme.text)
+                    }
                 }
-                Button {
-                    hub.send(project: store.project, defaults: store.defaults, selection: .all)
-                } label: {
-                    Text("All")
+                .buttonStyle(.plain)
+                .disabled(!hub.state.isOnline)
+                .opacity(hub.state.isOnline ? 1 : 0.5)
+
+                Button(action: onOpenNotes) {
+                    Label("Notes", systemImage: "square.and.pencil")
                         .font(.system(size: 13, weight: .medium))
-                        .padding(.vertical, 11).padding(.horizontal, 18)
-                        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radius))
-                        .foregroundStyle(Theme.text)
+                        .padding(.vertical, 11).padding(.horizontal, 14)
+                        .background(Theme.aquaTint, in: RoundedRectangle(cornerRadius: Theme.radius))
+                        .foregroundStyle(Theme.aqua)
                 }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-            .disabled(!hub.state.isOnline)
-            .opacity(hub.state.isOnline ? 1 : 0.5)
 
             resultRow
         }

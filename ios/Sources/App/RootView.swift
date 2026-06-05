@@ -7,6 +7,7 @@ struct RootView: View {
     @State private var showSettings = false
     @State private var showDefaults = false
     @State private var showPull = false
+    @State private var showNotes = false
     @State private var showRename = false
     @State private var renameText = ""
 
@@ -22,7 +23,7 @@ struct RootView: View {
                 VStack(spacing: 0) {
                     subbar
                     CueListView()
-                    SendBarView()
+                    SendBarView(onOpenNotes: { showNotes = true })
                     TalkBarView()
                 }
             }
@@ -42,6 +43,7 @@ struct RootView: View {
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showDefaults) { DefaultsView() }
             .sheet(isPresented: $showPull) { PullSequencesView() }
+            .sheet(isPresented: $showNotes) { NotesCaptureView(targetCue: nil) }
             .sheet(isPresented: previewBinding) {
                 if let pending = voice.pending {
                     VoicePreviewSheet(
