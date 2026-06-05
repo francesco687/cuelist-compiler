@@ -47,23 +47,50 @@
       <button id="addCue">+ Add Cue</button>
 
       <div id="toolbar">
-        <label style="color:#aaa;font-size:0.9em;">Store:</label>
-        <select id="storeMode" style="background:#2a2a2e;border:1px solid #444;color:#e8e8e8;padding:6px 10px;border-radius:4px;">
+        <div class="seg" id="storeModeSeg" role="group" aria-label="Store mode">
+          <button type="button" class="seg-btn" data-mode="Overwrite">Overwrite</button>
+          <button type="button" class="seg-btn" data-mode="Merge">Merge</button>
+        </div>
+        <select id="storeMode" class="visually-hidden" tabindex="-1" aria-hidden="true">
           <option value="Overwrite">Overwrite</option>
           <option value="Merge">Merge</option>
         </select>
-        <button id="export">Export current .lua</button>
-        <button id="exportAll">Export all .lua</button>
+
+        <div class="split">
+          <button id="sendOscCurrent" class="osc-btn primary-send" disabled>Send → MA</button>
+          <details class="split-menu">
+            <summary class="split-caret" aria-label="More send options">⌄</summary>
+            <div class="menu-pop">
+              <button id="sendOscAll" class="menu-item" disabled>Send all → MA</button>
+            </div>
+          </details>
+        </div>
+
+        <div class="split">
+          <button id="export" class="ghost">Export .lua</button>
+          <details class="split-menu">
+            <summary class="split-caret" aria-label="More export options">⌄</summary>
+            <div class="menu-pop">
+              <button id="exportAll" class="menu-item">Export all .lua</button>
+            </div>
+          </details>
+        </div>
+
         <span id="oscPill" class="osc-pill offline" title="Click to reconnect to OSC proxy">○ OSC offline</span>
-        <button id="sendOscCurrent" class="osc-btn" disabled>Send current → MA</button>
-        <button id="sendOscAll" class="osc-btn" disabled>Send all → MA</button>
-        <button id="saveProject" class="ghost">Save Project (.json)</button>
-        <button id="loadBtn" class="ghost">Load Project</button>
-        <input type="file" id="loadProject" accept=".json">
-        <button id="importCsvBtn" class="ghost">Import .csv (CuePoints)</button>
-        <input type="file" id="importCsv" accept=".csv" style="display:none">
         <div class="spacer"></div>
-        <button id="clearAll" class="danger">Clear all</button>
+
+        <details class="menu overflow">
+          <summary class="ovf-btn" aria-label="More actions">⋯</summary>
+          <div class="menu-pop menu-pop-right">
+            <button id="saveProject" class="menu-item">Save Project (.json)</button>
+            <button id="loadBtn" class="menu-item">Load Project</button>
+            <input type="file" id="loadProject" accept=".json">
+            <button id="importCsvBtn" class="menu-item">Import .csv (CuePoints)</button>
+            <input type="file" id="importCsv" accept=".csv" style="display:none">
+            <hr>
+            <button id="clearAll" class="menu-item danger-item">Clear all</button>
+          </div>
+        </details>
       </div>
 
       <div id="deskStatusRow" class="desk-status" hidden>

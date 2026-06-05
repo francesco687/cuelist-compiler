@@ -117,6 +117,7 @@ function render() {
   document.getElementById('songName').value = song.name || '';
   document.getElementById('sequence').value = song.sequence || 1;
   document.getElementById('storeMode').value = state.storeMode || 'Overwrite';
+  if (window.syncStoreModeSegment) window.syncStoreModeSegment();
   document.getElementById('cueCount').textContent = song.cues.length
     ? `${song.cues.length} cue${song.cues.length > 1 ? 's' : ''}`
     : '';

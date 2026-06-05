@@ -46,6 +46,28 @@ document.getElementById('storeMode').addEventListener('change', e => {
   state.storeMode = e.target.value === 'Merge' ? 'Merge' : 'Overwrite';
   saveState();
 });
+
+// Segmented control adapter for store mode — drives the hidden <select id="storeMode">
+function syncStoreModeSegment() {
+  const sel = document.getElementById('storeMode');
+  const seg = document.getElementById('storeModeSeg');
+  if (!sel || !seg) return;
+  seg.querySelectorAll('.seg-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === sel.value);
+  });
+}
+window.syncStoreModeSegment = syncStoreModeSegment;
+
+document.getElementById('storeModeSeg').addEventListener('click', e => {
+  const btn = e.target.closest('.seg-btn');
+  if (!btn) return;
+  const sel = document.getElementById('storeMode');
+  sel.value = btn.dataset.mode;
+  sel.dispatchEvent(new Event('change'));   // existing handler updates state
+  syncStoreModeSegment();
+});
+
+syncStoreModeSegment(); // initialise on load
 document.getElementById('export').addEventListener('click', exportLua);
 document.getElementById('exportAll').addEventListener('click', exportAllLua);
 document.getElementById('saveProject').addEventListener('click', saveProject);
