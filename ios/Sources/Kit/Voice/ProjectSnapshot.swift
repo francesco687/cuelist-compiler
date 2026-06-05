@@ -24,11 +24,12 @@ public enum ProjectSnapshot {
         if !cue.fade.isEmpty { d["fade"] = cue.fade }
         if !cue.delay.isEmpty { d["delay"] = cue.delay }
         if !cue.position.isEmpty { d["position"] = cue.position }
-        d["actions"] = cue.actions.map { actionDict($0) }
+        let acts = cue.actions.compactMap { actionDict($0) }
+        if !acts.isEmpty { d["actions"] = acts }
         return d
     }
 
-    private static func actionDict(_ a: Action) -> [String: Any] {
+    private static func actionDict(_ a: Action) -> [String: Any]? {
         var presets: [String: Any] = [:]
         for pool in Pool.allCases {
             guard let preset = a.presets[pool] else { continue }
@@ -42,6 +43,6 @@ public enum ProjectSnapshot {
         var d: [String: Any] = [:]
         if !a.group.isEmpty { d["group"] = a.group }
         if !presets.isEmpty { d["presets"] = presets }
-        return d
+        return d.isEmpty ? nil : d
     }
 }
