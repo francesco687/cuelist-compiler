@@ -474,60 +474,25 @@
   .defaults-row input { width: 100%; text-align: center; font-variant-numeric: tabular-nums; }
 
   #audioPanel {
-    background: #1d1d20;
-    border: 1px solid #333;
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin-bottom: 14px;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px; margin-bottom: 14px;
   }
-  #audioPanel.empty { padding: 14px; text-align: center; color: #666; }
-  #audioControls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-  }
-  #audioControls .filename {
-    flex: 1;
-    color: #aaa;
-    font-size: 0.85em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  #audioControls .time {
-    color: #ccc;
-    font-size: 0.85em;
-    font-family: ui-monospace, 'Consolas', monospace;
-    min-width: 95px;
-    text-align: right;
-  }
+  #audioPanel.empty { padding: 14px; text-align: center; color: var(--text-faint); }
+  #audioControls { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  #audioControls .filename { flex: 1; color: var(--text-dim); font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  #audioControls .time { color: var(--text); font-size: 0.85em; font-family: ui-monospace, 'SF Mono', Consolas, monospace; min-width: 95px; text-align: right; }
   .channel-toggle {
-    background: #2a2a2e;
-    border: 1px solid #444;
-    color: #aaa;
-    padding: 4px 10px;
-    font-size: 0.82em;
-    font-weight: 600;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+    padding: 5px 11px; font-size: 0.82em; font-weight: 600; box-shadow: none; border-radius: var(--radius-sm);
   }
-  .channel-toggle.active {
-    background: #2c5e3e;
-    border-color: #3da668;
-    color: #fff;
-  }
-  .channel-toggle.muted {
-    background: #2a2a2e;
-    border-color: #444;
-    color: #555;
-  }
+  .channel-toggle.active { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
+  .channel-toggle.muted { background: var(--surface-2); border-color: var(--border); color: var(--text-faint); }
   #playBtn { min-width: 70px; }
 
   #timeline {
     position: relative;
-    background: #131316;
-    border: 1px solid #2a2a2e;
+    background: #0e0f13;
+    border: 1px solid var(--border);
     border-radius: 4px;
     overflow: hidden;
     user-select: none;
@@ -541,7 +506,7 @@
   #timeline .channel-wave {
     position: relative;
     height: 60px;
-    border-bottom: 1px solid #2a2a2e;
+    border-bottom: 1px solid var(--border);
   }
   #timeline .channel-wave:last-child { border-bottom: none; }
   #timeline .channel-wave .chan-label {
@@ -576,13 +541,13 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgba(255, 200, 50, 0.5);
+    background: rgba(240,184,80,.5);
     pointer-events: auto;
     cursor: pointer;
   }
-  #timeline .marker:hover { background: rgba(255, 200, 50, 1); width: 2px; }
+  #timeline .marker:hover { background: rgba(240,184,80,1); width: 2px; }
   #timeline .marker.current {
-    background: rgba(91, 141, 214, 1);
+    background: var(--accent-solid);
     width: 2px;
   }
   #timeline .marker .marker-label {
@@ -590,7 +555,7 @@
     top: 2px;
     left: 3px;
     font-size: 0.65em;
-    color: #f0c84a;
+    color: var(--warn);
     font-weight: 600;
     white-space: nowrap;
     background: rgba(20, 20, 24, 0.7);
@@ -598,7 +563,7 @@
     border-radius: 2px;
     pointer-events: none;
   }
-  #timeline .marker.current .marker-label { color: #fff; background: rgba(61, 110, 198, 0.9); }
+  #timeline .marker.current .marker-label { color: #fff; background: rgba(111,120,255,.9); }
 
   .osc-pill {
     display: inline-flex;
