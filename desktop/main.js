@@ -32,6 +32,21 @@ function startHub() {
   if (hub) return;
   if (!settings.hubEnabled) return;
   hub = startServer(hubConfig());
+  // The WebSocketServer emits 'error' asynchronously (e.g. EADDRINUSE when port 9000 is
+  // already held by a leftover hub or a second app instance). With no listener Node throws
+  // on the unhandled 'error' event and the whole Electron process hard-crashes at boot.
+  // Register the handler synchronously (same tick) so it's in place before that fires.
+  hub.wss.on('error', (err) => {
+    console.error('[hub] server error:', err && err.message ? err.message : err);
+    // Fail soft: the desktop OSC path still works; only the iPhone companion is unavailable.
+    // Null hub first so getStatus() reports phoneConnected:false and the `if (hub) return`
+    // guard won't be stuck on a dead hub — a later setSettings/restart can retry cleanly.
+    const h = hub; hub = null;
+    // close() resolves via wss.close(resolve), but its Promise executor runs synchronous
+    // teardown (clients.terminate / sender.close) that can throw on a never-bound server,
+    // which would reject the Promise. Swallow it to avoid an unhandledRejection.
+    Promise.resolve(h.close()).catch(() => { /* already tearing down */ });
+  });
 }
 
 function stopHub() {
@@ -62,6 +77,10 @@ app.whenReady().then(() => {
   ipcMain.handle('cuelist:setSettings', async (_e, partial) => {
     settings = settingsModule.save(app.getPath('userData'), settingsModule.merge(settings, partial));
     rebuildSender();
+    // Deliberate tradeoff: restarting the hub on every save briefly drops the phone connection,
+    // and a phone message arriving in that window hits a closing sender and gets a caught
+    // {type:'error'} (graceful, not a crash). Settings saves are rare, deliberate actions and
+    // the phone reconnects within its retry cycle, so the simplicity is worth it.
     await stopHub();
     startHub();
     return settings;
