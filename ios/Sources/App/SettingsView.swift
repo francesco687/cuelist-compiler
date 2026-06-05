@@ -5,6 +5,10 @@ struct SettingsView: View {
     @Environment(HubClient.self) private var hub
     @Environment(\.dismiss) private var dismiss
 
+    private let keyStore = KeychainAIKeyStore()
+    @State private var openAIKey = ""
+    @State private var anthropicKey = ""
+
     var body: some View {
         @Bindable var hub = hub
         NavigationStack {
@@ -19,10 +23,33 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Status") { Text(statusText) }
                 }
+                Section {
+                    SecureField("OpenAI API key", text: $openAIKey)
+                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                    SecureField("Anthropic API key", text: $anthropicKey)
+                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                } header: {
+                    Text("Voice (API keys)")
+                } footer: {
+                    Text("Stored in your device Keychain. Voice commands send audio to OpenAI and the show context to Anthropic over HTTPS.")
+                }
             }
             .navigationTitle("Settings")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { saveKeys(); dismiss() }
+                }
+            }
+            .onAppear {
+                openAIKey = keyStore.key(for: .openAI) ?? ""
+                anthropicKey = keyStore.key(for: .anthropic) ?? ""
+            }
         }
+    }
+
+    private func saveKeys() {
+        keyStore.set(openAIKey, for: .openAI)
+        keyStore.set(anthropicKey, for: .anthropic)
     }
 
     private var statusText: String {
