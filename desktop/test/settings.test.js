@@ -28,3 +28,15 @@ test('validate rejects out-of-range ports', () => {
 test('validate accepts a sane config', () => {
   assert.doesNotThrow(() => validate(defaults()));
 });
+
+test('validate rejects non-string ma3Host', () => {
+  assert.throws(() => validate(merge(defaults(), { ma3Host: 42 })), /ma3Host/);
+});
+
+test('validate rejects non-string ma3Prefix', () => {
+  assert.throws(() => validate(merge(defaults(), { ma3Prefix: 7 })), /ma3Prefix/);
+});
+
+test('validate accepts intervalMs of 0 (valid boundary)', () => {
+  assert.doesNotThrow(() => validate(merge(defaults(), { intervalMs: 0 })));
+});

@@ -23,8 +23,8 @@ function validate(s) {
   };
   port('ma3Port', s.ma3Port);
   port('hubPort', s.hubPort);
-  if (!s.ma3Host) throw new Error('invalid ma3Host');
-  if (!s.ma3Prefix) throw new Error('invalid ma3Prefix');
+  if (typeof s.ma3Host !== 'string' || !s.ma3Host) throw new Error('invalid ma3Host');
+  if (typeof s.ma3Prefix !== 'string' || !s.ma3Prefix) throw new Error('invalid ma3Prefix');
   if (!Number.isInteger(s.intervalMs) || s.intervalMs < 0) throw new Error('invalid intervalMs');
   return s;
 }
