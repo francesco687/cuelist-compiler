@@ -135,3 +135,13 @@ test('buildTcLua: wraps buildTcCmdLines output in Lua Cmd() calls', () => {
   assert.match(lua, /Store Timecode 12\.1\.1\.1\.1 \\'Goto Cue 1 Sequence 12\\'/);
   assert.match(lua, /return main/);
 });
+
+test('regression: SONG_1.json matches SONG_1.tc.cmdlines.txt golden', () => {
+  const compile = loadCompile();
+  const json = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'examples', 'SONG_1.json'), 'utf8'));
+  const songs = Array.isArray(json.songs) ? json.songs
+    : [{ name: json.songName || '', sequence: json.sequence, cues: json.cues }];
+  const expected = fs.readFileSync(path.resolve(__dirname, '..', '..', 'examples', 'SONG_1.tc.cmdlines.txt'), 'utf8').trimEnd();
+  const actual = compile.buildTcCmdLines(songs).join('\n');
+  assert.strictEqual(actual, expected);
+});
