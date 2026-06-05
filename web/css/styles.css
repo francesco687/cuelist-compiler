@@ -40,65 +40,47 @@
     align-items: start;
   }
   #sidebar {
-    background: #232327;
-    border: 1px solid #333;
-    border-radius: 6px;
-    padding: 8px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
     position: sticky;
-    top: 8px;
-    max-height: calc(100vh - 16px);
+    top: 10px;
+    max-height: calc(100vh - 20px);
     overflow-y: auto;
+    backdrop-filter: var(--blur);
   }
   #sidebar h2 {
-    font-size: 0.8em;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin: 0 0 10px 0;
-    padding: 0 4px;
+    font-size: 0.72em; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    margin: 2px 0 12px 2px; padding: 0;
   }
-  #songList { list-style: none; padding: 0; margin: 0 0 10px 0; }
+  #songList { list-style: none; padding: 0; margin: 0 0 8px 0; }
   .song-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    color: #ccc;
-    border: 1px solid transparent;
-    margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 11px; border-radius: 9px; cursor: pointer;
+    color: var(--text-dim); border: 1px solid transparent; margin-bottom: 5px;
+    transition: background .12s, color .12s;
   }
-  .song-item:hover { background: #2a2a2e; }
+  .song-item:hover { background: var(--surface-2); color: var(--text); }
   .song-item.active {
-    background: #2c3e62;
-    border-color: #3d6ec6;
-    color: #fff;
+    background: linear-gradient(135deg, rgba(122,92,255,.22), rgba(94,139,255,.16));
+    color: #fff; border-color: transparent;
+    box-shadow: inset 0 0 0 1px var(--accent-ring);
   }
   .song-item .song-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .song-item .song-seq { font-size: 0.75em; color: #888; flex-shrink: 0; }
-  .song-item.active .song-seq { color: #b8c8e0; }
+  .song-item .song-seq { font-size: 0.75em; color: var(--text-dim); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .song-item.active .song-seq { color: #bcb6ff; }
   .song-item .song-remove {
-    background: none;
-    border: none;
-    color: #666;
-    padding: 2px 6px;
-    font-size: 1em;
-    cursor: pointer;
-    border-radius: 3px;
-    flex-shrink: 0;
+    background: none; border: none; color: var(--text-faint);
+    padding: 2px 6px; font-size: 1em; cursor: pointer; border-radius: 6px; flex-shrink: 0;
   }
-  .song-item .song-remove:hover { background: #c63d3d; color: #fff; }
+  .song-item .song-remove:hover { background: var(--danger-bg); color: var(--danger); }
   #addSong {
-    width: 100%;
-    background: transparent;
-    border: 1px dashed #555;
-    color: #aaa;
-    font-weight: 400;
-    padding: 8px;
-    font-size: 0.9em;
+    width: 100%; background: transparent; border: 1px dashed var(--border-strong);
+    color: var(--text-dim); font-weight: 400; padding: 9px; font-size: 0.9em; border-radius: 9px;
   }
-  #addSong:hover { border-color: #5b8dd6; color: #ddd; }
+  #addSong:hover { border-color: var(--accent-ring); color: var(--text); }
   @media (max-width: 720px) {
     .layout { grid-template-columns: 1fr; }
     #sidebar { position: static; max-height: none; }
@@ -137,15 +119,12 @@
   button.ghost:hover { border-color: #888; color: #ddd; }
 
   #header {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: center;
-    flex-wrap: wrap;
+    display: flex; gap: 10px; margin-bottom: 16px;
+    align-items: center; flex-wrap: wrap;
   }
-  #header label { color: #aaa; font-size: 0.9em; }
-  #songName { flex: 1; min-width: 200px; padding: 8px 12px; }
-  #sequence { width: 80px; padding: 8px 12px; }
+  #header label { color: var(--text-dim); font-size: 0.9em; }
+  #songName { flex: 1; min-width: 200px; padding: 8px 12px; font-size: 1.05em; font-weight: 500; }
+  #sequence { width: 80px; padding: 8px 12px; font-variant-numeric: tabular-nums; }
   #headerActions { display: flex; gap: 6px; margin-left: auto; }
 
   .cue-card {
