@@ -748,3 +748,27 @@
   }
   .osc-btn:hover:not(:disabled) { background: #357055; }
   .osc-btn:disabled { background: #2a2a2e; color: #666; border-color: #3a3a3a; cursor: not-allowed; }
+
+.cue-tc {
+  width: 110px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+  background: #2a2a2e;
+  border: 1px solid #444;
+  color: #e8e8e8;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+.cue-tc.invalid {
+  border-color: #d63a3a;
+  background: #3a1a1a;
+}
+.cue-tc-capture {
+  font-size: 1em;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid #444;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.cue-tc-capture:hover { background: #333; }

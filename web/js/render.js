@@ -195,9 +195,14 @@ function renderCue(song, cue, ci) {
   const hdr = document.createElement('div');
   hdr.className = 'cue-header';
   const chev = cue.collapsed ? '▶' : '▼';
+  const tcVal = escapeHtml(cue.position || '');
+  const tcValid = !cue.position || isValidSmpte(cue.position);
+  const tcCls = tcValid ? 'cue-tc' : 'cue-tc invalid';
   hdr.innerHTML = `
     <button class="chevron" title="${cue.collapsed ? 'Expand' : 'Collapse'}">${chev}</button>
     <input type="number" step="0.1" class="cue-num" value="${escapeHtml(cue.n)}" title="Cue number">
+    <input type="text" class="${tcCls}" placeholder="HH:MM:SS:FF" value="${tcVal}" title="Timecode (25fps SMPTE) — empty = excluded from TC export">
+    <button class="icon-btn cue-tc-capture" title="Capture from audio playhead">🎯</button>
     <input type="text" class="cue-name" placeholder="Cue name (Intro, Verse, Chorus...)" value="${escapeHtml(cue.name)}">
     ${cue.collapsed ? `<span class="cue-summary">${escapeHtml(cueSummary(cue))}</span>` : ''}
     <button class="icon-btn danger" title="Remove cue">&times;</button>
@@ -213,6 +218,23 @@ function renderCue(song, cue, ci) {
     saveState();
   });
   numInput.addEventListener('change', () => {
+    saveState();
+    render();
+  });
+  const tcInput = hdr.querySelector('.cue-tc');
+  tcInput.addEventListener('input', e => {
+    cue.position = e.target.value;
+    saveState();
+  });
+  tcInput.addEventListener('blur', () => {
+    // Re-render so the .invalid class reflects the final value. Markers also refresh.
+    render();
+  });
+  hdr.querySelector('.cue-tc-capture').addEventListener('click', e => {
+    e.stopPropagation();
+    const captured = captureCurrentPlayheadAsSmpte();
+    if (!captured) { alert('Load audio first.'); return; }
+    cue.position = captured;
     saveState();
     render();
   });
