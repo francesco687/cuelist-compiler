@@ -82,4 +82,11 @@ public extension ProjectStore {
         let cloned = project.songs[i].cues[s].actions
         updateActiveCue(id: dst) { $0.actions = cloned }
     }
+
+    /// Commit a precomputed voice-edit result (project + defaults) in one shot.
+    /// Triggers the store's normal debounced save via the `project`/`defaults` didSet.
+    func apply(_ result: ApplyResult) {
+        project = result.project
+        defaults = result.defaults
+    }
 }
