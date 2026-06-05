@@ -44,7 +44,7 @@ enum Theme {
     // Radii.
     static let radius: CGFloat = 11
     static let radiusSmall: CGFloat = 7
-    static let radiusLarge: CGFloat = 16          // pill CTAs (talk bar)
+    static let radiusLarge: CGFloat = 16          // pill CTAs (bottom cluster, delete bar)
 
     /// Full-screen app canvas (radial dark gradient). Use as a background.
     static var canvas: some View {

@@ -48,8 +48,9 @@ struct RootView: View {
                 ToolbarItem(placement: .principal) { songMenu }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(editMode == .active ? "Done" : "Edit") {
-                        withAnimation { editMode = editMode == .active ? .inactive : .active }
-                        if editMode == .inactive { selection.removeAll() }
+                        let turningOff = editMode == .active
+                        withAnimation { editMode = turningOff ? .inactive : .active }
+                        if turningOff { selection.removeAll() }
                     }
                     .foregroundStyle(Theme.accentSolid)
                 }
