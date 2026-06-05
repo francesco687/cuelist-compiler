@@ -54,6 +54,11 @@ public extension ProjectStore {
         project.songs[i].cues.sort { $0.n < $1.n }
     }
 
+    /// Set one cue's number. No auto-sort; duplicates allowed (n is a free label).
+    func setCueNumber(id: UUID, to n: Double) {
+        updateActiveCue(id: id) { $0.n = n }
+    }
+
     /// Reassign cue numbers 1,2,3… in current display (array) order. Integer steps.
     func renumberFromOne() {
         let i = activeSongIndex()

@@ -95,4 +95,13 @@ final class ProjectStoreMutationTests: XCTestCase {
         s.renumberFromOne()
         XCTAssertEqual(s.activeSong.cues.map(\.n), [1, 2, 3])   // display order, integer steps
     }
+
+    func testSetCueNumberChangesOneCueAllowingDecimalsAndDuplicates() {
+        let s = store()
+        s.addCue(); s.addCue()                      // n = 1,2
+        s.setCueNumber(id: s.activeSong.cues[1].id, to: 1.5)
+        XCTAssertEqual(s.activeSong.cues.map(\.n), [1, 1.5])
+        s.setCueNumber(id: s.activeSong.cues[1].id, to: 1)   // duplicates allowed (n is a label)
+        XCTAssertEqual(s.activeSong.cues.map(\.n), [1, 1])
+    }
 }
