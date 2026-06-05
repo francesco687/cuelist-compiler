@@ -1,0 +1,19 @@
+{
+  "name": "cuelist-compiler-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-platform desktop app: author cuelists and send OSC/UDP to grandMA3; embeds the hub for the iPhone companion.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
