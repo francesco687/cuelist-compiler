@@ -119,8 +119,72 @@ public enum ShowEditApplier {
             p.songs[si].cues.sort { $0.n < $1.n }
             summary.append("Sort cues in song \(si + 1)")
 
-        default:
-            break   // action/preset/defaults/project ops handled in Task 5
+        case let .setGroup(song, cue, group, block):
+            guard let (si, ci, bi) = locate(song, cue, block, p, "setGroup", &warnings) else { return }
+            p.songs[si].cues[ci].actions[bi].group = group
+            summary.append("Cue \(num(cue)) \u{00B7} group = \(group)")
+
+        case let .setPreset(song, cue, pool, name, fade, delay, block):
+            guard let (si, ci, bi) = locate(song, cue, block, p, "setPreset", &warnings) else { return }
+            var preset = p.songs[si].cues[ci].actions[bi].presets[pool] ?? Preset()
+            if let name { preset.name = name }
+            if let fade { preset.fade = fade }
+            if let delay { preset.delay = delay }
+            p.songs[si].cues[ci].actions[bi].presets[pool] = preset
+            let fadeNote = (fade?.isEmpty == false) ? " (fade \(fade!))" : ""
+            summary.append("Cue \(num(cue)) \u{00B7} \(pool.rawValue) = \u{201C}\(preset.name)\u{201D}\(fadeNote)")
+
+        case let .clearPreset(song, cue, pool, block):
+            guard let (si, ci, bi) = locate(song, cue, block, p, "clearPreset", &warnings) else { return }
+            p.songs[si].cues[ci].actions[bi].presets[pool] = Preset()
+            summary.append("Cue \(num(cue)) \u{00B7} clear \(pool.rawValue)")
+
+        case let .addActionBlock(song, cue):
+            guard let si = songIndex(song, p) else { return warn(&warnings, song, "addActionBlock") }
+            guard let ci = cueIndex(cue, si, p) else { return warnCue(&warnings, cue, si, "addActionBlock") }
+            p.songs[si].cues[ci].actions.append(Action())
+            summary.append("Cue \(num(cue)) \u{00B7} add action block")
+
+        case let .removeActionBlock(song, cue, block):
+            guard let si = songIndex(song, p) else { return warn(&warnings, song, "removeActionBlock") }
+            guard let ci = cueIndex(cue, si, p) else { return warnCue(&warnings, cue, si, "removeActionBlock") }
+            guard p.songs[si].cues[ci].actions.indices.contains(block) else {
+                warnings.append("Cue \(num(cue)) has no action block \(block) \u{2014} skipped removeActionBlock"); return
+            }
+            p.songs[si].cues[ci].actions.remove(at: block)
+            if p.songs[si].cues[ci].actions.isEmpty { p.songs[si].cues[ci].actions.append(Action()) }
+            summary.append("Cue \(num(cue)) \u{00B7} remove action block \(block)")
+
+        case let .copyActions(song, fromCue, toCue):
+            guard let si = songIndex(song, p) else { return warn(&warnings, song, "copyActions") }
+            guard let from = cueIndex(fromCue, si, p) else { return warnCue(&warnings, fromCue, si, "copyActions") }
+            guard let to = cueIndex(toCue, si, p) else { return warnCue(&warnings, toCue, si, "copyActions") }
+            p.songs[si].cues[to].actions = p.songs[si].cues[from].actions
+            summary.append("Copy actions from cue \(num(fromCue)) \u{2192} cue \(num(toCue))")
+
+        case let .setDefault(pool, fade, delay):
+            var preset = d.values[pool] ?? Preset()
+            if let fade { preset.fade = fade }
+            if let delay { preset.delay = delay }
+            d.values[pool] = preset
+            summary.append("Default \(pool.rawValue) \u{00B7} fade \(preset.fade) delay \(preset.delay)")
+
+        case let .setStoreMode(mode):
+            p.storeMode = mode
+            summary.append("Store mode \u{2192} \(mode.rawValue)")
         }
+    }
+
+    /// Resolve (songIdx, cueIdx, blockIdx). blockIdx defaults to 0; must be in range.
+    static func locate(_ song: String?, _ cue: Double, _ block: Int?, _ p: Project,
+                       _ op: String, _ warnings: inout [String]) -> (Int, Int, Int)? {
+        guard let si = songIndex(song, p) else { warn(&warnings, song, op); return nil }
+        guard let ci = cueIndex(cue, si, p) else { warnCue(&warnings, cue, si, op); return nil }
+        let blocks = p.songs[si].cues[ci].actions
+        let bi = block ?? 0
+        guard blocks.indices.contains(bi) else {
+            warnings.append("Cue \(num(cue)) has no action block \(bi) \u{2014} skipped \(op)"); return nil
+        }
+        return (si, ci, bi)
     }
 }
