@@ -740,6 +740,7 @@
     color: #999;
   }
   .phone-pill.connected { background: #1e4a2a; color: #8ee0a0; border-color: #2a6a3e; }
+  .settings-error { margin: 6px 0 0; color: #d65555; font-size: 0.85em; }
   .osc-btn {
     background: #2a5a4a;
     border: 1px solid #3a7a5e;

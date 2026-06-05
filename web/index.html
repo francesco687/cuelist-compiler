@@ -79,7 +79,8 @@
           <label>Throttle ms <input id="setIntervalMs" type="number" min="0"></label>
           <label>Embedded hub (iPhone) <input id="setHubEnabled" type="checkbox"></label>
           <label>Hub port <input id="setHubPort" type="number" min="1" max="65535"></label>
-          <menu><button value="cancel">Cancel</button><button id="saveSettingsBtn" value="ok">Save</button></menu>
+          <p id="settingsError" class="settings-error" role="alert" hidden></p>
+          <menu><button type="submit" value="cancel">Cancel</button><button id="saveSettingsBtn" type="button">Save</button></menu>
         </form>
       </dialog>
     </main>
