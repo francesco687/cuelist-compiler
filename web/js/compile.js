@@ -131,6 +131,35 @@ function buildCmdLines(songs) {
   return out;
 }
 
+// Timecode events — see shared/ma3-command-spec.md §"Timecode show per song".
+// Pre-conditions (operator manual): Sequence N, TC pool N, and Track at .1.1
+// with target=Sequence N must exist on MA3. Overwrite-only behavior: wipes
+// existing events at <N>.1.1.1.1 with up to 200 deletes (excess fail silently).
+function buildTcCmdLines(songs) {
+  const out = [];
+  (songs || []).forEach(song => {
+    const seq = parseInt(song.sequence) || 1;
+    const validCues = (song.cues || [])
+      .filter(c => isValidSmpte(c.position))
+      .slice()
+      .sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));
+    if (validCues.length === 0) return;
+    for (let i = 0; i < 200; i++) {
+      out.push(`Delete Timecode ${seq}.1.1.1.1.1 /NoConfirmation`);
+    }
+    validCues.forEach((cue, i) => {
+      const eventIdx = i + 1;
+      const seconds = timecodeToSeconds(cue.position);
+      const sStr = Number.isInteger(seconds)
+        ? String(seconds)
+        : String(+seconds.toFixed(6)).replace(/\.?0+$/, '');
+      out.push(`Store Timecode ${seq}.1.1.1.1 'Goto Cue ${cue.n} Sequence ${seq}' /NoConfirmation`);
+      out.push(`Set Timecode ${seq}.1.1.1.1.${eventIdx} Property 'time' ${sStr}`);
+    });
+  });
+  return out;
+}
+
 function exportLua() {
   const song = activeSong();
   if (!song || song.cues.length === 0) {
@@ -154,4 +183,4 @@ function exportAllLua() {
 
 // --- public surface
 window.CC = window.CC || {};
-CC.compile = { songToLuaEntry, buildLua, buildCmdLines, exportLua, exportAllLua };
+window.CC.compile = { songToLuaEntry, buildLua, buildCmdLines, buildTcCmdLines, exportLua, exportAllLua };

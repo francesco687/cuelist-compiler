@@ -46,4 +46,4 @@ const ACTION_COLORS = [
 
 // --- public surface
 window.CC = window.CC || {};
-CC.constants = { POOLS, POOL_NUM, FPS, POOL_ACCENT, POOL_TITLE, POOL_ABBR, ACTION_COLORS };
+window.CC.constants = { POOLS, POOL_NUM, FPS, POOL_ACCENT, POOL_TITLE, POOL_ABBR, ACTION_COLORS };
