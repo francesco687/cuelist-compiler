@@ -68,6 +68,12 @@ document.getElementById('storeModeSeg').addEventListener('click', e => {
 });
 
 syncStoreModeSegment(); // initialise on load
+
+// Close split/overflow <details> menus after an item is chosen
+document.querySelectorAll('.menu-item').forEach(btn => {
+  btn.addEventListener('click', () => btn.closest('details')?.removeAttribute('open'));
+});
+
 document.getElementById('export').addEventListener('click', exportLua);
 document.getElementById('exportAll').addEventListener('click', exportAllLua);
 document.getElementById('saveProject').addEventListener('click', saveProject);

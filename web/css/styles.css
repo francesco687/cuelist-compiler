@@ -158,7 +158,7 @@
     width: 16px;
     height: 16px;
     padding: 0;
-    border: 2px solid #555;
+    border: 2px solid var(--border-strong);
     border-radius: 50%;
     cursor: pointer;
     background: var(--swatch-color, transparent);
@@ -168,7 +168,7 @@
   .color-swatch.no-color {
     background: transparent;
     border-style: dashed;
-    border-color: #666;
+    border-color: var(--border-strong);
   }
   .color-swatch:hover { border-color: #fff; transform: scale(1.1); }
 
@@ -192,7 +192,7 @@
   .color-tile.no-color {
     background: transparent;
     border-style: dashed;
-    border-color: #777;
+    border-color: var(--text-faint);
     position: relative;
   }
   .color-tile.no-color::after {
@@ -200,7 +200,7 @@
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    color: #888;
+    color: var(--text-faint);
     font-size: 16px;
     line-height: 1;
   }
@@ -233,7 +233,7 @@
   .preset-row .ptime input.preset-delay { border-top: 2px solid rgba(240,184,80,.5); }
   @media (max-width: 1000px) {
     .action-block { flex-wrap: wrap; }
-    .group-row { flex: 0 0 100%; border-right: none; border-bottom: 1px solid #3a3a40; padding-right: 0; padding-bottom: 4px; }
+    .group-row { flex: 0 0 100%; border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 4px; }
     .presets-grid { flex-wrap: wrap; flex: 1 1 100%; gap: 4px 6px; }
     .preset-row { flex: 1 1 calc(50% - 6px); min-width: 140px; }
   }
@@ -273,7 +273,7 @@
   .seg-btn.active { background: var(--surface-3); color: #fff; }
 
   .split { display: inline-flex; align-items: stretch; }
-  .primary-send.osc-btn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .split > button { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .split-menu { position: relative; }
   .split-caret { list-style: none; cursor: pointer; display: flex; align-items: center; padding: 0 8px;
     background: var(--surface-2); border: 1px solid var(--border); border-left: none;
@@ -407,7 +407,7 @@
     top: 2px;
     left: 4px;
     font-size: 0.65em;
-    color: #555;
+    color: var(--text-faint);
     font-weight: 600;
     letter-spacing: 0.5px;
     pointer-events: none;
@@ -487,3 +487,8 @@
   #settingsDialog::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(3px); }
   #settingsForm label { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0; font-size: 0.9em; color: var(--text-dim); }
   #settingsForm menu { display: flex; gap: 8px; justify-content: flex-end; margin: 14px 0 0; padding: 0; }
+
+  button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent-solid);
+    outline-offset: 2px;
+  }
