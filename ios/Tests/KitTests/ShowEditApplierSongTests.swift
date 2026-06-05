@@ -74,4 +74,10 @@ final class ShowEditApplierSongTests: XCTestCase {
         XCTAssertEqual(r.project.songs.last?.sequence, 1)
         XCTAssertEqual(r.summary, ["Add song \u{201C}\u{201D} (sequence 1)"])   // note curly quotes
     }
+
+    func testSelectSongByOrdinal() {
+        let r = ShowEditApplier.apply([.selectSong(song: "2")], to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.activeSongId, "b")
+        XCTAssertEqual(r.summary, ["Select song 2 (\u{201C}Closer\u{201D})"])   // note curly quotes
+    }
 }

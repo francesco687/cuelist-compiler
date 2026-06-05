@@ -83,6 +83,24 @@ final class VoiceCaptureControllerTests: XCTestCase {
         XCTAssertEqual(msg, "Service returned an unexpected response — try again")
     }
 
+    func testApiErrorMapsToServiceError() async {
+        struct Boom: Transcriber { func transcribe(_ u: URL) async throws -> String { throw VoiceError.api(status: 500, message: "x") } }
+        let c = make(Boom(), StubInterpreter(cmd: InterpretedCommand(transcript: "", edits: [])))
+        await c.startRecording()
+        await c.stopAndProcess(project: Project.empty(), defaults: Defaults())
+        guard case let .error(msg) = c.phase else { return XCTFail("expected error") }
+        XCTAssertEqual(msg, "Service error (500)")
+    }
+
+    func testMissingKeyMapsToSettingsHint() async {
+        struct Boom: Transcriber { func transcribe(_ u: URL) async throws -> String { throw VoiceError.missingKey("OpenAI") } }
+        let c = make(Boom(), StubInterpreter(cmd: InterpretedCommand(transcript: "", edits: [])))
+        await c.startRecording()
+        await c.stopAndProcess(project: Project.empty(), defaults: Defaults())
+        guard case let .error(msg) = c.phase else { return XCTFail("expected error") }
+        XCTAssertEqual(msg, "Add your OpenAI API key in Settings")
+    }
+
     func testCancelResets() async {
         let interp = StubInterpreter(cmd: InterpretedCommand(transcript: "t",
             edits: [.setGroup(song: nil, cue: 1, group: "1", block: nil)]))

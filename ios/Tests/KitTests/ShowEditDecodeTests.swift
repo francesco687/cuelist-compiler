@@ -56,4 +56,9 @@ final class ShowEditDecodeTests: XCTestCase {
         XCTAssertEqual(ok.edits, [.setStoreMode(mode: .overwrite)])
         XCTAssertThrowsError(try decode(#"{"edits":[{"op":"setStoreMode","mode":"nonsense"}]}"#))
     }
+
+    func testDecodesSelectSong() throws {
+        let input = try decode(#"{"edits":[{"op":"selectSong","song":"2"}]}"#)
+        XCTAssertEqual(input.edits, [.selectSong(song: "2")])
+    }
 }

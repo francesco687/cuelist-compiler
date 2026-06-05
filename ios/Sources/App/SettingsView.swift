@@ -31,7 +31,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Voice (API keys)")
                 } footer: {
-                    Text("Stored in your device Keychain. Voice commands send audio to OpenAI and the show context to Anthropic over HTTPS.")
+                    Text("Stored in your device Keychain. Voice commands send audio to OpenAI and the show context to Anthropic over HTTPS. After entering keys for the first time, relaunch the app.")
                 }
             }
             .navigationTitle("Settings")
