@@ -96,16 +96,19 @@ function initDesktopChrome() {
   if (row) row.hidden = false;
 
   async function refreshStatus() {
-    const st = await window.cuelist.getStatus();
-    const tl = document.getElementById('oscTargetLabel');
-    if (tl) tl.textContent = 'OSC → ' + st.oscTarget;
-    const pp = document.getElementById('phonePill');
-    if (pp) { pp.textContent = st.phoneConnected ? '📱 phone connected' : '📱 no phone'; pp.classList.toggle('connected', st.phoneConnected); }
+    try {
+      const st = await window.cuelist.getStatus();
+      const tl = document.getElementById('oscTargetLabel');
+      if (tl) tl.textContent = 'OSC → ' + st.oscTarget;
+      const pp = document.getElementById('phonePill');
+      if (pp) { pp.textContent = st.phoneConnected ? '📱 phone connected' : '📱 no phone'; pp.classList.toggle('connected', st.phoneConnected); }
+    } catch { /* transient IPC error — next poll recovers */ }
   }
   refreshStatus();
   setInterval(refreshStatus, 2000);
 
   const dlg = document.getElementById('settingsDialog');
+  const errEl = document.getElementById('settingsError');
   document.getElementById('openSettingsBtn').addEventListener('click', async () => {
     const s = await window.cuelist.getSettings();
     document.getElementById('setMa3Host').value = s.ma3Host;
@@ -114,19 +117,26 @@ function initDesktopChrome() {
     document.getElementById('setIntervalMs').value = s.intervalMs;
     document.getElementById('setHubEnabled').checked = s.hubEnabled;
     document.getElementById('setHubPort').value = s.hubPort;
+    if (errEl) errEl.hidden = true; // clear any stale error from a prior attempt
     dlg.showModal();
   });
-  document.getElementById('settingsForm').addEventListener('submit', async (ev) => {
-    if (ev.submitter && ev.submitter.value === 'cancel') return;
-    await window.cuelist.setSettings({
-      ma3Host: document.getElementById('setMa3Host').value.trim(),
-      ma3Port: parseInt(document.getElementById('setMa3Port').value, 10),
-      ma3Prefix: document.getElementById('setMa3Prefix').value.trim(),
-      intervalMs: parseInt(document.getElementById('setIntervalMs').value, 10),
-      hubEnabled: document.getElementById('setHubEnabled').checked,
-      hubPort: parseInt(document.getElementById('setHubPort').value, 10),
-    });
-    refreshStatus();
+  // Save is type="button": validate via main, keep dialog open + show inline error on failure.
+  document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    try {
+      await window.cuelist.setSettings({
+        ma3Host: document.getElementById('setMa3Host').value.trim(),
+        ma3Port: parseInt(document.getElementById('setMa3Port').value, 10),
+        ma3Prefix: document.getElementById('setMa3Prefix').value.trim(),
+        intervalMs: parseInt(document.getElementById('setIntervalMs').value, 10),
+        hubEnabled: document.getElementById('setHubEnabled').checked,
+        hubPort: parseInt(document.getElementById('setHubPort').value, 10),
+      });
+      if (errEl) errEl.hidden = true;
+      dlg.close();
+      refreshStatus();
+    } catch (e) {
+      if (errEl) { errEl.textContent = (e && e.message) || 'Invalid settings'; errEl.hidden = false; }
+    }
   });
 }
 
