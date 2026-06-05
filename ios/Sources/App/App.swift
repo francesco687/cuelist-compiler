@@ -12,6 +12,7 @@ struct CuelistCompilerApp: App {
         transcriber: WhisperTranscriber(apiKey: KeychainAIKeyStore().key(for: .openAI) ?? ""),
         interpreter: AnthropicInterpreter(apiKey: KeychainAIKeyStore().key(for: .anthropic) ?? "")
     )
+    // Note capture shares the device audio session with `voice`; the UI never records both at once.
     @State private var notes = NotesCaptureController(
         recorder: AVAudioFileRecorder(),
         transcriber: WhisperTranscriber(apiKey: KeychainAIKeyStore().key(for: .openAI) ?? ""),

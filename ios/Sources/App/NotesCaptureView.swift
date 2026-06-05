@@ -47,7 +47,7 @@ struct NotesCaptureView: View {
                         .opacity(text.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
                     }
 
-                    if case .routing = notes.phase { ProgressView("Routing...").tint(Theme.aqua) }
+                    if case .routing = notes.phase { ProgressView("Routing\u{2026}").tint(Theme.aqua) }
                     if case let .error(msg) = notes.phase {
                         Label(msg, systemImage: "exclamationmark.triangle.fill")
                             .font(.system(size: 12)).foregroundStyle(Theme.danger)
@@ -62,6 +62,7 @@ struct NotesCaptureView: View {
             }
             .navigationTitle(targetCue == nil ? "Notes" : "Note")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { notes.reset(); dismiss() }

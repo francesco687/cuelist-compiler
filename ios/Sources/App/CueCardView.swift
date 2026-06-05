@@ -52,6 +52,7 @@ struct CueCardView: View {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "square.and.pencil").font(.system(size: 10)).foregroundStyle(Theme.aqua)
                     Text(cue.notes).font(.system(size: 11)).foregroundStyle(Theme.text.opacity(0.85))
+                        .lineLimit(cue.collapsed ? 2 : nil)
                     Spacer(minLength: 0)
                 }
                 .padding(.vertical, 5).padding(.horizontal, 8)
