@@ -4,12 +4,11 @@ import CuelistCompilerKit
 struct RootView: View {
     @Environment(ProjectStore.self) private var store
     @Environment(VoiceCaptureController.self) private var voice
-    @State private var showSettings = false
-    @State private var showDefaults = false
-    @State private var showPull = false
     @State private var showNotes = false
     @State private var showRename = false
     @State private var renameText = ""
+    @State private var editMode: EditMode = .inactive
+    @State private var selection: Set<UUID> = []
 
     private var activeIndex: Int? {
         store.project.songs.firstIndex(where: { $0.id == store.project.activeSongId })
@@ -21,6 +20,8 @@ struct RootView: View {
                 .tabItem { Label("Author", systemImage: "square.and.pencil") }
             SendView()
                 .tabItem { Label("Send", systemImage: "paperplane") }
+            SettingsTabView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(Theme.accentSolid)
     }
@@ -32,31 +33,28 @@ struct RootView: View {
                 Theme.canvas
                 VStack(spacing: 0) {
                     subbar
-                    CueListView()
-                    TalkBarView()
+                    CueListView(selection: $selection)
+                    if editMode == .active {
+                        deleteBar
+                    } else {
+                        BottomCluster(onAddCue: { store.addCue() },
+                                      onNote: { showNotes = true })
+                    }
                 }
             }
+            .environment(\.editMode, $editMode)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { songMenu }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showNotes = true } label: {
-                        Image(systemName: "square.and.pencil").foregroundStyle(Theme.aqua)
+                    Button(editMode == .active ? "Done" : "Edit") {
+                        withAnimation { editMode = editMode == .active ? .inactive : .active }
+                        if editMode == .inactive { selection.removeAll() }
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button { showPull = true } label: { Label("Pull from MA\u{2026}", systemImage: "arrow.down.circle") }
-                        Divider()
-                        Button("Defaults\u{2026}") { showDefaults = true }
-                        Button("Settings\u{2026}") { showSettings = true }
-                    } label: { Image(systemName: "slider.horizontal.3") }
+                    .foregroundStyle(Theme.accentSolid)
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showSettings) { SettingsView() }
-            .sheet(isPresented: $showDefaults) { DefaultsView() }
-            .sheet(isPresented: $showPull) { PullSequencesView() }
             .sheet(isPresented: $showNotes) { NotesCaptureView(targetCue: nil) }
             .sheet(isPresented: previewBinding) {
                 if let pending = voice.pending {
@@ -78,6 +76,22 @@ struct RootView: View {
                 Button("Cancel", role: .cancel) {}
             }
         }
+    }
+
+    @ViewBuilder private var deleteBar: some View {
+        Button(role: .destructive) {
+            store.removeCues(ids: selection); selection.removeAll()
+        } label: {
+            Text(selection.isEmpty ? "Select cues to delete"
+                                   : "Delete \(selection.count) cue\(selection.count == 1 ? "" : "s")")
+                .font(.system(size: 16, weight: .semibold))
+                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                .background(selection.isEmpty ? Theme.surface2 : Theme.danger,
+                            in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
+                .foregroundStyle(selection.isEmpty ? Theme.textDim : .white)
+        }
+        .buttonStyle(.plain).disabled(selection.isEmpty)
+        .padding(.horizontal, 12).padding(.bottom, 12).padding(.top, 4)
     }
 
     // MARK: Song menu (in nav title)
@@ -126,6 +140,11 @@ struct RootView: View {
                     .buttonStyle(.plain)
                     Button { withAnimation(.snappy(duration: 0.2)) { store.expandAllCues() } } label: {
                         Image(systemName: "rectangle.expand.vertical")
+                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                    }
+                    .buttonStyle(.plain)
+                    Button { withAnimation(.snappy(duration: 0.2)) { store.renumberFromOne() } } label: {
+                        Image(systemName: "list.number")
                             .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
                     }
                     .buttonStyle(.plain)

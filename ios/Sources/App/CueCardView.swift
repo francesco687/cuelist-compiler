@@ -5,9 +5,14 @@ struct CueCardView: View {
     @Environment(ProjectStore.self) private var store
     @Environment(NotesCaptureController.self) private var notes
     @Binding var cue: Cue
+    @Environment(\.editMode) private var editMode
     @State private var confirmingDelete = false
     @State private var addingNote = false
     @State private var editingNote = false
+    @State private var renumbering = false
+    @State private var renumberText = ""
+
+    private var isEditing: Bool { editMode?.wrappedValue == .active }
 
     private var cueLabel: String {
         let name = cue.name.trimmingCharacters(in: .whitespaces)
@@ -36,11 +41,15 @@ struct CueCardView: View {
             } label: {
                 HStack(spacing: 11) {
                     CueBadge(n: cue.n)
+                        .onTapGesture {
+                            renumberText = formatN(cue.n)
+                            renumbering = true
+                        }
                     TextField("Cue name", text: $cue.name)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Theme.text)
                         .autocorrectionDisabled()
-                        .disabled(cue.collapsed)            // tap toggles when collapsed
+                        .disabled(cue.collapsed || isEditing)            // tap toggles when collapsed
                     Spacer(minLength: 4)
                     Image(systemName: cue.collapsed ? "chevron.right" : "chevron.down")
                         .font(.caption).foregroundStyle(Theme.textFaint)
@@ -66,7 +75,7 @@ struct CueCardView: View {
                 .buttonStyle(.plain)
             }
 
-            if cue.collapsed {
+            if cue.collapsed || isEditing {
                 if !groupChips.isEmpty || presetCount > 0 {
                     HStack(spacing: 7) {
                         ForEach(Array(groupChips.prefix(3).enumerated()), id: \.offset) { _, g in Chip(text: g) }
@@ -125,6 +134,16 @@ struct CueCardView: View {
         }
         .sheet(isPresented: $addingNote) { NotesCaptureView(targetCue: cue.n) }
         .sheet(isPresented: $editingNote) { EditNoteView(cueN: cue.n, initialText: cue.notes) }
+        .alert("Cue number", isPresented: $renumbering) {
+            TextField("Number", text: $renumberText)
+                .keyboardType(.decimalPad)
+            Button("Save") {
+                if let v = Double(renumberText.replacingOccurrences(of: ",", with: ".")) {
+                    store.setCueNumber(id: cue.id, to: v)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: { Text("Set the number for this cue.") }
         .padding(13)
         .cardSurface()
     }
