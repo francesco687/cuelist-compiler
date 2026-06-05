@@ -131,7 +131,7 @@ struct RootView: View {
     @ViewBuilder private var subbar: some View {
         @Bindable var store = store
         if let i = activeIndex {
-            HStack(spacing: 18) {
+            HStack(spacing: 12) {
                 SeqField(sequence: $store.project.songs[i].sequence)
                 if !store.project.songs[i].cues.isEmpty {
                     Button { withAnimation(.snappy(duration: 0.2)) { store.collapseAllCues() } } label: {
@@ -157,10 +157,13 @@ struct RootView: View {
 
     private func subbarIcon(_ name: String) -> some View {
         Image(systemName: name)
-            .font(.system(size: 20, weight: .medium))
+            .font(.system(size: 17, weight: .semibold))
             .foregroundStyle(Theme.accentSolid)
-            .padding(.vertical, 4).padding(.horizontal, 2)
-            .contentShape(Rectangle())
+            .frame(width: 40, height: 40)
+            .background(Theme.surface3, in: RoundedRectangle(cornerRadius: Theme.radius))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius)
+                .strokeBorder(Theme.border, lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.radius))
     }
 
     private var previewBinding: Binding<Bool> {

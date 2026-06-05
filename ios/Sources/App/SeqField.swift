@@ -9,16 +9,18 @@ struct SeqField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: 7) {
-            Text("Seq").font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.textDim)
+        HStack(spacing: 8) {
+            Text("Seq").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.text)
             TextField("1", text: $text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
-                .font(.system(size: 17, weight: .semibold).monospacedDigit())
+                .font(.system(size: 18, weight: .bold).monospacedDigit())
                 .foregroundStyle(Theme.text)
-                .frame(width: 66)
-                .padding(.vertical, 8)
-                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                .frame(width: 70)
+                .padding(.vertical, 9)
+                .background(Theme.surface3, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                    .strokeBorder(Theme.borderStrong, lineWidth: 1))
                 .focused($focused)
         }
         .onAppear { text = String(sequence) }
