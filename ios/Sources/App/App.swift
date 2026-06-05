@@ -20,6 +20,8 @@ struct CuelistCompilerApp: App {
                 .environment(store)
                 .environment(hub)
                 .environment(voice)
+                .tint(Theme.accentSolid)
+                .preferredColorScheme(.dark)
                 .onAppear { if !hub.host.isEmpty { hub.connect() } }
         }
         .onChange(of: scenePhase) { _, phase in
