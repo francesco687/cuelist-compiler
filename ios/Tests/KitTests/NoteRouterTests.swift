@@ -66,4 +66,16 @@ final class NoteRouterTests: XCTestCase {
         catch VoiceError.badResponse(_) { }
         catch { XCTFail("wrong error: \(error)") }
     }
+
+    func testTruncatedResponseThrowsBadResponse() async {
+        let mock = MockHTTPTransport()
+        mock.handler = { req in
+            (Data(#"{"stop_reason":"max_tokens","content":[{"type":"tool_use","name":"attach_notes","input":{"notes":[]}}]}"#.utf8),
+             HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        let router = AnthropicNoteRouter(apiKey: "sk-ant", transport: mock)
+        do { _ = try await router.route(transcript: "x", project: project(), targetCue: nil); XCTFail("expected throw") }
+        catch VoiceError.badResponse(_) { }
+        catch { XCTFail("wrong error: \(error)") }
+    }
 }

@@ -60,6 +60,10 @@ public struct AnthropicNoteRouter: NoteInterpreter {
         guard resp.statusCode == 200 else {
             throw VoiceError.api(status: resp.statusCode, message: String(decoding: data.prefix(512), as: UTF8.self))
         }
+        struct StopCheck: Decodable { let stop_reason: String? }
+        if (try? JSONDecoder().decode(StopCheck.self, from: data))?.stop_reason == "max_tokens" {
+            throw VoiceError.badResponse("Response truncated (max_tokens) — try fewer notes at once")
+        }
         return try Self.parse(data)
     }
 

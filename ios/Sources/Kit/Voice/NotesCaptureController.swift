@@ -27,6 +27,8 @@ public final class NotesCaptureController {
         catch { phase = .error("Couldn't start recording") }
     }
 
+    /// Stop recording and transcribe; returns the transcript (also stored on `transcript`).
+    /// Caller then passes the text to `routeText` to route and preview.
     @discardableResult
     public func stopAndTranscribe() async -> String {
         guard let audio = await recorder.stop() else { phase = .error("No audio captured"); return "" }
@@ -54,6 +56,8 @@ public final class NotesCaptureController {
             phase = .error("Service error (\(status))")
         } catch let VoiceError.missingKey(p) {
             phase = .error("Add your \(p) API key in Settings")
+        } catch VoiceError.badResponse {
+            phase = .error("Service returned an unexpected response — try again")
         } catch {
             phase = .error("Couldn't route that -- try rephrasing")
         }
