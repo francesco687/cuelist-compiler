@@ -35,6 +35,9 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .scrollContentBackground(.hidden)
+            .background(Theme.canvas)
+            .tint(Theme.accentSolid)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { saveKeys(); dismiss() }

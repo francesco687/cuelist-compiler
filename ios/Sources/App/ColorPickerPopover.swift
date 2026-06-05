@@ -13,14 +13,15 @@ struct ColorPickerPopover: View {
             ForEach(PoolDisplay.actionColors, id: \.self) { hex in swatch(hex: hex, isNone: false) }
         }
         .padding()
+        .background(Theme.surface3)
         .presentationCompactAdaptation(.popover)
     }
 
     private func swatch(hex: String, isNone: Bool) -> some View {
         Circle()
-            .fill(isNone ? Color(.systemGray4) : (Color(hex: hex) ?? .gray))
+            .fill(isNone ? Theme.surface3 : (Color(hex: hex) ?? .gray))
             .frame(width: 30, height: 30)
-            .overlay(Circle().stroke(.primary, lineWidth: selection == hex ? 2 : 0))
+            .overlay(Circle().stroke(Theme.accentSolid, lineWidth: selection == hex ? 2 : 0))
             .overlay(isNone ? Image(systemName: "slash.circle").font(.caption) : nil)
             .onTapGesture { selection = hex; dismiss() }
     }

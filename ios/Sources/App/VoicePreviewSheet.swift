@@ -15,7 +15,7 @@ struct VoicePreviewSheet: View {
 
                 if let q = pending.clarification {
                     Section("Needs clarification") {
-                        Label(q, systemImage: "questionmark.circle").foregroundStyle(.orange)
+                        Label(q, systemImage: "questionmark.circle").foregroundStyle(Theme.warn)
                     }
                 }
 
@@ -30,13 +30,16 @@ struct VoicePreviewSheet: View {
                 if !pending.warnings.isEmpty {
                     Section("Skipped") {
                         ForEach(Array(pending.warnings.enumerated()), id: \.offset) { _, w in
-                            Label(w, systemImage: "exclamationmark.triangle").foregroundStyle(.secondary)
+                            Label(w, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.textDim)
                         }
                     }
                 }
             }
             .navigationTitle("Voice command")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(Theme.canvas)
+            .tint(Theme.accentSolid)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Discard", role: .cancel, action: onDiscard) }
                 ToolbarItem(placement: .confirmationAction) {

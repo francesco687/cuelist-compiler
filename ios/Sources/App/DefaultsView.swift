@@ -24,6 +24,9 @@ struct DefaultsView: View {
                 }
             }
             .navigationTitle("Defaults")
+            .scrollContentBackground(.hidden)
+            .background(Theme.canvas)
+            .tint(Theme.accentSolid)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
     }
