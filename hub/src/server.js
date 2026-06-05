@@ -2,6 +2,7 @@
 const { WebSocketServer } = require('ws');
 const { OscSender } = require('./osc');
 const { createCompiler, compileShow } = require('./compile-bridge');
+const { pullSequences } = require('./pull');
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -49,6 +50,19 @@ function startServer(config) {
       } else if (msg.type === 'cmd' && typeof msg.line === 'string') {
         try { await sender.send(msg.line); send(ws, { type: 'sent', line: msg.line }); }
         catch (e) { send(ws, { type: 'error', message: e.message }); }
+      } else if (msg.type === 'pull-sequences') {
+        // Fire the desk plugin, wait for the file it writes, relay the list back.
+        try {
+          const data = await pullSequences({
+            sender,
+            trigger: config.pullTrigger,
+            file: config.pullFile,
+            timeoutMs: config.pullTimeoutMs,
+          });
+          send(ws, { type: 'sequences', version: data.version ?? 1, sequences: data.sequences });
+        } catch (e) {
+          send(ws, { type: 'pull-error', message: e.message });
+        }
       } else if (msg.type === 'ping') {
         send(ws, { type: 'pong' });
       } else {
