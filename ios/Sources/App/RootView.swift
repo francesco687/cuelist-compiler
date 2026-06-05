@@ -16,14 +16,23 @@ struct RootView: View {
     }
 
     var body: some View {
+        TabView {
+            authorTab
+                .tabItem { Label("Author", systemImage: "square.and.pencil") }
+            SendView()
+                .tabItem { Label("Send", systemImage: "paperplane") }
+        }
+        .tint(Theme.accentSolid)
+    }
+
+    private var authorTab: some View {
         @Bindable var store = store
-        NavigationStack {
+        return NavigationStack {
             ZStack {
                 Theme.canvas
                 VStack(spacing: 0) {
                     subbar
                     CueListView()
-                    SendBarView(onOpenNotes: { showNotes = true })
                     TalkBarView()
                 }
             }
@@ -31,11 +40,16 @@ struct RootView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) { songMenu }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { showNotes = true } label: {
+                        Image(systemName: "square.and.pencil").foregroundStyle(Theme.aqua)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button { showPull = true } label: { Label("Pull from MA…", systemImage: "arrow.down.circle") }
+                        Button { showPull = true } label: { Label("Pull from MA\u{2026}", systemImage: "arrow.down.circle") }
                         Divider()
-                        Button("Defaults…") { showDefaults = true }
-                        Button("Settings…") { showSettings = true }
+                        Button("Defaults\u{2026}") { showDefaults = true }
+                        Button("Settings\u{2026}") { showSettings = true }
                     } label: { Image(systemName: "slider.horizontal.3") }
                 }
             }
