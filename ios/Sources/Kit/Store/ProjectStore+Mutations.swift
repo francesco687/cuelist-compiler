@@ -108,6 +108,18 @@ public extension ProjectStore {
         project.songs[i].cues[c].notes = text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Collapse every cue of the active song.
+    func collapseAllCues() {
+        let i = activeSongIndex()
+        for c in project.songs[i].cues.indices { project.songs[i].cues[c].collapsed = true }
+    }
+
+    /// Expand every cue of the active song.
+    func expandAllCues() {
+        let i = activeSongIndex()
+        for c in project.songs[i].cues.indices { project.songs[i].cues[c].collapsed = false }
+    }
+
     /// Commit a precomputed voice-edit result (project + defaults) in one shot.
     /// Triggers the store's normal debounced save via the `project`/`defaults` didSet.
     func apply(_ result: ApplyResult) {

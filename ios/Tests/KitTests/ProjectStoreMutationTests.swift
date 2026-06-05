@@ -56,4 +56,18 @@ final class ProjectStoreMutationTests: XCTestCase {
         s.sortActiveCues()
         XCTAssertEqual(s.activeSong.cues.map(\.n), [1, 5])
     }
+
+    func testCollapseAndExpandAllCues() {
+        let s = store()
+        s.addCue(); s.addCue()
+        s.collapseAllCues()
+        XCTAssertTrue(s.activeSong.cues.allSatisfy { $0.collapsed })
+        s.expandAllCues()
+        XCTAssertTrue(s.activeSong.cues.allSatisfy { !$0.collapsed })
+    }
+    func testCollapseAllOnEmptySongIsNoOp() {
+        let s = store()
+        s.collapseAllCues()                       // no cues — must not crash
+        XCTAssertEqual(s.activeSong.cues.count, 0)
+    }
 }
