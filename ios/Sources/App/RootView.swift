@@ -102,13 +102,20 @@ struct RootView: View {
     @ViewBuilder private var subbar: some View {
         @Bindable var store = store
         if let i = activeIndex {
-            HStack(spacing: 10) {
-                Stepper(value: $store.project.songs[i].sequence, in: 1...9999) {
-                    Text("Seq \(store.project.songs[i].sequence)")
-                        .font(.system(size: 12, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Theme.textDim)
+            HStack(spacing: 12) {
+                SeqField(sequence: $store.project.songs[i].sequence)
+                if !store.project.songs[i].cues.isEmpty {
+                    Button { withAnimation(.snappy(duration: 0.2)) { store.collapseAllCues() } } label: {
+                        Image(systemName: "rectangle.compress.vertical")
+                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                    }
+                    .buttonStyle(.plain)
+                    Button { withAnimation(.snappy(duration: 0.2)) { store.expandAllCues() } } label: {
+                        Image(systemName: "rectangle.expand.vertical")
+                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .fixedSize()
                 Spacer()
                 Text("\(store.project.songs[i].cues.count) cue\(store.project.songs[i].cues.count == 1 ? "" : "s")")
                     .font(.system(size: 11)).foregroundStyle(Theme.textFaint)
