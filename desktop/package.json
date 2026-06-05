@@ -1,0 +1,40 @@
+{
+  "name": "cuelist-compiler-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-platform desktop app: author cuelists and send OSC/UDP to grandMA3; embeds the hub for the iPhone companion.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "build": {
+    "appId": "com.blearred.cuelistcompiler",
+    "productName": "Cuelist Compiler",
+    "files": ["main.js", "preload.js", "settings.js", "node_modules/**/*"],
+    "extraResources": [
+      { "from": "../web", "to": "web", "filter": ["**/*", "!test/**"] },
+      { "from": "../hub/src", "to": "hub/src", "filter": ["**/*"] }
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.music",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 // osc.js — WebSocket client to the proxy; throttled command send; status pill. Depends on: constants, compile (buildCmdLines), state.
 
 // --- OSC client (WebSocket to local proxy) ---------------------------------
-let oscWs = null;
+let transport = null;
 let oscState = 'offline'; // offline | connecting | online | sending
 let oscReconnectTimer = null;
 let oscSending = false;
@@ -22,48 +22,31 @@ function setOscState(s, label) {
 }
 
 function oscConnect() {
-  if (oscWs && (oscWs.readyState === WebSocket.OPEN || oscWs.readyState === WebSocket.CONNECTING)) return;
-  setOscState('connecting');
-  try {
-    oscWs = new WebSocket(OSC_PROXY_URL);
-  } catch (e) {
-    setOscState('offline');
-    return;
+  if (!transport) {
+    transport = CC.transport.make(window, { proxyUrl: OSC_PROXY_URL });
+    transport.onStatus = (s) => {
+      if (oscSending) return;            // don't clobber the sending label
+      if (s === 'online') { setOscState('online'); if (oscReconnectTimer) { clearTimeout(oscReconnectTimer); oscReconnectTimer = null; } }
+      else if (s === 'connecting') setOscState('connecting');
+      else { setOscState('offline'); if (!oscReconnectTimer) oscReconnectTimer = setTimeout(() => { oscReconnectTimer = null; oscConnect(); }, 3000); }
+    };
+    // Proxy status/error messages (WebSocket transport only) → pill title + log.
+    transport.onMessage = (msg) => {
+      if (msg.type === 'status' && msg.oscTarget) {
+        const pill = document.getElementById('oscPill');
+        pill.title = `OSC → ${msg.oscTarget} ${msg.oscAddress}\nClick to reconnect`;
+      } else if (msg.type === 'error') {
+        console.error('[osc proxy]', msg.msg);
+      }
+    };
   }
-  oscWs.addEventListener('open', () => {
-    setOscState('online');
-    if (oscReconnectTimer) { clearTimeout(oscReconnectTimer); oscReconnectTimer = null; }
-  });
-  oscWs.addEventListener('close', () => {
-    setOscState('offline');
-    // Auto-retry every 3s when offline (but not while user is actively sending).
-    if (!oscSending && !oscReconnectTimer) {
-      oscReconnectTimer = setTimeout(() => { oscReconnectTimer = null; oscConnect(); }, 3000);
-    }
-  });
-  oscWs.addEventListener('error', () => {
-    // 'close' will fire after this; nothing to do here.
-  });
-  oscWs.addEventListener('message', ev => {
-    let msg;
-    try { msg = JSON.parse(ev.data); } catch (e) { return; }
-    if (msg.type === 'status' && msg.oscTarget) {
-      const pill = document.getElementById('oscPill');
-      pill.title = `OSC → ${msg.oscTarget} ${msg.oscAddress}\nClick to reconnect`;
-    } else if (msg.type === 'error') {
-      console.error('[osc proxy]', msg.msg);
-    }
-  });
+  if (oscState === 'online' || oscState === 'connecting') return;
+  transport.connect().catch(() => setOscState('offline'));
 }
 
 function oscSendLine(line) {
-  return new Promise((resolve, reject) => {
-    if (!oscWs || oscWs.readyState !== WebSocket.OPEN) { reject(new Error('OSC offline')); return; }
-    try {
-      oscWs.send(JSON.stringify({ type: 'cmd', line }));
-      resolve();
-    } catch (e) { reject(e); }
-  });
+  if (!transport) return Promise.reject(new Error('OSC offline'));
+  return transport.sendLine(line);
 }
 
 async function sendCmdLinesViaOsc(lines, label) {
@@ -106,6 +89,57 @@ function sendAllViaOsc() {
   sendCmdLinesViaOsc(lines, `${songs.length} song(s)`);
 }
 
+// --- Desktop settings + status (Electron only) -----------------------------
+function initDesktopChrome() {
+  if (!(window.cuelist && window.cuelist.isDesktop)) return; // browser: no native settings
+  const row = document.getElementById('deskStatusRow');
+  if (row) row.hidden = false;
+
+  async function refreshStatus() {
+    try {
+      const st = await window.cuelist.getStatus();
+      const tl = document.getElementById('oscTargetLabel');
+      if (tl) tl.textContent = 'OSC → ' + st.oscTarget;
+      const pp = document.getElementById('phonePill');
+      if (pp) { pp.textContent = st.phoneConnected ? '📱 phone connected' : '📱 no phone'; pp.classList.toggle('connected', st.phoneConnected); }
+    } catch { /* transient IPC error — next poll recovers */ }
+  }
+  refreshStatus();
+  setInterval(refreshStatus, 2000);
+
+  const dlg = document.getElementById('settingsDialog');
+  const errEl = document.getElementById('settingsError');
+  document.getElementById('openSettingsBtn').addEventListener('click', async () => {
+    const s = await window.cuelist.getSettings();
+    document.getElementById('setMa3Host').value = s.ma3Host;
+    document.getElementById('setMa3Port').value = s.ma3Port;
+    document.getElementById('setMa3Prefix').value = s.ma3Prefix;
+    document.getElementById('setIntervalMs').value = s.intervalMs;
+    document.getElementById('setHubEnabled').checked = s.hubEnabled;
+    document.getElementById('setHubPort').value = s.hubPort;
+    if (errEl) errEl.hidden = true; // clear any stale error from a prior attempt
+    dlg.showModal();
+  });
+  // Save is type="button": validate via main, keep dialog open + show inline error on failure.
+  document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    try {
+      await window.cuelist.setSettings({
+        ma3Host: document.getElementById('setMa3Host').value.trim(),
+        ma3Port: parseInt(document.getElementById('setMa3Port').value, 10),
+        ma3Prefix: document.getElementById('setMa3Prefix').value.trim(),
+        intervalMs: parseInt(document.getElementById('setIntervalMs').value, 10),
+        hubEnabled: document.getElementById('setHubEnabled').checked,
+        hubPort: parseInt(document.getElementById('setHubPort').value, 10),
+      });
+      if (errEl) errEl.hidden = true;
+      dlg.close();
+      refreshStatus();
+    } catch (e) {
+      if (errEl) { errEl.textContent = (e && e.message) || 'Invalid settings'; errEl.hidden = false; }
+    }
+  });
+}
+
 // --- public surface
 window.CC = window.CC || {};
-CC.osc = { setOscState, oscConnect, sendCurrentViaOsc, sendAllViaOsc };
+CC.osc = { setOscState, oscConnect, sendCurrentViaOsc, sendAllViaOsc, initDesktopChrome };

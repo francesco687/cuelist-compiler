@@ -13,22 +13,33 @@ struct CueListView: View {
         ScrollView {
             if let i = activeIndex {
                 if store.project.songs[i].cues.isEmpty {
-                    Text("No cues yet. Tap \u{201C}+ Add Cue\u{201D} to start.")
-                        .foregroundStyle(.secondary).padding(.top, 40)
+                    VStack(spacing: 8) {
+                        Image(systemName: "music.note.list")
+                            .font(.largeTitle).foregroundStyle(Theme.textFaint)
+                        Text("No cues yet")
+                            .font(.system(size: 15, weight: .medium)).foregroundStyle(Theme.textDim)
+                        Text("Tap “Add Cue” to start.")
+                            .font(.system(size: 12)).foregroundStyle(Theme.textFaint)
+                    }
+                    .frame(maxWidth: .infinity).padding(.top, 60)
                 } else {
-                    LazyVStack(spacing: 10) {
+                    LazyVStack(spacing: 11) {
                         ForEach($store.project.songs[i].cues) { $cue in
                             CueCardView(cue: $cue)
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                    .padding(.horizontal, 14).padding(.top, 6)
                 }
-                Button {
-                    store.addCue()
-                } label: { Label("Add Cue", systemImage: "plus") }
-                    .padding(.vertical, 12)
+
+                Button { store.addCue() } label: {
+                    Label("Add Cue", systemImage: "plus")
+                        .font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.accentSolid)
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 14).padding(.bottom, 8)
             }
         }
+        .scrollContentBackground(.hidden)
     }
 }

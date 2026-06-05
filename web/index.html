@@ -65,6 +65,24 @@
         <div class="spacer"></div>
         <button id="clearAll" class="danger">Clear all</button>
       </div>
+
+      <div id="deskStatusRow" class="desk-status" hidden>
+        <span id="oscTargetLabel">OSC → —</span>
+        <span id="phonePill" class="phone-pill">📱 no phone</span>
+        <button id="openSettingsBtn" type="button">⚙ Settings</button>
+      </div>
+      <dialog id="settingsDialog">
+        <form method="dialog" id="settingsForm">
+          <label>MA3 host <input id="setMa3Host" type="text"></label>
+          <label>MA3 UDP port <input id="setMa3Port" type="number" min="1" max="65535"></label>
+          <label>OSC prefix <input id="setMa3Prefix" type="text"></label>
+          <label>Throttle ms <input id="setIntervalMs" type="number" min="0"></label>
+          <label>Embedded hub (iPhone) <input id="setHubEnabled" type="checkbox"></label>
+          <label>Hub port <input id="setHubPort" type="number" min="1" max="65535"></label>
+          <p id="settingsError" class="settings-error" role="alert" hidden></p>
+          <menu><button type="submit" value="cancel">Cancel</button><button id="saveSettingsBtn" type="button">Save</button></menu>
+        </form>
+      </dialog>
     </main>
   </div>
 </div>
@@ -141,6 +159,7 @@
 <script src="js/state.js"></script>
 <script src="js/compile.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/transport.js"></script>
 <script src="js/osc.js"></script>
 <script src="js/render.js"></script>
 <script src="js/main.js"></script>

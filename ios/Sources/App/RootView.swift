@@ -7,18 +7,28 @@ struct RootView: View {
     @State private var showSettings = false
     @State private var showDefaults = false
     @State private var showPull = false
+    @State private var showRename = false
+    @State private var renameText = ""
+
+    private var activeIndex: Int? {
+        store.project.songs.firstIndex(where: { $0.id == store.project.activeSongId })
+    }
 
     var body: some View {
+        @Bindable var store = store
         NavigationStack {
-            VStack(spacing: 0) {
-                SongBarView()
-                CueListView()
-                SendBarView()
+            ZStack {
+                Theme.canvas
+                VStack(spacing: 0) {
+                    subbar
+                    CueListView()
+                    SendBarView()
+                }
             }
-            .navigationTitle("Cuelist Compiler")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { micButton }
+                ToolbarItem(placement: .principal) { songMenu }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button { showPull = true } label: { Label("Pull from MA…", systemImage: "arrow.down.circle") }
@@ -28,6 +38,7 @@ struct RootView: View {
                     } label: { Image(systemName: "slider.horizontal.3") }
                 }
             }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showDefaults) { DefaultsView() }
             .sheet(isPresented: $showPull) { PullSequencesView() }
@@ -43,8 +54,68 @@ struct RootView: View {
             .alert("Voice", isPresented: errorBinding) {
                 Button("OK") { voice.cancel() }
             } message: { Text(errorText) }
+            .alert("Rename song", isPresented: $showRename) {
+                TextField("Name", text: $renameText)
+                Button("Save") {
+                    if let i = activeIndex { store.project.songs[i].name = renameText }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
         }
     }
+
+    // MARK: Song menu (in nav title)
+
+    @ViewBuilder private var songMenu: some View {
+        let name = store.activeSong.name.isEmpty ? "(untitled)" : store.activeSong.name
+        Menu {
+            ForEach(store.project.songs) { song in
+                Button {
+                    store.setActiveSong(song.id)
+                } label: {
+                    Label(song.name.isEmpty ? "(untitled)" : song.name,
+                          systemImage: song.id == store.project.activeSongId ? "checkmark" : "music.note")
+                }
+            }
+            Divider()
+            Button("New Song") { store.addSong() }
+            Button("Rename…") {
+                renameText = store.activeSong.name; showRename = true
+            }
+            if store.project.songs.count > 1 {
+                Button("Remove \u{201C}\(name)\u{201D}", role: .destructive) {
+                    store.removeSong(id: store.project.activeSongId)
+                }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Text(name).font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.text)
+                Image(systemName: "chevron.down").font(.caption2).foregroundStyle(Theme.accentSolid)
+            }
+        }
+    }
+
+    // MARK: Slim subbar (seq + cue count)
+
+    @ViewBuilder private var subbar: some View {
+        @Bindable var store = store
+        if let i = activeIndex {
+            HStack(spacing: 10) {
+                Stepper(value: $store.project.songs[i].sequence, in: 1...9999) {
+                    Text("Seq \(store.project.songs[i].sequence)")
+                        .font(.system(size: 12, weight: .medium).monospacedDigit())
+                        .foregroundStyle(Theme.textDim)
+                }
+                .fixedSize()
+                Spacer()
+                Text("\(store.project.songs[i].cues.count) cue\(store.project.songs[i].cues.count == 1 ? "" : "s")")
+                    .font(.system(size: 11)).foregroundStyle(Theme.textFaint)
+            }
+            .padding(.horizontal, 16).padding(.bottom, 8)
+        }
+    }
+
+    // MARK: Mic
 
     @ViewBuilder private var micButton: some View {
         switch voice.phase {
@@ -53,11 +124,11 @@ struct RootView: View {
         case .recording:
             Button {
                 Task { await voice.stopAndProcess(project: store.project, defaults: store.defaults) }
-            } label: { Image(systemName: "stop.circle.fill").foregroundStyle(.red) }
+            } label: { Image(systemName: "stop.circle.fill").foregroundStyle(Theme.danger) }
         case .transcribing, .interpreting:
             ProgressView()
         case .preview:
-            Image(systemName: "mic").foregroundStyle(.secondary)
+            Image(systemName: "mic").foregroundStyle(Theme.textFaint)
         }
     }
 

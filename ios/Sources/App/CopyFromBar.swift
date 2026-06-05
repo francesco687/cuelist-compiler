@@ -22,7 +22,9 @@ struct CopyFromBar: View {
                     }
                 }
             } label: {
-                Label("Copy from cue…", systemImage: "doc.on.doc").font(.caption)
+                Label("Copy from cue…", systemImage: "doc.on.doc")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.accentSolid)
             }
         }
     }

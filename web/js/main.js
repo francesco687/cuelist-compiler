@@ -161,3 +161,4 @@ window.addEventListener('keydown', e => {
 
 render();
 oscConnect();
+CC.osc.initDesktopChrome && CC.osc.initDesktopChrome();
