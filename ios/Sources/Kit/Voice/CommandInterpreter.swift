@@ -33,7 +33,7 @@ public struct AnthropicInterpreter: CommandInterpreter {
         """
         let body: [String: Any] = [
             "model": model,
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "tool_choice": ["type": "tool", "name": "apply_show_edits"],
             "system": [[
                 "type": "text",
@@ -48,6 +48,10 @@ public struct AnthropicInterpreter: CommandInterpreter {
         let (data, resp) = try await transport.send(req)
         guard resp.statusCode == 200 else {
             throw VoiceError.api(status: resp.statusCode, message: String(decoding: data.prefix(512), as: UTF8.self))
+        }
+        struct StopCheck: Decodable { let stop_reason: String? }
+        if (try? JSONDecoder().decode(StopCheck.self, from: data))?.stop_reason == "max_tokens" {
+            throw VoiceError.badResponse("Response truncated (max_tokens) — try a simpler command")
         }
         return try Self.parse(data, transcript: transcript)
     }

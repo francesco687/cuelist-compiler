@@ -54,4 +54,51 @@ final class AnthropicInterpreterTests: XCTestCase {
         XCTAssertTrue(cmd.edits.isEmpty)
         XCTAssertEqual(cmd.clarification, "Which song?")
     }
+
+    func testEmptyKeyThrowsMissingKey() async {
+        let interp = AnthropicInterpreter(apiKey: "", transport: MockHTTPTransport())
+        do { _ = try await interp.interpret(transcript: "x", project: project(), defaults: Defaults())
+             XCTFail("expected throw") }
+        catch VoiceError.missingKey(let who) { XCTAssertEqual(who, "Anthropic") }
+        catch { XCTFail("wrong error: \(error)") }
+    }
+
+    func testNon200ThrowsApi() async {
+        let mock = MockHTTPTransport()
+        mock.handler = { req in
+            (Data(#"{"error":{"message":"bad key"}}"#.utf8),
+             HTTPURLResponse(url: req.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!)
+        }
+        let interp = AnthropicInterpreter(apiKey: "sk-ant", transport: mock)
+        do { _ = try await interp.interpret(transcript: "x", project: project(), defaults: Defaults())
+             XCTFail("expected throw") }
+        catch let VoiceError.api(status, _) { XCTAssertEqual(status, 401) }
+        catch { XCTFail("wrong error: \(error)") }
+    }
+
+    func testMissingToolUseThrowsBadResponse() async {
+        let mock = MockHTTPTransport()
+        mock.handler = { req in
+            (Data(#"{"content":[{"type":"text","text":"sorry"}]}"#.utf8),
+             HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        let interp = AnthropicInterpreter(apiKey: "sk-ant", transport: mock)
+        do { _ = try await interp.interpret(transcript: "x", project: project(), defaults: Defaults())
+             XCTFail("expected throw") }
+        catch VoiceError.badResponse(_) { }
+        catch { XCTFail("wrong error: \(error)") }
+    }
+
+    func testTruncatedResponseThrowsBadResponse() async {
+        let mock = MockHTTPTransport()
+        mock.handler = { req in
+            (Data(#"{"stop_reason":"max_tokens","content":[{"type":"tool_use","name":"apply_show_edits","input":{"edits":[]}}]}"#.utf8),
+             HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        let interp = AnthropicInterpreter(apiKey: "sk-ant", transport: mock)
+        do { _ = try await interp.interpret(transcript: "x", project: project(), defaults: Defaults())
+             XCTFail("expected throw") }
+        catch VoiceError.badResponse(_) { }
+        catch { XCTFail("wrong error: \(error)") }
+    }
 }
