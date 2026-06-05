@@ -21,7 +21,7 @@
     "productName": "Cuelist Compiler",
     "files": ["main.js", "preload.js", "settings.js", "node_modules/**/*"],
     "extraResources": [
-      { "from": "../web", "to": "web", "filter": ["**/*"] },
+      { "from": "../web", "to": "web", "filter": ["**/*", "!test/**"] },
       { "from": "../hub/src", "to": "hub/src", "filter": ["**/*"] }
     ],
     "mac": {
@@ -29,6 +29,7 @@
       "category": "public.app-category.music",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "notarize": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
     },
