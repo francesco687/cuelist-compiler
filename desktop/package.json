@@ -22,7 +22,8 @@
     "files": ["main.js", "preload.js", "settings.js", "node_modules/**/*"],
     "extraResources": [
       { "from": "../web", "to": "web", "filter": ["**/*", "!test/**"] },
-      { "from": "../hub/src", "to": "hub/src", "filter": ["**/*"] }
+      { "from": "../hub/src", "to": "hub/src", "filter": ["**/*"] },
+      { "from": "../hub/node_modules", "to": "hub/node_modules", "filter": ["**/*"] }
     ],
     "mac": {
       "target": "dmg",
