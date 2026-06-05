@@ -4,6 +4,15 @@ import CuelistCompilerKit
 struct CueCardView: View {
     @Environment(ProjectStore.self) private var store
     @Binding var cue: Cue
+    @State private var confirmingDelete = false
+
+    private var cueLabel: String {
+        let name = cue.name.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? formatN(cue.n) : "\(formatN(cue.n)) \"\(name)\""
+    }
+    private func formatN(_ n: Double) -> String {
+        n.rounded() == n ? String(Int(n)) : String(n)
+    }
 
     private var groupChips: [String] {
         cue.actions.map { $0.group.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -30,10 +39,6 @@ struct CueCardView: View {
                         .autocorrectionDisabled()
                         .disabled(cue.collapsed)            // tap toggles when collapsed
                     Spacer(minLength: 4)
-                    Button(role: .destructive) {
-                        store.removeCue(id: cue.id)
-                    } label: { Image(systemName: "trash").font(.system(size: 13)).foregroundStyle(Theme.danger) }
-                    .buttonStyle(.plain)
                     Image(systemName: cue.collapsed ? "chevron.right" : "chevron.down")
                         .font(.caption).foregroundStyle(Theme.textFaint)
                 }
@@ -68,7 +73,26 @@ struct CueCardView: View {
                     Spacer()
                 }
                 .padding(.top, 2)
+
+                HStack {
+                    Spacer()
+                    Button(role: .destructive) { confirmingDelete = true } label: {
+                        Label("Delete cue", systemImage: "trash")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.danger)
+                            .padding(.vertical, 6).padding(.horizontal, 11)
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                                .strokeBorder(Theme.danger.opacity(0.35), lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 4)
             }
+        }
+        .confirmationDialog("Delete cue \(cueLabel)?",
+                            isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { store.removeCue(id: cue.id) }
+            Button("Cancel", role: .cancel) { }
         }
         .padding(13)
         .cardSurface()
