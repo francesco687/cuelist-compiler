@@ -9,15 +9,15 @@ struct SeqField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: 5) {
-            Text("Seq").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textDim)
+        HStack(spacing: 7) {
+            Text("Seq").font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.textDim)
             TextField("1", text: $text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
-                .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                .font(.system(size: 17, weight: .semibold).monospacedDigit())
                 .foregroundStyle(Theme.text)
-                .frame(width: 54)
-                .padding(.vertical, 5)
+                .frame(width: 66)
+                .padding(.vertical, 8)
                 .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
                 .focused($focused)
         }

@@ -131,31 +131,36 @@ struct RootView: View {
     @ViewBuilder private var subbar: some View {
         @Bindable var store = store
         if let i = activeIndex {
-            HStack(spacing: 12) {
+            HStack(spacing: 18) {
                 SeqField(sequence: $store.project.songs[i].sequence)
                 if !store.project.songs[i].cues.isEmpty {
                     Button { withAnimation(.snappy(duration: 0.2)) { store.collapseAllCues() } } label: {
-                        Image(systemName: "rectangle.compress.vertical")
-                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                        subbarIcon("rectangle.compress.vertical")
                     }
                     .buttonStyle(.plain)
                     Button { withAnimation(.snappy(duration: 0.2)) { store.expandAllCues() } } label: {
-                        Image(systemName: "rectangle.expand.vertical")
-                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                        subbarIcon("rectangle.expand.vertical")
                     }
                     .buttonStyle(.plain)
                     Button { withAnimation(.snappy(duration: 0.2)) { store.renumberFromOne() } } label: {
-                        Image(systemName: "list.number")
-                            .font(.system(size: 14)).foregroundStyle(Theme.accentSolid)
+                        subbarIcon("list.number")
                     }
                     .buttonStyle(.plain)
                 }
                 Spacer()
                 Text("\(store.project.songs[i].cues.count) cue\(store.project.songs[i].cues.count == 1 ? "" : "s")")
-                    .font(.system(size: 11)).foregroundStyle(Theme.textFaint)
+                    .font(.system(size: 12)).foregroundStyle(Theme.textFaint)
             }
-            .padding(.horizontal, 16).padding(.bottom, 8)
+            .padding(.horizontal, 16).padding(.bottom, 10)
         }
+    }
+
+    private func subbarIcon(_ name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 20, weight: .medium))
+            .foregroundStyle(Theme.accentSolid)
+            .padding(.vertical, 4).padding(.horizontal, 2)
+            .contentShape(Rectangle())
     }
 
     private var previewBinding: Binding<Bool> {
