@@ -3,8 +3,10 @@ import CuelistCompilerKit
 
 struct CueCardView: View {
     @Environment(ProjectStore.self) private var store
+    @Environment(NotesCaptureController.self) private var notes
     @Binding var cue: Cue
     @State private var confirmingDelete = false
+    @State private var addingNote = false
 
     private var cueLabel: String {
         let name = cue.name.trimmingCharacters(in: .whitespaces)
@@ -46,6 +48,17 @@ struct CueCardView: View {
             }
             .buttonStyle(.plain)
 
+            if !cue.notes.isEmpty {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "square.and.pencil").font(.system(size: 10)).foregroundStyle(Theme.aqua)
+                    Text(cue.notes).font(.system(size: 11)).foregroundStyle(Theme.text.opacity(0.85))
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 5).padding(.horizontal, 8)
+                .background(Theme.aquaTint, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                .overlay(Rectangle().frame(width: 2).foregroundStyle(Theme.aqua.opacity(0.5)), alignment: .leading)
+            }
+
             if cue.collapsed {
                 if !groupChips.isEmpty || presetCount > 0 {
                     HStack(spacing: 7) {
@@ -76,6 +89,15 @@ struct CueCardView: View {
 
                 HStack {
                     Spacer()
+                    Button { addingNote = true } label: {
+                        Label("Note", systemImage: "square.and.pencil")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.aqua)
+                            .padding(.vertical, 6).padding(.horizontal, 11)
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                                .strokeBorder(Theme.aqua.opacity(0.35), lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
                     Button(role: .destructive) { confirmingDelete = true } label: {
                         Label("Delete cue", systemImage: "trash")
                             .font(.system(size: 13, weight: .medium))
@@ -94,6 +116,7 @@ struct CueCardView: View {
             Button("Delete", role: .destructive) { store.removeCue(id: cue.id) }
             Button("Cancel", role: .cancel) { }
         }
+        .sheet(isPresented: $addingNote) { NotesCaptureView(targetCue: cue.n) }
         .padding(13)
         .cardSurface()
     }
