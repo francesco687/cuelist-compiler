@@ -29,6 +29,31 @@ final class ShowEditApplierCueTests: XCTestCase {
         let r = ShowEditApplier.apply([.setCue(song: nil, cue: 0.1, field: .number, value: "0.5")],
                                       to: base(), defaults: Defaults())
         XCTAssertEqual(r.project.songs[0].cues[0].n, 0.5)
+        XCTAssertEqual(r.summary, ["Cue 0.1 \u{00B7} number = \u{201C}0.5\u{201D}"])
+    }
+
+    func testSetCueNumberBadValueWarnsAndNoSummary() {
+        let r = ShowEditApplier.apply([.setCue(song: nil, cue: 1, field: .number, value: "abc")],
+                                      to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.songs[0].cues[1].n, 1)   // unchanged
+        XCTAssertTrue(r.summary.isEmpty)                    // no lying summary
+        XCTAssertEqual(r.warnings, ["Cue 1 \u{00B7} number value \u{201C}abc\u{201D} is not a number \u{2014} skipped setCue"])
+    }
+
+    func testSetCueMissingCueWarns() {
+        let r = ShowEditApplier.apply([.setCue(song: nil, cue: 9, field: .name, value: "X")],
+                                      to: base(), defaults: Defaults())
+        XCTAssertEqual(r.warnings, ["Cue 9 not found in song 1 \u{2014} skipped setCue"])
+        XCTAssertTrue(r.summary.isEmpty)
+    }
+
+    func testAddCueOntoEmptyList() {
+        let p = Project(songs: [Song(id: "a", name: "Opener", sequence: 1, cues: [])], activeSongId: "a")
+        let r = ShowEditApplier.apply([.addCue(song: nil, n: nil, name: "First",
+                                               fade: nil, delay: nil, position: nil)],
+                                      to: p, defaults: Defaults())
+        XCTAssertEqual(r.project.songs[0].cues.map(\.n), [1])      // (max ?? 0) + 1
+        XCTAssertEqual(r.summary, ["Add cue 1 \u{201C}First\u{201D}"])           // no fade suffix when fade nil
     }
 
     func testDeleteCueAndMissingWarns() {

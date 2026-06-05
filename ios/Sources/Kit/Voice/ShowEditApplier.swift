@@ -99,7 +99,12 @@ public enum ShowEditApplier {
             case .fade:     p.songs[si].cues[ci].fade = value
             case .delay:    p.songs[si].cues[ci].delay = value
             case .position: p.songs[si].cues[ci].position = value
-            case .number:   if let d = Double(value) { p.songs[si].cues[ci].n = d }
+            case .number:
+                guard let d = Double(value) else {
+                    warnings.append("Cue \(num(cue)) \u{00B7} number value \u{201C}\(value)\u{201D} is not a number \u{2014} skipped setCue")
+                    return
+                }
+                p.songs[si].cues[ci].n = d
             }
             summary.append("Cue \(num(cue)) \u{00B7} \(field.rawValue) = \u{201C}\(value)\u{201D}")
 
