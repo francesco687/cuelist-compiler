@@ -65,3 +65,7 @@ public final class NotesCaptureController {
 
     public func reset() { phase = .idle; routed = []; transcript = "" }
 }
+
+public extension NotesCaptureController.Phase {
+    var isNotesRecording: Bool { if case .recording = self { return true } else { return false } }
+}
