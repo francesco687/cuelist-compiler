@@ -44,4 +44,34 @@ final class ShowEditApplierSongTests: XCTestCase {
         XCTAssertEqual(r.warnings, ["Song \u{201C}9\u{201D} not found \u{2014} skipped renameSong"])
         XCTAssertTrue(r.summary.isEmpty)
     }
+
+    func testOrdinalTakesPriorityOverName() {
+        var p = base()
+        p.songs[0].name = "2"                 // song at index 0 is literally named "2"
+        let r = ShowEditApplier.apply([.renameSong(song: "2", name: "X")],
+                                      to: p, defaults: Defaults())
+        XCTAssertEqual(r.project.songs[1].name, "X")   // ordinal "2" → index 1 wins
+        XCTAssertEqual(r.project.songs[0].name, "2")   // name-"2" untouched
+    }
+
+    func testDeleteActiveSongRepairsActiveSongId() {
+        let r = ShowEditApplier.apply([.deleteSong(song: "1")], to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.songs.count, 1)
+        XCTAssertEqual(r.project.songs[0].id, "b")
+        XCTAssertEqual(r.project.activeSongId, "b")     // repaired off the removed active song
+    }
+
+    func testDeleteNonActiveSongPreservesActiveSongId() {
+        let r = ShowEditApplier.apply([.deleteSong(song: "2")], to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.songs.count, 1)
+        XCTAssertEqual(r.project.activeSongId, "a")     // unchanged
+    }
+
+    func testAddSongNilDefaults() {
+        let r = ShowEditApplier.apply([.addSong(name: nil, sequence: nil)],
+                                      to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.songs.last?.name, "")
+        XCTAssertEqual(r.project.songs.last?.sequence, 1)
+        XCTAssertEqual(r.summary, ["Add song \u{201C}\u{201D} (sequence 1)"])   // note curly quotes
+    }
 }
