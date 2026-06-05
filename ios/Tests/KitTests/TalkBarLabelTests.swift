@@ -13,6 +13,15 @@ final class TalkBarLabelTests: XCTestCase {
         XCTAssertEqual(Phase.preview.talkBarLabel, "Reviewing\u{2026}")
     }
 
+    func testButtonLabels() {
+        XCTAssertEqual(Phase.idle.talkButtonLabel, "Talk")
+        XCTAssertEqual(Phase.error("x").talkButtonLabel, "Talk")
+        XCTAssertEqual(Phase.recording.talkButtonLabel, "Stop")
+        XCTAssertEqual(Phase.transcribing.talkButtonLabel, "\u{2026}")
+        XCTAssertEqual(Phase.interpreting.talkButtonLabel, "\u{2026}")
+        XCTAssertEqual(Phase.preview.talkButtonLabel, "\u{2026}")
+    }
+
     func testFlags() {
         XCTAssertTrue(Phase.recording.isRecording)
         XCTAssertFalse(Phase.idle.isRecording)

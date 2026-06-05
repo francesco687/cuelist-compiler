@@ -2,12 +2,14 @@ import SwiftUI
 import CuelistCompilerKit
 
 /// Reusable aqua tap-to-talk button. Drives the shared VoiceCaptureController.
-/// `fullWidth` = the original full-bleed pill; otherwise it sizes to fit a row.
+/// `fullWidth` = full-bleed pill; `showIcon` toggles the mic glyph; `compact`
+/// = bottom-cluster trio styling (short "Talk"/"Stop" label, size-13 text).
 struct VoiceButton: View {
     @Environment(ProjectStore.self) private var store
     @Environment(VoiceCaptureController.self) private var voice
     var fullWidth: Bool = true
-    var showLabel: Bool = true
+    var showIcon: Bool = true
+    var compact: Bool = false
 
     var body: some View {
         Button {
@@ -19,24 +21,24 @@ struct VoiceButton: View {
                 }
             }
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: compact ? 6 : 10) {
                 if voice.phase.isBusy {
                     ProgressView().tint(Theme.aquaInk)
                 } else {
-                    Image(systemName: voice.phase.isRecording ? "stop.fill" : "mic.fill")
-                        .font(.system(size: 18, weight: .bold))
-                        .symbolEffect(.pulse, isActive: voice.phase.isRecording)
-                }
-                if showLabel {
-                    Text(voice.phase.talkBarLabel)
-                        .font(.system(size: 16, weight: .bold)).lineLimit(1)
+                    if showIcon {
+                        Image(systemName: voice.phase.isRecording ? "stop.fill" : "mic.fill")
+                            .font(.system(size: compact ? 15 : 18, weight: .bold))
+                            .symbolEffect(.pulse, isActive: voice.phase.isRecording)
+                    }
+                    Text(compact ? voice.phase.talkButtonLabel : voice.phase.talkBarLabel)
+                        .font(.system(size: compact ? 13 : 16, weight: .bold)).lineLimit(1)
                 }
             }
             .foregroundStyle(Theme.aquaInk)
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.vertical, fullWidth ? 16 : 14)
             .background(Theme.aquaGradient, in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
-            .shadow(color: Theme.aqua.opacity(0.5), radius: fullWidth ? 22 : 12, y: 4)
+            .shadow(color: Theme.aqua.opacity(0.5), radius: compact ? 12 : (fullWidth ? 22 : 12), y: 4)
             .opacity(voice.phase.isBusy ? 0.7 : 1)
         }
         .buttonStyle(.plain)

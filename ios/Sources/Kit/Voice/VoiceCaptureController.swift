@@ -88,6 +88,15 @@ public extension VoiceCaptureController.Phase {
         case .preview:                      return "Reviewing\u{2026}"
         }
     }
+    /// Short label for the compact bottom-cluster Talk button.
+    var talkButtonLabel: String {
+        switch self {
+        case .idle, .error:                 return "Talk"
+        case .recording:                    return "Stop"
+        case .transcribing, .interpreting:  return "\u{2026}"
+        case .preview:                      return "\u{2026}"
+        }
+    }
     var isRecording: Bool { if case .recording = self { return true } else { return false } }
     var isBusy: Bool {
         switch self { case .transcribing, .interpreting: return true; default: return false }
