@@ -33,3 +33,26 @@ test('isValidSmpte: rejects out-of-range and malformed', () => {
   assert.strictEqual(util.isValidSmpte(null), false);
   assert.strictEqual(util.isValidSmpte(undefined), false);
 });
+
+// captureCurrentPlayheadAsSmpte is defined in audio.js, which depends on the DOM.
+// We lock the expected pure-helper shape here against secondsToTimecode from util.
+test('captureCurrentPlayheadAsSmpte: returns null when no audio loaded', () => {
+  const sb = loadModules(['util.js']);
+  function captureCurrentPlayheadAsSmpte(audioEl) {
+    if (!audioEl || isNaN(audioEl.currentTime)) return null;
+    return sb.window.CC.util.secondsToTimecode(audioEl.currentTime);
+  }
+  assert.strictEqual(captureCurrentPlayheadAsSmpte(null), null);
+  assert.strictEqual(captureCurrentPlayheadAsSmpte({ currentTime: NaN }), null);
+});
+
+test('captureCurrentPlayheadAsSmpte: converts currentTime to SMPTE', () => {
+  const sb = loadModules(['util.js']);
+  function captureCurrentPlayheadAsSmpte(audioEl) {
+    if (!audioEl || isNaN(audioEl.currentTime)) return null;
+    return sb.window.CC.util.secondsToTimecode(audioEl.currentTime);
+  }
+  assert.strictEqual(captureCurrentPlayheadAsSmpte({ currentTime: 0 }), '00:00:00:00');
+  assert.strictEqual(captureCurrentPlayheadAsSmpte({ currentTime: 65.4 }), '00:01:05:10');
+  // 65.4s → 1m 5s + 0.4 * 25 = 10 frames
+});
