@@ -70,4 +70,12 @@ final class ProjectStoreMutationTests: XCTestCase {
         s.collapseAllCues()                       // no cues — must not crash
         XCTAssertEqual(s.activeSong.cues.count, 0)
     }
+
+    func testMoveCuesReordersActiveSong() {
+        let s = store()
+        s.addCue(); s.addCue(); s.addCue()          // n = 1,2,3 in array order
+        XCTAssertEqual(s.activeSong.cues.map(\.n), [1, 2, 3])
+        s.moveCues(from: IndexSet(integer: 0), to: 3)  // move first to end
+        XCTAssertEqual(s.activeSong.cues.map(\.n), [2, 3, 1])
+    }
 }

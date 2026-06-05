@@ -54,6 +54,19 @@ public extension ProjectStore {
         project.songs[i].cues.sort { $0.n < $1.n }
     }
 
+    /// Reorder the active song's cues (for List `.onMove`).
+    /// Mirrors the semantics of `MutableCollection.move(fromOffsets:toOffset:)`.
+    func moveCues(from source: IndexSet, to destination: Int) {
+        let i = activeSongIndex()
+        var cues = project.songs[i].cues
+        let moving = source.map { cues[$0] }
+        // Remove from highest index first to preserve lower indices
+        for idx in source.sorted().reversed() { cues.remove(at: idx) }
+        let adjustedDest = destination - source.filter { $0 < destination }.count
+        cues.insert(contentsOf: moving, at: adjustedDest)
+        project.songs[i].cues = cues
+    }
+
     /// Edit one cue of the active song in place.
     func updateActiveCue(id: UUID, _ edit: (inout Cue) -> Void) {
         let i = activeSongIndex()
