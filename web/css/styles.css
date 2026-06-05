@@ -248,26 +248,15 @@
   .cue-timing label { color: var(--text-dim); font-size: 0.85em; }
   .cue-timing input { width: 70px; font-variant-numeric: tabular-nums; }
 
-  .add-action { font-size: 0.8em; margin-top: 4px; padding: 3px 8px; }
-
-  .cues-toolbar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
-    align-items: center;
-  }
+  .add-action { font-size: 0.8em; margin-top: 4px; padding: 4px 9px; }
+  .cues-toolbar { display: flex; gap: 8px; margin-bottom: 9px; align-items: center; }
   .cues-toolbar .spacer { flex: 1; }
-
   #addCue {
-    width: 100%;
-    padding: 12px;
-    background: transparent;
-    border: 2px dashed #444;
-    color: #888;
-    font-size: 1em;
-    margin-bottom: 20px;
+    width: 100%; padding: 12px; background: transparent;
+    border: 1.5px dashed var(--border-strong); color: var(--text-dim);
+    font-size: 1em; margin-bottom: 18px; border-radius: var(--radius); box-shadow: none;
   }
-  #addCue:hover { border-color: #5b8dd6; color: #ddd; }
+  #addCue:hover { border-color: var(--accent-ring); color: var(--text); }
 
   #toolbar {
     display: flex;
@@ -438,47 +427,31 @@
   #timeline .marker.current .marker-label { color: #fff; background: rgba(111,120,255,.9); }
 
   .osc-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    cursor: pointer;
-    user-select: none;
-    border: 1px solid #444;
-    margin-left: 6px;
+    display: inline-flex; align-items: center; padding: 4px 11px; border-radius: var(--radius-pill);
+    font-size: 0.8em; cursor: pointer; user-select: none; border: 1px solid var(--border);
+    margin-left: 6px; font-weight: 600;
   }
-  .osc-pill.offline { background: #2a2a2e; color: #999; border-color: #444; }
-  .osc-pill.connecting { background: #4a3a1f; color: #e8c178; border-color: #6a5028; }
-  .osc-pill.online { background: #1e4a2a; color: #8ee0a0; border-color: #2a6a3e; }
-  .osc-pill.sending { background: #1f3a5a; color: #8ec0e0; border-color: #2e5a8a; }
+  .osc-pill.offline { background: var(--surface-2); color: var(--text-dim); border-color: var(--border); }
+  .osc-pill.connecting { background: rgba(240,184,80,.16); color: var(--warn); border-color: rgba(240,184,80,.32); }
+  .osc-pill.online { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-border); }
+  .osc-pill.sending { background: var(--accent-tint); color: #b9a9ff; border-color: var(--accent-ring); }
 
-  /* Desktop (Electron) status row — hidden in plain browser */
-  .desk-status {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-    padding: 6px 0;
-    font-size: 0.85em;
-    color: #aaa;
-  }
+  .desk-status { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 6px 0; font-size: 0.85em; color: var(--text-dim); }
   .phone-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.9em;
-    border: 1px solid #444;
-    background: #2a2a2e;
-    color: #999;
+    display: inline-flex; align-items: center; padding: 4px 11px; border-radius: var(--radius-pill);
+    font-size: 0.9em; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim); font-weight: 600;
   }
-  .phone-pill.connected { background: #1e4a2a; color: #8ee0a0; border-color: #2a6a3e; }
-  .settings-error { margin: 6px 0 0; color: #d65555; font-size: 0.85em; }
-  .osc-btn {
-    background: #2a5a4a;
-    border: 1px solid #3a7a5e;
-    color: #d8f0e2;
+  .phone-pill.connected { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-border); }
+  .settings-error { margin: 6px 0 0; color: var(--danger); font-size: 0.85em; }
+  .osc-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); box-shadow: none; }
+  .osc-btn:hover:not(:disabled) { background: var(--surface-3); }
+  .osc-btn:disabled { background: var(--surface-1); color: var(--text-faint); border-color: var(--border); cursor: not-allowed; }
+
+  #settingsDialog {
+    background: rgba(30,32,40,.95); color: var(--text);
+    border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55); backdrop-filter: var(--blur); min-width: 320px;
   }
-  .osc-btn:hover:not(:disabled) { background: #357055; }
-  .osc-btn:disabled { background: #2a2a2e; color: #666; border-color: #3a3a3a; cursor: not-allowed; }
+  #settingsDialog::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(3px); }
+  #settingsForm label { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0; font-size: 0.9em; color: var(--text-dim); }
+  #settingsForm menu { display: flex; gap: 8px; justify-content: flex-end; margin: 14px 0 0; padding: 0; }
