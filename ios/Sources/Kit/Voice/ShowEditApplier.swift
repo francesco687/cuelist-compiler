@@ -35,6 +35,15 @@ public enum ShowEditApplier {
         warnings.append("Song \u{201C}\(ref ?? "active")\u{201D} not found \u{2014} skipped \(op)")
     }
 
+    static func warnCue(_ warnings: inout [String], _ cue: Double, _ songIdx: Int, _ op: String) {
+        warnings.append("Cue \(num(cue)) not found in song \(songIdx + 1) \u{2014} skipped \(op)")
+    }
+
+    /// Trim a trailing ".0" so 1.0 prints as "1" but 0.1 stays "0.1".
+    static func num(_ n: Double) -> String {
+        n == n.rounded() ? String(Int(n)) : String(n)
+    }
+
     // MARK: dispatch (song ops here; cue/action ops added in later tasks)
 
     static func applyOne(_ edit: ShowEdit, _ p: inout Project, _ d: inout Defaults,
@@ -72,8 +81,41 @@ public enum ShowEditApplier {
             }
             summary.append("Delete song \u{201C}\(name)\u{201D}")
 
+        case let .addCue(song, n, name, fade, delay, position):
+            guard let si = songIndex(song, p) else { return warn(&warnings, song, "addCue") }
+            let next = n ?? ((p.songs[si].cues.map(\.n).max() ?? 0) + 1)
+            var cue = Cue(n: next, name: name ?? "", fade: fade ?? "", delay: delay ?? "",
+                          position: position ?? "")
+            cue.actions = [Action()]
+            p.songs[si].cues.append(cue)
+            let fadeNote = (fade?.isEmpty == false) ? " (fade \(fade!))" : ""
+            summary.append("Add cue \(num(next)) \u{201C}\(cue.name)\u{201D}\(fadeNote)")
+
+        case let .setCue(song, cue, field, value):
+            guard let si = songIndex(song, p) else { return warn(&warnings, song, "setCue") }
+            guard let ci = cueIndex(cue, si, p) else { return warnCue(&warnings, cue, si, "setCue") }
+            switch field {
+            case .name:     p.songs[si].cues[ci].name = value
+            case .fade:     p.songs[si].cues[ci].fade = value
+            case .delay:    p.songs[si].cues[ci].delay = value
+            case .position: p.songs[si].cues[ci].position = value
+            case .number:   if let d = Double(value) { p.songs[si].cues[ci].n = d }
+            }
+            summary.append("Cue \(num(cue)) \u{00B7} \(field.rawValue) = \u{201C}\(value)\u{201D}")
+
+        case let .deleteCue(song, cue):
+            guard let si = songIndex(song, p) else { return warn(&warnings, song, "deleteCue") }
+            guard let ci = cueIndex(cue, si, p) else { return warnCue(&warnings, cue, si, "deleteCue") }
+            p.songs[si].cues.remove(at: ci)
+            summary.append("Delete cue \(num(cue))")
+
+        case let .sortCues(song):
+            guard let si = songIndex(song, p) else { return warn(&warnings, song, "sortCues") }
+            p.songs[si].cues.sort { $0.n < $1.n }
+            summary.append("Sort cues in song \(si + 1)")
+
         default:
-            break   // cue/action/defaults/project ops handled in Tasks 4–5
+            break   // action/preset/defaults/project ops handled in Task 5
         }
     }
 }
