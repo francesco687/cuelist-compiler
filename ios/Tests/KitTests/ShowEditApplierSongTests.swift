@@ -1,0 +1,47 @@
+import XCTest
+@testable import CuelistCompilerKit
+
+final class ShowEditApplierSongTests: XCTestCase {
+    private func base() -> Project {
+        Project(songs: [
+            Song(id: "a", name: "Opener", sequence: 1, cues: []),
+            Song(id: "b", name: "Closer", sequence: 2, cues: [])
+        ], activeSongId: "a")
+    }
+
+    func testAddSongAppendsAndSummarizes() {
+        let r = ShowEditApplier.apply([.addSong(name: "Encore", sequence: 12)],
+                                      to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.songs.count, 3)
+        XCTAssertEqual(r.project.songs.last?.name, "Encore")
+        XCTAssertEqual(r.project.songs.last?.sequence, 12)
+        XCTAssertEqual(r.project.activeSongId, r.project.songs.last?.id)
+        XCTAssertEqual(r.summary, ["Add song \u{201C}Encore\u{201D} (sequence 12)"])
+        XCTAssertTrue(r.warnings.isEmpty)
+    }
+
+    func testRenameByOrdinalAndSequenceByName() {
+        let r = ShowEditApplier.apply([
+            .renameSong(song: "2", name: "Finale"),
+            .setSequence(song: "Opener", sequence: 7)
+        ], to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.songs[1].name, "Finale")
+        XCTAssertEqual(r.project.songs[0].sequence, 7)
+        XCTAssertEqual(r.summary.count, 2)
+    }
+
+    func testDeleteSongNeverDropsBelowOne() {
+        var p = base(); p.songs = [p.songs[0]]; p.activeSongId = "a"
+        let r = ShowEditApplier.apply([.deleteSong(song: "1")], to: p, defaults: Defaults())
+        XCTAssertEqual(r.project.songs.count, 1)               // replaced with a fresh empty song
+        XCTAssertNotEqual(r.project.songs[0].id, "a")
+    }
+
+    func testUnresolvedSongWarns() {
+        let r = ShowEditApplier.apply([.renameSong(song: "9", name: "X")],
+                                      to: base(), defaults: Defaults())
+        XCTAssertEqual(r.project.songs.map(\.name), ["Opener", "Closer"])  // unchanged
+        XCTAssertEqual(r.warnings, ["Song \u{201C}9\u{201D} not found \u{2014} skipped renameSong"])
+        XCTAssertTrue(r.summary.isEmpty)
+    }
+}
