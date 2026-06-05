@@ -35,27 +35,45 @@ public final class VoiceCaptureController {
         catch { phase = .error("Couldn't start recording") }
     }
 
+    @ObservationIgnored private var processingTask: Task<Void, Never>?
+
     public func stopAndProcess(project: Project, defaults: Defaults) async {
-        guard let audio = await recorder.stop() else { phase = .error("No audio captured"); return }
-        do {
-            phase = .transcribing
-            let transcript = try await transcriber.transcribe(audio)
-            phase = .interpreting
-            let cmd = try await interpreter.interpret(transcript: transcript, project: project, defaults: defaults)
-            let result = ShowEditApplier.apply(cmd.edits, to: project, defaults: defaults)
-            pending = Pending(transcript: transcript, summary: result.summary, warnings: result.warnings,
-                              clarification: cmd.clarification, result: result)
-            phase = .preview
-        } catch let VoiceError.api(status, _) {
-            phase = .error("Service error (\(status))")
-        } catch VoiceError.emptyTranscript {
-            phase = .error("Didn't catch that — try again")
-        } catch let VoiceError.missingKey(p) {
-            phase = .error("Add your \(p) API key in Settings")
-        } catch {
-            phase = .error("Couldn't interpret that — try rephrasing")
+        let task = Task { @MainActor in
+            guard let audio = await recorder.stop() else { phase = .error("No audio captured"); return }
+            do {
+                phase = .transcribing
+                try Task.checkCancellation()
+                let transcript = try await transcriber.transcribe(audio)
+                phase = .interpreting
+                try Task.checkCancellation()
+                let cmd = try await interpreter.interpret(transcript: transcript, project: project, defaults: defaults)
+                try Task.checkCancellation()
+                let result = ShowEditApplier.apply(cmd.edits, to: project, defaults: defaults)
+                pending = Pending(transcript: transcript, summary: result.summary, warnings: result.warnings,
+                                  clarification: cmd.clarification, result: result)
+                phase = .preview
+            } catch is CancellationError {
+                // user cancelled mid-flight; leave whatever cancel() already set (.idle)
+            } catch let VoiceError.api(status, _) {
+                phase = .error("Service error (\(status))")
+            } catch VoiceError.emptyTranscript {
+                phase = .error("Didn't catch that — try again")
+            } catch let VoiceError.missingKey(p) {
+                phase = .error("Add your \(p) API key in Settings")
+            } catch VoiceError.badResponse {
+                phase = .error("Service returned an unexpected response — try again")
+            } catch {
+                phase = .error("Couldn't interpret that — try rephrasing")
+            }
         }
+        processingTask = task
+        await task.value
     }
 
-    public func cancel() { phase = .idle; pending = nil }
+    public func cancel() {
+        processingTask?.cancel()
+        processingTask = nil
+        phase = .idle
+        pending = nil
+    }
 }

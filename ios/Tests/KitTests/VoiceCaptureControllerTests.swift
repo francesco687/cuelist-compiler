@@ -54,4 +54,44 @@ final class VoiceCaptureControllerTests: XCTestCase {
         XCTAssertEqual(c.pending?.clarification, "Which song?")
         XCTAssertTrue(c.pending?.summary.isEmpty ?? false)
     }
+
+    func testPermissionDeniedGoesToError() async {
+        let rec = MockRecorder(); rec.permission = false
+        let c = make(StubTranscriber(text: "x"),
+                     StubInterpreter(cmd: InterpretedCommand(transcript: "x", edits: [])), rec)
+        await c.startRecording()
+        guard case let .error(msg) = c.phase else { return XCTFail("expected error") }
+        XCTAssertEqual(msg, "Microphone access denied")
+    }
+
+    func testNilAudioGoesToError() async {
+        let rec = MockRecorder(); rec.fileToReturn = nil
+        let c = make(StubTranscriber(text: "x"),
+                     StubInterpreter(cmd: InterpretedCommand(transcript: "x", edits: [])), rec)
+        await c.startRecording()
+        await c.stopAndProcess(project: Project.empty(), defaults: Defaults())
+        guard case let .error(msg) = c.phase else { return XCTFail("expected error") }
+        XCTAssertEqual(msg, "No audio captured")
+    }
+
+    func testBadResponseMapsToServiceError() async {
+        struct Boom: Transcriber { func transcribe(_ u: URL) async throws -> String { throw VoiceError.badResponse("raw") } }
+        let c = make(Boom(), StubInterpreter(cmd: InterpretedCommand(transcript: "", edits: [])))
+        await c.startRecording()
+        await c.stopAndProcess(project: Project.empty(), defaults: Defaults())
+        guard case let .error(msg) = c.phase else { return XCTFail("expected error") }
+        XCTAssertEqual(msg, "Service returned an unexpected response — try again")
+    }
+
+    func testCancelResets() async {
+        let interp = StubInterpreter(cmd: InterpretedCommand(transcript: "t",
+            edits: [.setGroup(song: nil, cue: 1, group: "1", block: nil)]))
+        let c = make(StubTranscriber(text: "t"), interp)
+        var p = Project.empty(); p.songs[0].cues = [Cue(n: 1)]
+        await c.startRecording()
+        await c.stopAndProcess(project: p, defaults: Defaults())
+        c.cancel()
+        guard case .idle = c.phase else { return XCTFail("expected idle after cancel") }
+        XCTAssertNil(c.pending)
+    }
 }
