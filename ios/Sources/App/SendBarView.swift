@@ -7,55 +7,65 @@ struct SendBarView: View {
 
     var body: some View {
         @Bindable var store = store
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             HStack {
-                pill
+                Button { hub.connect() } label: { LiveIndicator(state: hub.state) }
+                    .buttonStyle(.plain)
                 Spacer()
                 Picker("Store", selection: $store.project.storeMode) {
                     ForEach(StoreMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }.pickerStyle(.segmented).frame(width: 180)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
             }
             HStack(spacing: 10) {
                 Button {
                     hub.send(project: store.project, defaults: store.defaults, selection: .current)
-                } label: { Label("Send current", systemImage: "paperplane") }
-                    .buttonStyle(.borderedProminent)
+                } label: {
+                    Label("Send → MA", systemImage: "paperplane.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(Theme.accentGradient, in: RoundedRectangle(cornerRadius: Theme.radius))
+                        .foregroundStyle(.white)
+                        .shadow(color: Theme.accentSolid.opacity(0.4), radius: 12, y: 3)
+                }
                 Button {
                     hub.send(project: store.project, defaults: store.defaults, selection: .all)
-                } label: { Label("Send all", systemImage: "paperplane.fill") }
-                    .buttonStyle(.bordered)
-            }
-            .disabled(!hub.state.isOnline)
-
-            if let p = hub.progress {
-                ProgressView(value: Double(p.sent), total: Double(max(1, p.total)))
-                Text("sending \(p.sent)/\(p.total)…").font(.caption2).foregroundStyle(.secondary)
-            } else if let result = hub.lastResult {
-                switch result {
-                case let .done(total):
-                    Label("Sent \(total) lines", systemImage: "checkmark.circle")
-                        .font(.caption).foregroundStyle(.green)
-                case let .failed(msg):
-                    Label(msg, systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.red)
+                } label: {
+                    Text("All")
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.vertical, 11).padding(.horizontal, 18)
+                        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radius))
+                        .foregroundStyle(Theme.text)
                 }
             }
+            .buttonStyle(.plain)
+            .disabled(!hub.state.isOnline)
+            .opacity(hub.state.isOnline ? 1 : 0.5)
+
+            resultRow
         }
-        .padding(.horizontal).padding(.vertical, 8)
-        .background(.bar)
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .overlay(Rectangle().frame(height: 0.5).foregroundStyle(Theme.border), alignment: .top)
     }
 
-    private var pill: some View {
-        Button {
-            hub.connect()
-        } label: {
-            switch hub.state {
-            case .offline:    Label("hub offline", systemImage: "circle").foregroundStyle(.secondary)
-            case .connecting: Label("connecting…", systemImage: "circle.dotted").foregroundStyle(.orange)
-            case .online:     Label("hub online", systemImage: "circle.fill").foregroundStyle(.green)
-            case let .error(m): Label(m, systemImage: "circle.fill").foregroundStyle(.red)
+    @ViewBuilder private var resultRow: some View {
+        if let p = hub.progress {
+            VStack(spacing: 4) {
+                ProgressView(value: Double(p.sent), total: Double(max(1, p.total))).tint(Theme.accentSolid)
+                Text("sending \(p.sent)/\(p.total)…").font(.system(size: 11)).foregroundStyle(Theme.textDim)
+            }
+        } else if let result = hub.lastResult {
+            switch result {
+            case let .done(total):
+                Label("Sent \(total) lines", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 12)).foregroundStyle(Theme.ok)
+            case let .failed(msg):
+                Label(msg, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12)).foregroundStyle(Theme.danger)
             }
         }
-        .font(.caption).lineLimit(1)
     }
 }

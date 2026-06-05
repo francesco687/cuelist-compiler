@@ -33,4 +33,24 @@ final class HubMessagesTests: XCTestCase {
     func testDecodeUnknownTypeIsIgnored() throws {
         XCTAssertEqual(try IncomingMessage.decode(#"{"type":"pong"}"#), .other)
     }
+
+    func testEncodePullSequences() throws {
+        let obj = try JSONSerialization.jsonObject(
+            with: OutgoingMessage.pullSequences.jsonData()) as! [String: Any]
+        XCTAssertEqual(obj["type"] as? String, "pull-sequences")
+    }
+
+    func testDecodeSequences() throws {
+        let m = try IncomingMessage.decode(
+            #"{"type":"sequences","version":1,"sequences":[{"no":1,"name":"ENTER SANDMAN"},{"no":666,"name":"SONG_1"}]}"#)
+        XCTAssertEqual(m, .sequences(version: 1, [
+            PulledSequence(no: 1, name: "ENTER SANDMAN"),
+            PulledSequence(no: 666, name: "SONG_1"),
+        ]))
+    }
+
+    func testDecodePullError() throws {
+        XCTAssertEqual(try IncomingMessage.decode(#"{"type":"pull-error","message":"timed out"}"#),
+                       .pullError(message: "timed out"))
+    }
 }
