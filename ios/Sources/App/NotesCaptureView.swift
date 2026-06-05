@@ -31,8 +31,9 @@ struct NotesCaptureView: View {
                         Button {
                             Task {
                                 await notes.routeText(text, project: store.project, targetCue: targetCue)
-                                if case .preview = notes.phase, targetCue != nil {
-                                    store.applyNotes(notes.routed); notes.reset(); dismiss()
+                                if case .preview = notes.phase, let cue = targetCue {
+                                    store.applyNotes(notes.routed.map { NoteEdit(cue: cue, text: $0.text) })
+                                    notes.reset(); dismiss()
                                 }
                             }
                         } label: {
