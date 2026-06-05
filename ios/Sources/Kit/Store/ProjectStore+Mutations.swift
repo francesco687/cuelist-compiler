@@ -54,6 +54,12 @@ public extension ProjectStore {
         project.songs[i].cues.sort { $0.n < $1.n }
     }
 
+    /// Bulk-remove cues of the active song whose id is in `ids`.
+    func removeCues(ids: Set<UUID>) {
+        let i = activeSongIndex()
+        project.songs[i].cues.removeAll { ids.contains($0.id) }
+    }
+
     /// Reorder the active song's cues (for List `.onMove`).
     /// Mirrors the semantics of `MutableCollection.move(fromOffsets:toOffset:)`.
     func moveCues(from source: IndexSet, to destination: Int) {

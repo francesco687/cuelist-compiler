@@ -78,4 +78,12 @@ final class ProjectStoreMutationTests: XCTestCase {
         s.moveCues(from: IndexSet(integer: 0), to: 3)  // move first to end
         XCTAssertEqual(s.activeSong.cues.map(\.n), [2, 3, 1])
     }
+
+    func testRemoveCuesBulkDeletesByID() {
+        let s = store()
+        s.addCue(); s.addCue(); s.addCue()
+        let ids = Set([s.activeSong.cues[0].id, s.activeSong.cues[2].id])
+        s.removeCues(ids: ids)
+        XCTAssertEqual(s.activeSong.cues.map(\.n), [2])     // middle one survives
+    }
 }
