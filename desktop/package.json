@@ -15,5 +15,25 @@
   },
   "dependencies": {
     "ws": "^8.18.0"
+  },
+  "build": {
+    "appId": "com.blearred.cuelistcompiler",
+    "productName": "Cuelist Compiler",
+    "files": ["main.js", "preload.js", "settings.js", "node_modules/**/*"],
+    "extraResources": [
+      { "from": "../web", "to": "web", "filter": ["**/*"] },
+      { "from": "../hub/src", "to": "hub/src", "filter": ["**/*"] }
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.music",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": "nsis"
+    }
   }
 }
