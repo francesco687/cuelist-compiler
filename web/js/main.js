@@ -113,6 +113,10 @@ document.getElementById('poolsLoadFile').addEventListener('change', e => {
 
 document.getElementById('sendOscCurrent').addEventListener('click', sendCurrentViaOsc);
 document.getElementById('sendOscAll').addEventListener('click', sendAllViaOsc);
+document.getElementById('sendTcOscCurrent').addEventListener('click', sendTcCurrentViaOsc);
+document.getElementById('sendTcOscAll').addEventListener('click', sendTcAllViaOsc);
+document.getElementById('exportTc').addEventListener('click', exportTcLua);
+document.getElementById('exportTcAll').addEventListener('click', exportAllTcLua);
 document.getElementById('oscPill').addEventListener('click', () => {
   if (oscState === 'offline') oscConnect();
 });
