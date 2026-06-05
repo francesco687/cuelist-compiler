@@ -25,8 +25,9 @@ struct NotesCaptureView: View {
                         .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radius))
                         .foregroundStyle(Theme.text)
 
-                    HStack(spacing: 12) {
-                        micButton
+                    micButton
+
+                    HStack {
                         Spacer()
                         Button {
                             Task {
@@ -75,20 +76,34 @@ struct NotesCaptureView: View {
 
     @ViewBuilder private var micButton: some View {
         if notes.phase.isNotesRecording {
-            Button {
+            bigMic(symbol: "stop.fill", text: "Stop", pulse: true) {
                 Task { let t = await notes.stopAndTranscribe(); if !t.isEmpty { text = text.isEmpty ? t : text + " " + t } }
-            } label: {
-                Label("Stop", systemImage: "stop.circle.fill")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.danger)
-            }.buttonStyle(.plain)
+            }
         } else if case .transcribing = notes.phase {
-            ProgressView().tint(Theme.aqua)
+            HStack { Spacer(); ProgressView().tint(Theme.aquaInk); Spacer() }
+                .padding(.vertical, 16)
+                .background(Theme.aquaGradient, in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
+                .opacity(0.7)
         } else {
-            Button { Task { await notes.startRecording() } } label: {
-                Label("Mic", systemImage: "mic.fill")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.aqua)
-            }.buttonStyle(.plain)
+            bigMic(symbol: "mic.fill", text: "Tap to talk", pulse: false) {
+                Task { await notes.startRecording() }
+            }
         }
+    }
+
+    private func bigMic(symbol: String, text: String, pulse: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).font(.system(size: 18, weight: .bold))
+                    .symbolEffect(.pulse, isActive: pulse)
+                Text(text).font(.system(size: 14, weight: .bold))
+            }
+            .foregroundStyle(Theme.aquaInk)
+            .frame(maxWidth: .infinity).padding(.vertical, 16)
+            .background(Theme.aquaGradient, in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
+            .shadow(color: Theme.aqua.opacity(0.5), radius: 18, y: 4)
+        }
+        .buttonStyle(.plain)
     }
 
     private var routingPreview: some View {
