@@ -181,6 +181,13 @@ function buildTcCmdLines(songs) {
     // TrackGroup is an internal pseudo-track that renders on the TG header row in the
     // Timecode editor; storing events there visually attaches them to the TG, not to
     // the Sequence-targeted Track the operator created. Source: MA forum thread 68641.
+    //
+    // Overwrite by clearing EVENTS, not TimeRanges. Two API facts proven on a real
+    // desk (2026-06-06): TimeRanges are structural and refuse deletion ("deletion of
+    // the child object is prohibited"), and Delete is `parent:Delete(1-basedIndex)` —
+    // a no-arg `child:Delete()` errors with "Wrong parameter #2". So we walk every
+    // TimeRange's CmdSubTrack(s) and delete their event children, then write fresh
+    // events into a CmdSubTrack. Events are user content and ARE deletable.
     const lua = [
       `local s=DataPool().sequences[${seq}]`,
       `local t=DataPool().timecodes[${seq}]`,
@@ -189,8 +196,7 @@ function buildTcCmdLines(songs) {
       `if not tg then return end`,
       `local tr=tg[2]`,
       `if not tr then return end`,
-      `local trc=tr:Children()`,
-      `for i=#trc,1,-1 do trc[i]:Delete() end`,
+      `for _,r in ipairs(tr:Children()) do for _,sb in ipairs(r:Children()) do local ev=sb:Children() for i=#ev,1,-1 do sb:Delete(i) end end end`,
       `local rng=tr:Acquire()`,
       `local sub=rng:Acquire('CmdSubTrack')`,
       `for _,c in ipairs({${cuesLit}}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence ${seq} Cue '..c[1]) if cue then e:Set('cuedestination',cue) end end`,
@@ -240,7 +246,7 @@ function buildTcLua(songs, headerTitle) {
   lines.push('--   * Sequence <seq> exists with cues.');
   lines.push('--   * Timecode pool <seq> exists.');
   lines.push('--   * TC <seq> has a TrackGroup with at least one Track (target=Sequence <seq>).');
-  lines.push('-- BEHAVIOR: wipes all TimeRanges on the target Track, then appends fresh events.');
+  lines.push('-- BEHAVIOR: clears all existing events on the target Track, then writes fresh ones.');
   lines.push('');
   lines.push('local function applySong(seq, cues)');
   lines.push('  local s = DataPool().sequences[seq]');
@@ -253,8 +259,15 @@ function buildTcLua(songs, headerTitle) {
   lines.push('  -- whose events render on the TG header row (forum thread 68641).');
   lines.push('  local tr = tg[2]');
   lines.push('  if not tr then Printf("Cuelist TC: TC "..seq.." TrackGroup has no user Track"); return end');
-  lines.push('  local trc = tr:Children()');
-  lines.push('  for i = #trc, 1, -1 do trc[i]:Delete() end');
+  lines.push('  -- Clear existing EVENTS, not TimeRanges: TimeRanges are structural and refuse');
+  lines.push('  -- deletion ("deletion of the child object is prohibited"); Delete is');
+  lines.push('  -- parent:Delete(1-basedIndex) (a no-arg child :Delete() errors "Wrong parameter #2").');
+  lines.push('  for _, r in ipairs(tr:Children()) do');
+  lines.push('    for _, sb in ipairs(r:Children()) do');
+  lines.push('      local ev = sb:Children()');
+  lines.push('      for i = #ev, 1, -1 do sb:Delete(i) end');
+  lines.push('    end');
+  lines.push('  end');
   lines.push('  local rng = tr:Acquire()');
   lines.push('  local sub = rng:Acquire("CmdSubTrack")');
   lines.push('  for _, c in ipairs(cues) do');

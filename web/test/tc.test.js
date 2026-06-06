@@ -93,8 +93,12 @@ test('buildTcCmdLines: emits one Lua command per song using Object API', () => {
   // Resolves the sequence + timecode pool by sequence number
   assert.ok(line.includes('DataPool().sequences[12]'));
   assert.ok(line.includes('DataPool().timecodes[12]'));
-  // Wipes existing TimeRanges, then Acquires fresh hierarchy on the user Track (tg[2])
+  // Overwrite by clearing EVENTS (not TimeRanges, which are protected), then
+  // Acquires fresh hierarchy on the user Track (tg[2]).
   assert.ok(line.includes('local tr=tg[2]'), 'must target tg[2] not tg:Children()[1]');
+  assert.ok(line.includes('sb:Delete(i)'), 'must clear events via parent CmdSubTrack:Delete(index)');
+  assert.ok(!line.includes('tr:Delete('), 'must not delete TimeRanges (prohibited on real desk)');
+  assert.ok(!line.includes('trc[i]:Delete()'), 'no-arg child :Delete() is the broken form (Wrong parameter #2)');
   assert.ok(line.includes(":Acquire('CmdSubTrack')"));
   // Cues sorted ascending with valid one only, rawtime = round(seconds * 16777216)
   assert.ok(line.includes('{{1,83886080},{2,175825224}}'));
@@ -154,6 +158,8 @@ test('buildTcLua: emits a standalone Object-API plugin', () => {
   // Standalone applySong helper using Acquire / cuedestination
   assert.match(lua, /local function applySong\(seq, cues\)/);
   assert.match(lua, /local tr = tg\[2\]/); // user Track sits at TG index 2, not 1
+  assert.match(lua, /sb:Delete\(i\)/); // clears events (not TimeRanges), parent:Delete(index)
+  assert.ok(!/trc\[i\]:Delete\(\)/.test(lua), 'no-arg child :Delete() is the broken form');
   assert.match(lua, /local rng = tr:Acquire\(\)/);
   assert.match(lua, /local sub = rng:Acquire\("CmdSubTrack"\)/);
   assert.match(lua, /e:Set\("rawtime", c\[2\]\)/);

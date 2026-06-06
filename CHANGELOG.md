@@ -5,6 +5,14 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Fixed
+- **web:** Timecode overwrite no longer fails on a non-empty track. The old
+  `trc[i]:Delete()` (no-arg child) and TimeRange-wipe approach errored on a real
+  desk ("Wrong parameter #2" / "deletion of the child object is prohibited").
+  `buildTcCmdLines` / `buildTcLua` now clear **events** via
+  `parent:Delete(1-basedIndex)` and leave the structural TimeRanges intact —
+  matching the desk-proven iOS path.
+
 ### Changed
 - Restructured into a monorepo (`web/ ios/ proxy/ shared/ docs/`).
 - Split the single-file web app into no-build modules under `web/js/` with a
