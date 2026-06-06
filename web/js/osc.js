@@ -19,6 +19,10 @@ function setOscState(s, label) {
   const canSend = (s === 'online');
   document.getElementById('sendOscCurrent').disabled = !canSend;
   document.getElementById('sendOscAll').disabled = !canSend;
+  const tcCur = document.getElementById('sendTcOscCurrent');
+  if (tcCur) tcCur.disabled = !canSend;
+  const tcAll = document.getElementById('sendTcOscAll');
+  if (tcAll) tcAll.disabled = !canSend;
 }
 
 function oscConnect() {
@@ -89,6 +93,21 @@ function sendAllViaOsc() {
   sendCmdLinesViaOsc(lines, `${songs.length} song(s)`);
 }
 
+function sendTcCurrentViaOsc() {
+  const song = activeSong();
+  if (!song) return;
+  const lines = buildTcCmdLines([song]);
+  if (lines.length === 0) { alert('No cues with a valid TC position in the active song.'); return; }
+  sendCmdLinesViaOsc(lines, `TC for "${song.name || '(untitled)'}"`);
+}
+
+function sendTcAllViaOsc() {
+  const songs = state.songs.filter(s => (s.cues || []).some(c => isValidSmpte(c.position)));
+  if (songs.length === 0) { alert('No songs have any cues with a valid TC position.'); return; }
+  const lines = buildTcCmdLines(songs);
+  sendCmdLinesViaOsc(lines, `TC for ${songs.length} song(s)`);
+}
+
 // --- Desktop settings + status (Electron only) -----------------------------
 function initDesktopChrome() {
   if (!(window.cuelist && window.cuelist.isDesktop)) return; // browser: no native settings
@@ -142,4 +161,4 @@ function initDesktopChrome() {
 
 // --- public surface
 window.CC = window.CC || {};
-CC.osc = { setOscState, oscConnect, sendCurrentViaOsc, sendAllViaOsc, initDesktopChrome };
+window.CC.osc = { setOscState, oscConnect, sendCurrentViaOsc, sendAllViaOsc, sendTcCurrentViaOsc, sendTcAllViaOsc, initDesktopChrome };

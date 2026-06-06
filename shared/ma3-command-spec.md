@@ -76,3 +76,75 @@ untouched.
   and prints progress; `buildCmdLines()` returns the raw command strings for OSC.
   Both must produce the **same ordered command list**.
 - The live-OSC path requires MA3 OSC **Echo Input = Yes** for `/cmd` to dispatch.
+
+## Timecode show per song (optional)
+
+Independent from the sequence/cue command sequence above. Driven by the
+`Send TC ...` toolbar buttons and `buildTcCmdLines` / `buildTcLua`.
+
+> **History note** — an earlier version of this spec (2026-06-05) used a
+> command-line-only approach (`Store Timecode <N>.1.1.1.1 'Goto Cue ...'`
+> + `Set ... Property 'time' ...`). That approach is INVALID: MA3's
+> command-line `Store Timecode <path>` only creates pool entries /
+> TrackGroups / Tracks, not Events — attempts return "Cannot Create
+> Object". Events on MA3 are only addressable via the **Lua Object API**
+> (forum thread 68641). The current spec replaces that path entirely.
+
+### Pre-conditions (operator manual on MA3, once per song)
+
+- Sequence `<N>` exists with cues.
+- Timecode pool `<N>` exists.
+- TC `<N>` has at least one TrackGroup, whose first Track targets `Sequence <N>`.
+
+### Object hierarchy
+
+```
+DataPool().timecodes[N]
+  └─ TrackGroup (Children()[1])
+       └─ Track (Children()[1], target = Sequence N)
+            └─ TimeRange (Acquire())
+                 └─ CmdSubTrack (Acquire('CmdSubTrack'))
+                      └─ Event (Acquire())  -- one per cue
+                           - rawtime         : integer, internal units (1 s = 16777216)
+                           - cuedestination  : Cue handle (set via GetObject)
+```
+
+### Per-song sequence
+
+For each song with at least one cue having a `position` matching SMPTE
+`HH:MM:SS:FF` (validated by `isValidSmpte`, `FF < 25` since 25 fps), with
+`<N>` = song's `sequence`:
+
+The compiler emits **one** OSC command per song:
+
+```
+Lua "<single-line Lua code>"
+```
+
+The Lua code performs (in order):
+
+1. **Resolve** Sequence `<N>` and Timecode pool entry `<N>`. Bail if either missing.
+2. **Locate** TrackGroup `Children()[1]` and Track `Children()[1]`. Bail if either missing.
+3. **Wipe** all existing TimeRange children of the Track via reverse iteration + `:Delete()`.
+4. **Acquire** a fresh TimeRange and a `CmdSubTrack` inside it.
+5. **For each cue** with valid `position`, ascending by `cue.n`:
+   - `:Acquire()` a new Event under the CmdSubTrack.
+   - `Set('rawtime', round(seconds * 16777216))`.
+   - `cue = GetObject('Sequence <N> Cue <cue.n>')`; if truthy, `Set('cuedestination', cue)`.
+
+`<seconds>` = SMPTE→seconds at 25 fps: `(HH * 3600) + (MM * 60) + SS + (FF / 25)`.
+
+### Notes
+
+- `rawtime` units are MA3's internal time, **not** SMPTE string and **not** seconds.
+  Constant: `1 second = 16777216` (`= 2^24`).
+- `Acquire()` semantics: on TimeRange / CmdSubTrack it returns the existing child
+  if present, else creates one. On CmdSubTrack for Events, it always creates a
+  new Event (so iterating `Acquire()` in a loop produces N distinct events).
+- `:Delete()` is the property-API mutator, not the command-line `Delete` keyword.
+- The whole Lua command is one OSC packet per song; `sendCmdLinesViaOsc`'s
+  throttle (20 ms) is mostly slack here.
+- `buildTcLua` produces a paste-into-MA3 plugin that runs the **same** Object
+  API hierarchy in a standalone `applySong(seq, cues)` function. Fallback path
+  when OSC is unavailable.
+- Older MA versions used `:Aquire()` (typo, no `c`). Current builds accept both.

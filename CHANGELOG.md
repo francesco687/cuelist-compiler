@@ -15,3 +15,7 @@ All notable changes to this project are documented here. Format based on
 - `docs/architecture.md`; contribution infra (CONTRIBUTING, PR/issue templates,
   editorconfig, expanded gitignore, changelog).
 - `proxy/start.sh` for macOS/Linux.
+- **web:** Timecode per cue — author SMPTE positions per cue and push to MA3
+  Timecode pool via `Send TC current/all → MA` (Cmd-line, Overwrite-only;
+  see `shared/ma3-command-spec.md` §Timecode show). Pre-condition: Track in
+  TC pool created on MA3 first.

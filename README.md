@@ -68,6 +68,26 @@ Send commands straight to MA without the paste step.
 
 OSC address: `/gma3/cmd` with one string arg = the full MA command line.
 
+## Timecode show (optional)
+
+The compiler can populate grandMA3 Timecode pools with events that fire your
+song's cues. Convention: TC pool number = Sequence number.
+
+**One-time MA3 setup per song (manual):**
+1. Sequence `N` exists with cues (compiler's regular Send sequences this).
+2. Timecode pool `N` exists (create it on MA3, or it will be created on first
+   Send TC).
+3. Track inside TC pool `N` has `target = Sequence N` — drag the sequence onto
+   the TC pool slot on MA3.
+
+**Per-cue authoring in the compiler:**
+- Each cue has an `HH:MM:SS:FF` input (25 fps). Empty = excluded from TC.
+- 🎯 button captures the current audio playhead.
+
+**Send:** `Send TC current → MA` (active song) or `Send TC all → MA`. The
+operation wipes existing events in the SubTrack and writes new ones from the
+compiler (Overwrite-only in v1).
+
 ## Requirements
 
 - **Browser**: Chrome or Edge.

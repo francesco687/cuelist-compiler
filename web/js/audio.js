@@ -346,6 +346,11 @@ function renderMarkers() {
   updateCurrentMarker(audioEl ? audioEl.currentTime : 0);
 }
 
+function captureCurrentPlayheadAsSmpte() {
+  if (!audioEl || isNaN(audioEl.currentTime)) return null;
+  return secondsToTimecode(audioEl.currentTime);
+}
+
 // --- public surface
 window.CC = window.CC || {};
-CC.audio = { loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel, wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead, updateCurrentMarker, renderMarkers };
+window.CC.audio = { loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel, wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead, updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte };

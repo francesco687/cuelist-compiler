@@ -7,6 +7,7 @@
       "name": "DB CUE",
       "fade": "5",
       "delay": "",
+      "position": "00:00:05:15",
       "actions": [
         {
           "group": "AROLLA FLOOR",
@@ -26,6 +27,7 @@
       "name": "INTRO",
       "fade": "6",
       "delay": "",
+      "position": "00:00:10:00",
       "actions": [
         {
           "group": "AROLLA FLOOR",
