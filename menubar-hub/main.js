@@ -1,0 +1,94 @@
+'use strict';
+const path = require('node:path');
+const { app, Tray, BrowserWindow, ipcMain, nativeImage, screen } = require('electron');
+const settingsModule = require('./src/settings');
+const { RelayHubClient } = require('./src/relay-client');
+
+let tray = null;
+let popover = null;
+let client = null;
+let settings = settingsModule.defaults();
+let state = { relay: 'offline', peer: false };
+
+function buildClient() {
+  if (client) client.close();
+  state = { relay: 'connecting', peer: false };
+  client = new RelayHubClient(settings, {
+    onState: (s) => { state.relay = s; pushToRenderer('hub:state', s); updateTrayTitle(); },
+    onPeer:  (b) => { state.peer = b;  pushToRenderer('hub:peer', b);  updateTrayTitle(); },
+    onLog:   (e) => pushToRenderer('hub:log', e),
+  });
+  client.connect();
+}
+
+function pushToRenderer(channel, payload) {
+  if (popover && !popover.isDestroyed()) popover.webContents.send(channel, payload);
+}
+
+function updateTrayTitle() {
+  if (!tray) return;
+  // Menubar glyph: ● paired, ◐ relay-up-no-phone, ○ offline.
+  const glyph = state.peer ? '●' : state.relay === 'online' ? '◐' : '○';
+  tray.setTitle(` ${glyph}`);
+}
+
+function createPopover() {
+  popover = new BrowserWindow({
+    width: 360, height: 480, show: false, frame: false, resizable: false,
+    fullscreenable: false, skipTaskbar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  popover.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  popover.on('blur', () => { if (popover && !popover.isDestroyed()) popover.hide(); });
+}
+
+function togglePopover() {
+  if (!popover) return;
+  if (popover.isVisible()) { popover.hide(); return; }
+  const tb = tray.getBounds();
+  const wb = popover.getBounds();
+  const x = Math.round(tb.x + tb.width / 2 - wb.width / 2);
+  const y = Math.round(tb.y + tb.height);
+  popover.setPosition(x, Math.max(y, 0), false);
+  popover.show();
+  popover.focus();
+}
+
+function trayIcon() {
+  // Template image so macOS tints it for light/dark menubars. A 16x16 transparent
+  // PNG ships at renderer/trayTemplate.png; fall back to an empty image if missing.
+  const p = path.join(__dirname, 'renderer', 'trayTemplate.png');
+  const img = nativeImage.createFromPath(p);
+  img.setTemplateImage(true);
+  return img.isEmpty() ? nativeImage.createEmpty() : img;
+}
+
+app.whenReady().then(() => {
+  if (app.dock) app.dock.hide();                 // menubar-only, no dock icon
+  settings = settingsModule.load(app.getPath('userData'));
+
+  tray = new Tray(trayIcon());
+  tray.setToolTip('Cuelist Internet Hub');
+  tray.on('click', togglePopover);
+  updateTrayTitle();
+
+  createPopover();
+  buildClient();
+
+  ipcMain.handle('hub:getState', () => ({ ...state, pairingCode: settings.pairingCode }));
+  ipcMain.handle('hub:getSettings', () => settings);
+  ipcMain.handle('hub:setSettings', (_e, partial) => {
+    settings = settingsModule.save(app.getPath('userData'), settingsModule.merge(settings, partial));
+    buildClient();                                // reconnect with the new config
+    return settings;
+  });
+  ipcMain.handle('hub:regenCode', () => {
+    settings = settingsModule.save(app.getPath('userData'),
+      settingsModule.merge(settings, { pairingCode: settingsModule.generatePairingCode() }));
+    buildClient();
+    return settings.pairingCode;
+  });
+});
+
+app.on('window-all-closed', (e) => { e.preventDefault(); /* stay alive in the menubar */ });
+app.on('before-quit', () => { if (client) client.close(); });
