@@ -96,7 +96,7 @@ public enum TimecodeBuilder {
             "local tr=tg[2]",
             "if not tr then Printf('[Saetta TC] TC '..n..' no Track tg[2] (#tg='..tostring(#tg)..')') return end",
             "local trc=tr:Children()",
-            "for i=#trc,1,-1 do trc[i]:Delete() end",
+            "for i=#trc,1,-1 do tr:Delete(i) end",
             "local rng=tr:Acquire()",
             "local sub=rng:Acquire('CmdSubTrack')",
             "local k=0",

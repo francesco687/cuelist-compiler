@@ -171,7 +171,11 @@ throughout — no double-quotes inside the `Lua "..."` wrapper):
 1. **Resolve** `DataPool().sequences[N]` and `DataPool().timecodes[N]`. Bail if either missing.
 2. **Locate** TrackGroup `t:Children()[1]` and Track `tg[2]`. Bail if either missing.
 3. **Wipe** every TimeRange: `local trc=tr:Children()` then
-   `for i=#trc,1,-1 do trc[i]:Delete() end`.
+   `for i=#trc,1,-1 do tr:Delete(i) end`. NOTE: `Delete` is
+   `parent:Delete(1-basedChildIndex)` — calling `trc[i]:Delete()` (no-arg on the
+   child) errors with "Wrong parameter #2" on the tested firmware. (The web
+   `buildTcCmdLines` uses the no-arg child form; it only avoided the error because
+   its proven run started on an empty track, so the wipe loop never executed.)
 4. **Create** one fresh TimeRange `tr:Acquire()` and `CmdSubTrack`
    `rng:Acquire('CmdSubTrack')`.
 5. **For each ticked cue**, ascending by `cue.n`: `e = sub:Acquire()` (a new
