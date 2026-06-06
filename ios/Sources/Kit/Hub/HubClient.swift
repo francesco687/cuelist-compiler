@@ -156,6 +156,8 @@ public final class HubClient {
             break                                  // waiting for a peer; no state change yet
         case let .peer(connected):
             state = connected ? .online : .connecting
+        case let .joinError(message):
+            state = .error(message)                // surface the relay's reason (bad/taken code, full)
         case .other:
             break
         }
