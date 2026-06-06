@@ -139,6 +139,55 @@ public final class HubClient {
         conn.send(text)
     }
 
+    /// Send a batch of command lines as individual `cmd` frames, throttled to
+    /// match the hub's compile-send pacing (the hub forwards single `cmd` frames
+    /// immediately, so spacing must happen here). Drives the same progress/result
+    /// the Send tab already binds to. No desk ack is awaited.
+    public func sendLines(_ lines: [String], intervalMs: Int = 20) {
+        if !state.isOnline { connect() }
+        guard connection != nil else { lastResult = .failed("not connected"); return }
+        guard !lines.isEmpty else { return }
+        progress = SendProgress(sent: 0, total: lines.count)
+        lastResult = nil
+        Task { [weak self] in
+            guard let self else { return }
+            for (i, line) in lines.enumerated() {
+                guard let conn = self.connection else { break }
+                if let text = try? OutgoingMessage.cmd(line: line).jsonString() {
+                    conn.send(text)
+                }
+                self.progress = SendProgress(sent: i + 1, total: lines.count)
+                if i < lines.count - 1, intervalMs > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(intervalMs) * 1_000_000)
+                }
+            }
+            self.progress = nil
+            self.lastResult = .done(total: lines.count)
+        }
+    }
+
+    /// Send cue STRUCTURE only (no notes) for the selection.
+    public func sendCues(project: Project, defaults: Defaults, selection: Selection) {
+        let songs = MA3CommandBuilder.songsInScope(project, selection: selection)
+        guard !songs.isEmpty else { lastResult = .failed("no cues to send"); return }
+        sendLines(MA3CommandBuilder.cueLines(songs: songs, defaults: defaults, storeMode: project.storeMode))
+    }
+
+    /// Send NOTES only for the selection.
+    public func sendNotes(project: Project, selection: Selection) {
+        let songs = MA3CommandBuilder.songsInScope(project, selection: selection)
+        let lines = MA3CommandBuilder.noteLines(songs: songs)
+        guard !lines.isEmpty else { lastResult = .failed("no notes to send"); return }
+        sendLines(lines)
+    }
+
+    /// Append the ticked cues' timecode to the active song's sequence (append-only).
+    public func sendTimecode(song: Song, ticked: Set<UUID>) {
+        let lines = TimecodeBuilder.lines(song: song, ticked: ticked)
+        guard !lines.isEmpty else { lastResult = .failed("no timecode to send"); return }
+        sendLines(lines)
+    }
+
     private func handle(_ text: String) {
         guard let msg = try? IncomingMessage.decode(text) else { return }
         switch msg {
