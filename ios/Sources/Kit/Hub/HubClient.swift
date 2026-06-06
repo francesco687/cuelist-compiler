@@ -124,6 +124,8 @@ public final class HubClient {
         case let .pullError(message):
             isPulling = false
             pullError = message
+        case .joined, .peer:
+            break                                    // relay control frames — handled in relay mode (Task D2)
         case .other:
             break
         }
