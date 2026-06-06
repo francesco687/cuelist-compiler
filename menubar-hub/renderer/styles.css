@@ -1,0 +1,39 @@
+:root {
+  --bg: #16181d; --surface: #1e2128; --text: #e6e8ec; --faint: #8b909a;
+  --green: #3ad07a; --amber: #f2b134; --red: #e5564b; --accent: #6ea8fe;
+  --send: #6ea8fe; --pull: #b18cff; --cmd: #3ad07a; --err: #e5564b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 13px -apple-system, system-ui, sans-serif; color: var(--text);
+  background: var(--bg); padding: 12px; user-select: none; }
+header { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.online { background: var(--amber); }     /* relay up, no phone */
+.dot.paired { background: var(--green); }      /* phone paired */
+.dot.offline { background: var(--faint); }
+.dot.error { background: var(--red); }
+
+.pairing label, .loghead { color: var(--faint); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .04em; }
+.coderow { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+code#code { background: var(--surface); padding: 6px 10px; border-radius: 6px; flex: 1;
+  font-size: 15px; letter-spacing: .08em; }
+button { background: var(--surface); color: var(--text); border: none; border-radius: 6px;
+  padding: 6px 10px; cursor: pointer; }
+button:hover { background: #2a2e37; }
+
+.log { margin-top: 14px; }
+ul#feed { list-style: none; margin: 6px 0 0; padding: 0; max-height: 200px; overflow-y: auto; }
+ul#feed li { display: flex; gap: 8px; padding: 4px 6px; border-radius: 5px; align-items: baseline; }
+ul#feed li:nth-child(odd) { background: var(--surface); }
+.ts { color: var(--faint); font-variant-numeric: tabular-nums; font-size: 11px; }
+.kind { font-weight: 700; font-size: 11px; min-width: 42px; }
+.kind.cmd { color: var(--cmd); } .kind.send { color: var(--send); }
+.kind.pull { color: var(--pull); } .kind.error { color: var(--err); }
+.summary { flex: 1; }
+
+.settings { margin-top: 14px; }
+.settings summary { color: var(--faint); cursor: pointer; }
+.settings label { display: block; margin: 8px 0; color: var(--faint); }
+.settings input { width: 100%; background: var(--surface); color: var(--text); border: none;
+  border-radius: 6px; padding: 6px 8px; margin-top: 3px; }
