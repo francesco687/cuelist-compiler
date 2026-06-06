@@ -13,11 +13,25 @@ struct SettingsView: View {
         @Bindable var hub = hub
         NavigationStack {
             Form {
-                Section("Hub") {
-                    TextField("Host (Pi LAN or tailnet IP)", text: $hub.host)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
-                    TextField("Port", value: $hub.port, format: .number)
-                        .keyboardType(.numberPad)
+                Section("Connection") {
+                    Picker("Mode", selection: $hub.mode) {
+                        Text("Direct (same WiFi)").tag(HubMode.direct)
+                        Text("Relay (internet)").tag(HubMode.relay)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if hub.mode == .direct {
+                        TextField("Host (laptop/Pi LAN IP)", text: $hub.host)
+                            .autocorrectionDisabled().textInputAutocapitalization(.never)
+                        TextField("Port", value: $hub.port, format: .number)
+                            .keyboardType(.numberPad)
+                    } else {
+                        TextField("Relay URL", text: $hub.relayURL)
+                            .autocorrectionDisabled().textInputAutocapitalization(.never)
+                            .keyboardType(.URL)
+                        TextField("Pairing code (from the laptop)", text: $hub.pairingCode)
+                            .autocorrectionDisabled().textInputAutocapitalization(.never)
+                    }
                     Button("Connect") { hub.connect() }
                 }
                 Section {
@@ -46,6 +60,7 @@ struct SettingsView: View {
             .onAppear {
                 openAIKey = keyStore.key(for: .openAI) ?? ""
                 anthropicKey = keyStore.key(for: .anthropic) ?? ""
+                if hub.relayURL.isEmpty { hub.relayURL = "wss://cuelist-relay.fly.dev" }
             }
         }
     }
