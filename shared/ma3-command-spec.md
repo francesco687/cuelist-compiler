@@ -151,3 +151,31 @@ The Lua code performs (in order):
   API hierarchy in a standalone `applySong(seq, cues)` function. Fallback path
   when OSC is unavailable.
 - Older MA versions used `:Aquire()` (typo, no `c`). Current builds accept both.
+
+## Timecode insert (Saetta iOS — append-only variant)
+
+Saetta reuses the **same Object API hierarchy** above (TrackGroup `Children()[1]`,
+Track `tg[2]`, TimeRange, CmdSubTrack, Event), but sends timecode for individually
+**ticked** cues and is **append-only**: it omits step 3 (the wipe of existing
+TimeRanges), so events already on the desk for other cues are preserved.
+
+`TimecodeBuilder.lines(song:ticked:)` emits **one** `Lua "<single-line code>"`
+command per song carrying the ticked cues. Desk-side, the code (single-quoted Lua
+throughout — no double-quotes inside the `Lua "..."` wrapper):
+
+1. **Resolve** `DataPool().sequences[N]` and `DataPool().timecodes[N]`. Bail if either missing.
+2. **Locate** TrackGroup `t:Children()[1]` and Track `tg[2]`. Bail if either missing.
+3. **Acquire** (not wipe) the TimeRange `tr:Acquire()` and `CmdSubTrack`
+   `rng:Acquire('CmdSubTrack')` — `Acquire` returns the existing child if present.
+4. **For each ticked cue**, ascending by `cue.n`: `e = sub:Acquire()` (always a new
+   Event), `e:Set('rawtime', <raw>)`, `cue = GetObject('Sequence N Cue c')`; if
+   truthy, `e:Set('cuedestination', cue)`.
+
+`<raw>` = `round(seconds * 16777216)`, `seconds` = SMPTE→seconds at 25 fps.
+
+> **Divergence note** — this append variant intentionally differs from the
+> web `buildTcCmdLines` overwrite path (it skips the delete phase and operates over
+> ticked cues, not all valid cues). Because `Acquire()` on the Event always creates
+> a new Event, **re-sending the same cue appends a duplicate** — there is no dedup.
+> This is the accepted trade-off for non-destructive per-cue sends (decision
+> 2026-06-06).
