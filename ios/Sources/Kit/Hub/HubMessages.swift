@@ -16,6 +16,7 @@ public enum OutgoingMessage {
     case compileSend(project: Project, defaults: Defaults, selection: Selection)
     case pullSequences
     case cmd(line: String)
+    case join(room: String, role: String)
 
     private struct CompileSend: Encodable {
         let type = "compile-send"
@@ -28,6 +29,8 @@ public enum OutgoingMessage {
 
     private struct Cmd: Encodable { let type = "cmd"; let line: String }
 
+    private struct Join: Encodable { let type = "join"; let room: String; let role: String }
+
     public func jsonData() throws -> Data {
         let enc = JSONEncoder()
         switch self {
@@ -38,6 +41,8 @@ public enum OutgoingMessage {
             return try enc.encode(PullSequences())
         case let .cmd(line):
             return try enc.encode(Cmd(line: line))
+        case let .join(room, role):
+            return try enc.encode(Join(room: room, role: role))
         }
     }
 
@@ -53,6 +58,8 @@ public enum IncomingMessage: Equatable, Sendable {
     case error(message: String)
     case sequences(version: Int, [PulledSequence])   // pull result: the showfile's sequence list
     case pullError(message: String)                  // pull failed (trigger/timeout/parse)
+    case joined                                      // relay: this side joined a room
+    case peer(connected: Bool)                       // relay: the other side connected/dropped
     case other                                        // pong / sent / unknown — ignored by the client
 
     private struct Envelope: Decodable {
@@ -62,6 +69,7 @@ public enum IncomingMessage: Equatable, Sendable {
         let message: String?
         let version: Int?
         let sequences: [PulledSequence]?
+        let connected: Bool?
     }
 
     public static func decode(_ text: String) throws -> IncomingMessage {
@@ -72,6 +80,8 @@ public enum IncomingMessage: Equatable, Sendable {
         case "error":      return .error(message: e.message ?? "unknown error")
         case "sequences":  return .sequences(version: e.version ?? 1, e.sequences ?? [])
         case "pull-error": return .pullError(message: e.message ?? "pull failed")
+        case "joined":     return .joined
+        case "peer":       return .peer(connected: e.connected ?? false)
         default:           return .other
         }
     }
