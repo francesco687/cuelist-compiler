@@ -50,6 +50,7 @@ struct SendView: View {
                             hub.sendNotes(project: store.project, selection: .all)
                         }
 
+                        // Hand-rolled (not sendRow): single-scope, count-in-label, auto-clears after send. No icon — the ticked count is the visual signal.
                         // Timecode: active song only, ticked cues only.
                         Button {
                             if let song = store.project.activeSong {
@@ -65,7 +66,7 @@ struct SendView: View {
                                 .foregroundStyle(tickedCount > 0 ? Theme.text : Theme.textDim)
                         }
                         .buttonStyle(.plain)
-                        .disabled(tickedCount == 0)
+                        .disabled(!canSendTimecode)
                     }
                     .disabled(!hub.state.isOnline)
                     .opacity(hub.state.isOnline ? 1 : 0.5)
@@ -86,6 +87,10 @@ struct SendView: View {
         return song.cues.filter { store.tcSelection.contains($0.id) && Smpte.isValid($0.position) }.count
     }
 
+    private var canSendTimecode: Bool {
+        store.project.activeSong != nil && tickedCount > 0
+    }
+
     @ViewBuilder
     private func sendRow(title: String, systemImage: String, primary: Bool,
                          currentAction: @escaping () -> Void,
@@ -95,11 +100,13 @@ struct SendView: View {
                 .font(.system(size: 14, weight: primary ? .semibold : .medium))
                 .foregroundStyle(Theme.text)
             Spacer()
-            Button("current", action: currentAction)
+            Button("Current", action: currentAction)
                 .buttonStyle(.borderedProminent)
-                .tint(primary ? Theme.accentSolid : Theme.surface2)
-            Button("all songs", action: allAction)
+                .tint(primary ? Theme.accentSolid : Theme.accentSolid.opacity(0.55))
+                .accessibilityLabel("\(title) – current song")
+            Button("All Songs", action: allAction)
                 .buttonStyle(.bordered)
+                .accessibilityLabel("\(title) – all songs")
         }
         .padding(.vertical, 10).padding(.horizontal, 12)
         .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
