@@ -140,6 +140,14 @@ public final class HubClient {
         conn.send(text)
     }
 
+    /// Pop a free-text note as a `MessageBox` on the desk. Builds the command-line
+    /// string via `ConsoleMessage` and forwards it over the same optimistic `cmd`
+    /// passthrough as the transport buttons. No-ops if the note sanitizes to empty.
+    public func sendConsoleMessage(_ text: String) {
+        guard let line = ConsoleMessage.line(text: text) else { return }
+        sendCommand(line)
+    }
+
     /// Send a batch of command lines as individual `cmd` frames, throttled to
     /// match the hub's compile-send pacing (the hub forwards single `cmd` frames
     /// immediately, so spacing must happen here). Drives the same progress/result
