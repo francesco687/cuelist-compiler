@@ -65,4 +65,15 @@ final class ConsoleMessageTests: XCTestCase {
         let line = ConsoleMessage.line(text: "hi", title: "LX\"Note")
         XCTAssertEqual(line, "Lua \"MessageBox({title=[[LXNote]], message=[[hi]], commands={{value=1,name=[[OK]]}}})\"")
     }
+
+    func test_strips_open_brackets_from_text() {
+        let line = ConsoleMessage.line(text: "a[[b")
+        XCTAssertEqual(line, "Lua \"MessageBox({title=[[Saetta]], message=[[ab]], commands={{value=1,name=[[OK]]}}})\"")
+    }
+
+    func test_strips_trailing_close_bracket_from_text() {
+        // A lone trailing `]` would merge with the `]]` delimiter → `]]]` → Lua syntax error on the desk.
+        let line = ConsoleMessage.line(text: "go]")
+        XCTAssertEqual(line, "Lua \"MessageBox({title=[[Saetta]], message=[[go]], commands={{value=1,name=[[OK]]}}})\"")
+    }
 }

@@ -6,7 +6,7 @@ import Foundation
 /// HARD CONSTRAINT (see TimecodeBuilder): MA3's command-line tokenizer terminates a
 /// `Lua "..."` argument at the first inner `"` and ignores backslash escapes — so the
 /// body must contain NO double-quotes. We wrap title/message in Lua long brackets
-/// `[[ ... ]]` (no quotes needed) and strip `"` and `]]` from the text.
+/// `[[ ... ]]` (no quotes needed) and strip `"` and square brackets from the text.
 public enum ConsoleMessage {
 
     /// Max characters kept from the note (the `Lua "..."` arg also truncates near 1 KB
@@ -27,7 +27,12 @@ public enum ConsoleMessage {
         var out = s
         for ws in ["\n", "\r", "\t"] { out = out.replacingOccurrences(of: ws, with: " ") }
         out = out.replacingOccurrences(of: "\"", with: "")   // would close the outer Lua "..."
-        out = out.replacingOccurrences(of: "]]", with: "")   // would close the Lua [[ ... ]]
+        // Strip ALL square brackets. A lone trailing `]` merges with our `]]`
+        // delimiter into `]]]`, closing the Lua [[ ... ]] long string early and
+        // leaving a stray `]` → Lua syntax error on the desk. Stripping both is
+        // obviously safe and avoids depending on Lua long-string nesting rules.
+        out = out.replacingOccurrences(of: "[", with: "")
+        out = out.replacingOccurrences(of: "]", with: "")
         while out.contains("  ") { out = out.replacingOccurrences(of: "  ", with: " ") }
         out = out.trimmingCharacters(in: .whitespaces)
         if out.count > maxLength { out = String(out.prefix(maxLength)) }
