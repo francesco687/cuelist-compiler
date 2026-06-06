@@ -36,6 +36,33 @@ function newCue() {
   };
 }
 
+function appendCueWithTcAndResort(song, tc) {
+  if (!song || !Array.isArray(song.cues)) return;
+  song.cues.push({
+    n: 0,
+    position: tc,
+    name: '',
+    actions: [newAction()],
+    fade: '',
+    delay: '',
+    collapsed: false
+  });
+  resortAndRenumber(song);
+}
+
+function resortAndRenumber(song) {
+  if (!song || !Array.isArray(song.cues)) return;
+  song.cues.sort((a, b) => {
+    const sa = timecodeToSeconds(a.position);
+    const sb = timecodeToSeconds(b.position);
+    if (isNaN(sa) && isNaN(sb)) return 0;
+    if (isNaN(sa)) return 1;   // invalid TCs sink to the end
+    if (isNaN(sb)) return -1;
+    return sa - sb;
+  });
+  song.cues.forEach((c, i) => { c.n = i + 1; });
+}
+
 function newAction() {
   const presets = {};
   POOLS.forEach(p => presets[p] = { name: '', fade: '', delay: '' });
@@ -379,4 +406,4 @@ let pools = loadPools();
 
 // --- public surface
 window.CC = window.CC || {};
-CC.state = { newSong, newProject, activeSong, newCue, newAction, migrateActions, migrateCues, migrateState, loadState, saveState, loadMoods, saveMoods, newMood, makeDefaults, loadDefaults, saveDefaults, emptyPools, loadPools, savePools, cloneActions, actionIsEmpty, parsePoolsPaste, saveProject, loadProject, parseCsv, importCsv };
+CC.state = { newSong, newProject, activeSong, newCue, newAction, migrateActions, migrateCues, migrateState, loadState, saveState, loadMoods, saveMoods, newMood, makeDefaults, loadDefaults, saveDefaults, emptyPools, loadPools, savePools, cloneActions, actionIsEmpty, parsePoolsPaste, saveProject, loadProject, parseCsv, importCsv, appendCueWithTcAndResort, resortAndRenumber };
