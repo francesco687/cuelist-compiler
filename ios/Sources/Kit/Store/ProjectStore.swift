@@ -73,6 +73,8 @@ public final class ProjectStore {
 
     public func clearTcSelection() { tcSelection.removeAll() }
 
+    public func removeTc(_ id: UUID) { tcSelection.remove(id) }
+
     /// Synchronous write — used by tests and on background/terminate.
     public func saveNow() {
         let enc = JSONEncoder()

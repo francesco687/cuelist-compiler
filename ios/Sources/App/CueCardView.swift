@@ -116,7 +116,7 @@ struct CueCardView: View {
                         .padding(.vertical, 6).padding(.horizontal, 8)
                         .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
                         .onChange(of: cue.position) { _, newValue in
-                            if !Smpte.isValid(newValue) { store.tcSelection.remove(cue.id) }
+                            if !Smpte.isValid(newValue) { store.removeTc(cue.id) }
                         }
                     Spacer()
                     Button {
