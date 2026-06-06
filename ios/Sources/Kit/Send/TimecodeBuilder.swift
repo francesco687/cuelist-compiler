@@ -67,22 +67,43 @@ public enum TimecodeBuilder {
         // {cueN,rawtime} pairs for the desk-side loop.
         let cuesLit = evs.map { "{\(formatN($0.cueN)),\($0.rawtime)}" }.joined(separator: ",")
 
-        // Single-quoted Lua only. tg[2] is the first user Track (tg[1] is an
-        // internal pseudo-track that renders on the TG header row). No wipe:
-        // `tr:Acquire()` / `sub:Acquire('CmdSubTrack')` reuse existing children;
-        // `sub:Acquire()` per cue always creates a fresh Event (so we append).
+        // Single-quoted Lua only — NO double-quotes/backslashes inside the outer
+        // `Lua "..."` wrapper (MA3's command-line tokenizer terminates the arg at
+        // the first `"` and ignores backslash escapes).
+        //
+        // Diagnostics: the work runs inside `go()` wrapped in `pcall`, and every
+        // exit point `Printf`s to MA3's System Monitor / command-line feedback.
+        // Silent guard bails were why an "accepted" command could leave the
+        // timeline empty with zero feedback — now each failure names itself, the
+        // TrackGroup child count is reported when `tg[2]` is missing (the prime
+        // suspect: only the internal pseudo-track exists, so the user Track at
+        // tg[2] was never created), and runtime errors surface via pcall.
+        //
+        // tg[2] is the first user Track (tg[1] is an internal pseudo-track). No
+        // wipe: `tr:Acquire()` / `sub:Acquire('CmdSubTrack')` reuse existing
+        // children; `sub:Acquire()` per cue always creates a fresh Event (append).
         let body = [
-            "local s=DataPool().sequences[\(n)]",
-            "local t=DataPool().timecodes[\(n)]",
-            "if not s or not t then return end",
+            "local n=\(n)",
+            "local function go()",
+            "local s=DataPool().sequences[n]",
+            "local t=DataPool().timecodes[n]",
+            "if not s then Printf('[Saetta TC] no Sequence '..n) return end",
+            "if not t then Printf('[Saetta TC] no Timecode pool '..n) return end",
             "local tg=t:Children()[1]",
-            "if not tg then return end",
+            "if not tg then Printf('[Saetta TC] TC '..n..' has no TrackGroup') return end",
             "local tr=tg[2]",
-            "if not tr then return end",
+            "if not tr then Printf('[Saetta TC] TC '..n..' has no user Track at tg[2] (TrackGroup child count='..tostring(#tg)..') -- create a Track targeting Sequence '..n..' on the desk first') return end",
             "local rng=tr:Acquire()",
+            "if not rng then Printf('[Saetta TC] could not Acquire TimeRange on TC '..n) return end",
             "local sub=rng:Acquire('CmdSubTrack')",
-            "for _,c in ipairs({\(cuesLit)}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence \(n) Cue '..c[1]) if cue then e:Set('cuedestination',cue) end end",
-        ].joined(separator: ";")
+            "if not sub then Printf('[Saetta TC] could not Acquire CmdSubTrack on TC '..n) return end",
+            "local k=0",
+            "for _,c in ipairs({\(cuesLit)}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence '..n..' Cue '..c[1]) if cue then e:Set('cuedestination',cue) else Printf('[Saetta TC] warn: Sequence '..n..' Cue '..c[1]..' not found, event has no destination') end k=k+1 end",
+            "Printf('[Saetta TC] seq '..n..' appended '..k..' event(s)')",
+            "end",
+            "local ok,err=pcall(go)",
+            "if not ok then Printf('[Saetta TC] ERROR: '..tostring(err)) end",
+        ].joined(separator: " ")
 
         return ["Lua \"\(body)\""]
     }
