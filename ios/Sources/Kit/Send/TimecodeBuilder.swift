@@ -52,11 +52,16 @@ public enum TimecodeBuilder {
             // Build the Lua body, then escape the outer `cmd` string's quotes.
             // Inner single quotes wrap MA3 Cmd strings; \" appears in the Goto label.
             let count = tcCountLuaExpr("n")
+            // MA3's command-line tokenizer does NOT honor backslash escapes inside a
+            // `Lua "..."` argument — a literal \" terminates the string early. So the
+            // body must contain NO double-quotes (and no backslashes) except the outer
+            // delimiters. We synthesize the quote chars desk-side: q=" (34), a=' (39).
             let body =
                 "local n=\(n) " +
+                "local q=string.char(34) local a=string.char(39) " +
                 "local i=(\(count) or 0)+1 " +
-                "Cmd('Store Timecode '..n..'.1.1.1.1 \\\"Goto Cue \(c) Sequence '..n..'\\\" /NoConfirmation') " +
-                "Cmd('Set Timecode '..n..'.1.1.1.1.'..i..' Property \\'time\\' \(s)')"
+                "Cmd('Store Timecode '..n..'.1.1.1.1 '..q..'Goto Cue \(c) Sequence '..n..q..' /NoConfirmation') " +
+                "Cmd('Set Timecode '..n..'.1.1.1.1.'..i..' Property '..a..'time'..a..' \(s)')"
             return "Lua \"\(body)\""
         }
     }
