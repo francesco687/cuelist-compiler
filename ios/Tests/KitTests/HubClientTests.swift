@@ -95,6 +95,16 @@ final class HubClientTests: XCTestCase {
         XCTAssertNil(client.sequences)
     }
 
+    func testSendCommandEmitsCmdFrame() throws {
+        let (client, mock) = makeClient()
+        client.connect(); mock.emit(.opened)
+        client.sendCommand("Go+")
+        XCTAssertEqual(mock.sent.count, 1)
+        let obj = try JSONSerialization.jsonObject(with: Data(mock.sent[0].utf8)) as! [String: Any]
+        XCTAssertEqual(obj["type"] as? String, "cmd")
+        XCTAssertEqual(obj["line"] as? String, "Go+")
+    }
+
     func testHostPortPersist() {
         let suite = "cc-test-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!

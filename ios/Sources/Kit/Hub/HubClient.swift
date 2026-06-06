@@ -98,6 +98,15 @@ public final class HubClient {
         }
     }
 
+    /// Fire a single command-line string at the desk (e.g. "Go+", "Go-", "Pause").
+    /// Optimistic: the caller provides its own visual/haptic feedback; no ack is awaited.
+    public func sendCommand(_ line: String) {
+        if !state.isOnline { connect() }
+        guard let conn = connection else { return }
+        guard let text = try? OutgoingMessage.cmd(line: line).jsonString() else { return }
+        conn.send(text)
+    }
+
     private func handle(_ text: String) {
         guard let msg = try? IncomingMessage.decode(text) else { return }
         switch msg {
