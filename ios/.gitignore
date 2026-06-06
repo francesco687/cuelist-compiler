@@ -4,3 +4,9 @@ build/
 DerivedData/
 *.xcuserstate
 .DS_Store
+
+# icon-design scratch — keep generators (final.py/gen.py) + source SVGs, drop rendered scratch
+icon-design/*.html
+icon-design/c*.png
+icon-design/final-preview.png
+icon-design/AppIcon-1024.png
