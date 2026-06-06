@@ -155,4 +155,20 @@ final class HubClientTests: XCTestCase {
         XCTAssertEqual(c2.host, "10.0.0.5")
         XCTAssertEqual(c2.port, 9100)
     }
+
+    func testSendConsoleMessageEmitsCmdFrameWithMessageBox() {
+        let (client, mock) = makeOnlineClient()
+        client.sendConsoleMessage("standby please")
+        XCTAssertEqual(mock.sent.count, 1)
+        let line = frameToCmdLine(mock.sent[0])
+        XCTAssertEqual(line, ConsoleMessage.line(text: "standby please"))
+        XCTAssertEqual(line?.contains("MessageBox"), true)
+        XCTAssertEqual(line?.contains("[[standby please]]"), true)
+    }
+
+    func testSendConsoleMessageEmptyDoesNothing() {
+        let (client, mock) = makeOnlineClient()
+        client.sendConsoleMessage("   ")
+        XCTAssertEqual(mock.sent.count, 0)
+    }
 }
