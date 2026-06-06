@@ -10,6 +10,7 @@ struct LiveView: View {
     @State private var fireCount = 0
     @State private var messageText = ""
     @State private var didSend = false
+    @State private var sentResetTask: Task<Void, Never>?
 
     private var canSend: Bool {
         hub.state.isOnline && ConsoleMessage.line(text: messageText) != nil
@@ -80,8 +81,10 @@ struct LiveView: View {
         fireCount += 1                         // haptic, same trigger as transport
         messageText = ""
         withAnimation { didSend = true }
-        Task {
+        sentResetTask?.cancel()                  // supersede any prior "Sent" timer
+        sentResetTask = Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if Task.isCancelled { return }
             withAnimation { didSend = false }
         }
     }
