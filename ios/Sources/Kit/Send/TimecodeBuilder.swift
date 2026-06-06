@@ -74,46 +74,35 @@ public enum TimecodeBuilder {
         // `Lua "..."` wrapper (MA3's command-line tokenizer terminates the arg at
         // the first `"` and ignores backslash escapes).
         //
-        // OVERWRITE (the web `buildTcCmdLines` proven path): wipe every TimeRange
-        // on the track, then create one fresh TimeRange + CmdSubTrack and write the
-        // ticked cues into it. This is why there are never duplicate events for a
-        // re-sent cue — the track is rebuilt each send — and it sidesteps the
-        // cross-command "find the existing event" problem (Acquire creates a NEW
-        // empty TimeRange every call, so prior events were never found). The wipe
-        // also clears any leftover empty ranges from the earlier append attempts.
+        // LENGTH MATTERS: the grandMA3 command line truncates a `Lua "..."` arg at
+        // ~1 KB. An earlier verbose build (a `local function go()`/`pcall` wrapper
+        // plus five long Printf lines) ran ~1360 chars and arrived truncated →
+        // "a lot of Lua syntax errors". This is the lean form of the proven web
+        // `buildTcCmdLines` path: flat statements joined by `;`, no function wrapper,
+        // no pcall (MA3 reports uncaught Lua errors itself), and terse Printfs.
         //
-        // Diagnostics: work runs inside `go()` wrapped in `pcall`; every exit point
-        // `Printf`s to MA3's System Monitor (the only feedback channel — the hub's
-        // OSC is send-only). tg[2] is the first user Track (tg[1] is an internal
-        // pseudo-track); a missing tg[2] reports the TrackGroup child count.
+        // OVERWRITE: wipe every TimeRange on the track, then create one fresh
+        // TimeRange + CmdSubTrack and write the ticked cues — so a re-sent cue is
+        // never duplicated. tg[2] is the first user Track (tg[1] is an internal
+        // pseudo-track); a missing tg[2] reports the TrackGroup child count. The
+        // few Printfs land in MA3's System Monitor (the hub's OSC is send-only).
         let body = [
             "local n=\(n)",
-            "local function go()",
             "local s=DataPool().sequences[n]",
             "local t=DataPool().timecodes[n]",
-            "if not s then Printf('[Saetta TC] no Sequence '..n) return end",
-            "if not t then Printf('[Saetta TC] no Timecode pool '..n) return end",
+            "if not s or not t then Printf('[Saetta TC] missing Sequence/Timecode '..n) return end",
             "local tg=t:Children()[1]",
-            "if not tg then Printf('[Saetta TC] TC '..n..' has no TrackGroup') return end",
+            "if not tg then Printf('[Saetta TC] TC '..n..' no TrackGroup') return end",
             "local tr=tg[2]",
-            "if not tr then Printf('[Saetta TC] TC '..n..' has no user Track at tg[2] (TrackGroup child count='..tostring(#tg)..') -- create a Track targeting Sequence '..n..' on the desk first') return end",
-            // Wipe every existing TimeRange on the track (overwrite).
+            "if not tr then Printf('[Saetta TC] TC '..n..' no Track tg[2] (#tg='..tostring(#tg)..')') return end",
             "local trc=tr:Children()",
-            "local wiped=#trc",
             "for i=#trc,1,-1 do trc[i]:Delete() end",
-            "Printf('[Saetta TC] wiped '..wiped..' existing TimeRange(s)')",
-            // Build one fresh TimeRange + CmdSubTrack and write the ticked cues.
             "local rng=tr:Acquire()",
-            "if not rng then Printf('[Saetta TC] could not Acquire TimeRange on TC '..n) return end",
             "local sub=rng:Acquire('CmdSubTrack')",
-            "if not sub then Printf('[Saetta TC] could not Acquire CmdSubTrack on TC '..n) return end",
             "local k=0",
-            "for _,c in ipairs({\(cuesLit)}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence '..n..' Cue '..c[1]) if cue then e:Set('cuedestination',cue) else Printf('[Saetta TC] warn: Sequence '..n..' Cue '..c[1]..' not found, event has no destination') end k=k+1 end",
+            "for _,c in ipairs({\(cuesLit)}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence '..n..' Cue '..c[1]) if cue then e:Set('cuedestination',cue) end k=k+1 end",
             "Printf('[Saetta TC] seq '..n..' wrote '..k..' event(s)')",
-            "end",
-            "local ok,err=pcall(go)",
-            "if not ok then Printf('[Saetta TC] ERROR: '..tostring(err)) end",
-        ].joined(separator: " ")
+        ].joined(separator: ";")
 
         return ["Lua \"\(body)\""]
     }
