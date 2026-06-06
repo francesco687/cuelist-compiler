@@ -78,43 +78,64 @@ test('buildTcCmdLines: skips songs with no cues having valid position', () => {
   assert.strictEqual(compile.buildTcCmdLines([song]).length, 0);
 });
 
-test('buildTcCmdLines: emits cleanup + Store + Set per valid cue', () => {
+test('buildTcCmdLines: emits one Lua command per song using Object API', () => {
   const compile = loadCompile();
   const song = { sequence: 12, name: 'S1', cues: [
-    { n: 1, name: 'INTRO',  position: '00:00:05:00' },   // 5.0 s
-    { n: 2, name: 'VERSE',  position: '00:00:10:12' },   // 10 + 12/25 = 10.48 s
+    { n: 1, name: 'INTRO',  position: '00:00:05:00' },   // 5.0 s → 83886080 rawtime
+    { n: 2, name: 'VERSE',  position: '00:00:10:12' },   // 10.48 s → 175825224 rawtime
     { n: 3, name: 'BAD',    position: '99:99:99:99' },   // invalid → skipped
   ]};
   const out = compile.buildTcCmdLines([song]);
-  for (let i = 0; i < 200; i++) {
-    assert.strictEqual(out[i], 'Delete Timecode 12.1.1.1.1.1 /NoConfirmation');
-  }
-  assert.strictEqual(out[200], "Store Timecode 12.1.1.1.1 'Goto Cue 1 Sequence 12' /NoConfirmation");
-  assert.strictEqual(out[201], "Set Timecode 12.1.1.1.1.1 Property 'time' 5");
-  assert.strictEqual(out[202], "Store Timecode 12.1.1.1.1 'Goto Cue 2 Sequence 12' /NoConfirmation");
-  assert.strictEqual(out[203], "Set Timecode 12.1.1.1.1.2 Property 'time' 10.48");
-  assert.strictEqual(out.length, 204);
+  assert.strictEqual(out.length, 1);
+  const line = out[0];
+  // Outer wrapper: command-line Lua keyword + double-quoted code
+  assert.ok(line.startsWith('Lua "') && line.endsWith('"'), 'expected Lua "..." wrapper');
+  // Resolves the sequence + timecode pool by sequence number
+  assert.ok(line.includes('DataPool().sequences[12]'));
+  assert.ok(line.includes('DataPool().timecodes[12]'));
+  // Wipes existing TimeRanges, then Acquires fresh hierarchy on the user Track (tg[2])
+  assert.ok(line.includes('local tr=tg[2]'), 'must target tg[2] not tg:Children()[1]');
+  assert.ok(line.includes(":Acquire('CmdSubTrack')"));
+  // Cues sorted ascending with valid one only, rawtime = round(seconds * 16777216)
+  assert.ok(line.includes('{{1,83886080},{2,175825224}}'));
+  // Sets event properties via Object API, not Property keyword
+  assert.ok(line.includes("e:Set('rawtime',c[2])"));
+  assert.ok(line.includes("e:Set('cuedestination',cue)"));
+  // Cue lookup by displayed number against the target sequence
+  assert.ok(line.includes("GetObject('Sequence 12 Cue '..c[1])"));
 });
 
 test('buildTcCmdLines: handles multiple songs, sorted cues by n ascending', () => {
   const compile = loadCompile();
   const songs = [
     { sequence: 1, name: 'A', cues: [
-      { n: 2, name: '', position: '00:00:02:00' },
-      { n: 1, name: '', position: '00:00:01:00' },
+      { n: 2, name: '', position: '00:00:02:00' },     // 2s → 33554432
+      { n: 1, name: '', position: '00:00:01:00' },     // 1s → 16777216
     ]},
     { sequence: 2, name: 'B', cues: [
-      { n: 1, name: '', position: '00:00:00:12' },
+      { n: 1, name: '', position: '00:00:00:12' },     // 0.48s → 8053064
     ]},
   ];
   const out = compile.buildTcCmdLines(songs);
-  assert.strictEqual(out.length, 200 + 4 + 200 + 2);
-  assert.strictEqual(out[200], "Store Timecode 1.1.1.1.1 'Goto Cue 1 Sequence 1' /NoConfirmation");
-  assert.strictEqual(out[201], "Set Timecode 1.1.1.1.1.1 Property 'time' 1");
-  assert.strictEqual(out[202], "Store Timecode 1.1.1.1.1 'Goto Cue 2 Sequence 1' /NoConfirmation");
-  assert.strictEqual(out[203], "Set Timecode 1.1.1.1.1.2 Property 'time' 2");
-  assert.strictEqual(out[404], "Store Timecode 2.1.1.1.1 'Goto Cue 1 Sequence 2' /NoConfirmation");
-  assert.strictEqual(out[405], "Set Timecode 2.1.1.1.1.1 Property 'time' 0.48");
+  assert.strictEqual(out.length, 2);
+  // Song A: cues re-sorted ascending by n
+  assert.ok(out[0].includes('DataPool().sequences[1]'));
+  assert.ok(out[0].includes('{{1,16777216},{2,33554432}}'));
+  // Song B: single cue
+  assert.ok(out[1].includes('DataPool().sequences[2]'));
+  assert.ok(out[1].includes('{{1,8053064}}'));
+});
+
+test('buildTcCmdLines: decimal cue numbers emit as Lua-parseable floats', () => {
+  const compile = loadCompile();
+  const song = { sequence: 666, cues: [
+    { n: 0.1, name: 'DB',    position: '00:00:05:15' }, // 5.6s → 93952410
+    { n: 1,   name: 'INTRO', position: '00:00:10:00' }, // 10s  → 167772160
+  ]};
+  const out = compile.buildTcCmdLines([song]);
+  assert.strictEqual(out.length, 1);
+  // 0.1 < 1 so sorting keeps DB first
+  assert.ok(out[0].includes('{{0.1,93952410},{1,167772160}}'));
 });
 
 test('buildTcCmdLines: returns [] for empty input', () => {
@@ -122,17 +143,24 @@ test('buildTcCmdLines: returns [] for empty input', () => {
   assert.strictEqual(compile.buildTcCmdLines([]).length, 0);
 });
 
-test('buildTcLua: wraps buildTcCmdLines output in Lua Cmd() calls', () => {
+test('buildTcLua: emits a standalone Object-API plugin', () => {
   const compile = loadCompile();
   const song = { sequence: 12, name: 'S', cues: [
-    { n: 1, name: 'A', position: '00:00:05:00' },
+    { n: 1, name: 'A', position: '00:00:05:00' },  // 5s → 83886080
   ]};
   const lua = compile.buildTcLua([song], 'Song: S');
-  assert.match(lua, /-- Generated by Cuelist Compiler/);
+  assert.match(lua, /-- Generated by Cuelist Compiler — TIMECODE EVENTS \(Object API\)/);
   assert.match(lua, /-- Song: S/);
-  assert.match(lua, /Cmd\('Delete Timecode 12\.1\.1\.1\.1\.1 \/NoConfirmation'\)/);
-  // store event wrapped — inner single quotes around 'Goto Cue ...' are escaped \'
-  assert.match(lua, /Store Timecode 12\.1\.1\.1\.1 \\'Goto Cue 1 Sequence 12\\'/);
+  // Standalone applySong helper using Acquire / cuedestination
+  assert.match(lua, /local function applySong\(seq, cues\)/);
+  assert.match(lua, /local tr = tg\[2\]/); // user Track sits at TG index 2, not 1
+  assert.match(lua, /local rng = tr:Acquire\(\)/);
+  assert.match(lua, /local sub = rng:Acquire\("CmdSubTrack"\)/);
+  assert.match(lua, /e:Set\("rawtime", c\[2\]\)/);
+  assert.match(lua, /e:Set\("cuedestination", cue\)/);
+  // SONGS table holds the data; main loops it
+  assert.match(lua, /\{ seq=12, cues=\{\{1,83886080\}\} \},/);
+  assert.match(lua, /for _, song in ipairs\(SONGS\) do applySong\(song\.seq, song\.cues\) end/);
   assert.match(lua, /return main/);
 });
 
