@@ -11,6 +11,8 @@ let audioFileName = '';
 let audioRAF = null;
 const audioCache = new Map(); // songId -> { audioEl, audioBuffer, audioGainL, audioGainR, fileName }
 let currentAudioSongId = null;
+let selectedMarkerCueN = null;
+let markerDragState = null; // { cueN, timelineRect, durationS } during a drag, else null
 const channelMute = { L: false, R: false };
 
 async function loadAudioFile(file) {
@@ -219,7 +221,8 @@ function renderAudioPanel() {
 
   const tl = document.getElementById('timeline');
   tl.addEventListener('click', e => {
-    if (e.target.classList.contains('marker')) return;
+    if (e.target.classList.contains('marker') || e.target.classList.contains('marker-label')) return;
+    deselectAllMarkers();
     const rect = tl.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     audioEl.currentTime = Math.max(0, Math.min(dur, pct * dur));
@@ -333,13 +336,18 @@ function renderMarkers() {
     lbl.className = 'marker-label';
     lbl.textContent = cue.name || `Cue ${cue.n}`;
     m.appendChild(lbl);
+    if (selectedMarkerCueN === cue.n) m.classList.add('selected');
+    m.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      startMarkerDrag(cue.n, e);
+    });
     m.addEventListener('click', e => {
       e.stopPropagation();
+      selectMarker(cue.n);
       audioEl.currentTime = s;
       song.cues.forEach(c => c.collapsed = (c.n !== cue.n));
       saveState();
       render();
-      updatePlayhead();
     });
     markers.appendChild(m);
   });
@@ -351,6 +359,91 @@ function captureCurrentPlayheadAsSmpte() {
   return secondsToTimecode(audioEl.currentTime);
 }
 
+function dropMarkerAtPlayhead() {
+  const song = activeSong();
+  if (!song || !audioEl || !audioBuffer) return;
+  const tc = captureCurrentPlayheadAsSmpte();
+  if (!tc) return;
+  CC.state.appendCueWithTcAndResort(song, tc);
+  saveState();
+  render();
+}
+
+function selectMarker(cueN) {
+  selectedMarkerCueN = cueN;
+  document.querySelectorAll('#markers .marker').forEach(m => {
+    m.classList.toggle('selected', m.dataset.cueN === String(cueN));
+  });
+}
+
+function deselectAllMarkers() {
+  selectedMarkerCueN = null;
+  document.querySelectorAll('#markers .marker.selected').forEach(m => m.classList.remove('selected'));
+}
+
+function getSelectedMarkerCueN() {
+  return selectedMarkerCueN;
+}
+
+function deleteSelectedMarker() {
+  if (selectedMarkerCueN == null) return false;
+  const song = activeSong();
+  if (!song) return false;
+  const idx = song.cues.findIndex(c => c.n === selectedMarkerCueN);
+  if (idx < 0) { selectedMarkerCueN = null; return false; }
+  song.cues.splice(idx, 1);
+  CC.state.resortAndRenumber(song);
+  selectedMarkerCueN = null;
+  saveState();
+  render();
+  return true;
+}
+
+function startMarkerDrag(cueN, evt) {
+  if (!audioBuffer) return;
+  const tl = document.getElementById('timeline');
+  if (!tl) return;
+  evt.preventDefault();
+  selectMarker(cueN);
+  markerDragState = {
+    cueN,
+    timelineRect: tl.getBoundingClientRect(),
+    durationS: audioBuffer.duration
+  };
+  document.body.style.cursor = 'grabbing';
+  window.addEventListener('mousemove', onMarkerDragMove);
+  window.addEventListener('mouseup', onMarkerDragEnd);
+}
+
+function onMarkerDragMove(evt) {
+  if (!markerDragState) return;
+  const song = activeSong();
+  if (!song) return;
+  const { cueN, timelineRect, durationS } = markerDragState;
+  const cue = song.cues.find(c => c.n === cueN);
+  if (!cue) return;
+  let pct = (evt.clientX - timelineRect.left) / timelineRect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  const seconds = pct * durationS;
+  cue.position = secondsToTimecode(seconds);
+  const pin = document.querySelector(`#markers .marker[data-cue-n="${cueN}"]`);
+  if (pin) pin.style.left = (pct * 100) + '%';
+}
+
+function onMarkerDragEnd() {
+  if (!markerDragState) return;
+  const song = activeSong();
+  markerDragState = null;
+  document.body.style.cursor = '';
+  window.removeEventListener('mousemove', onMarkerDragMove);
+  window.removeEventListener('mouseup', onMarkerDragEnd);
+  if (song) {
+    CC.state.resortAndRenumber(song);
+    saveState();
+    render();
+  }
+}
+
 // --- public surface
 window.CC = window.CC || {};
-window.CC.audio = { loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel, wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead, updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte };
+window.CC.audio = { loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel, wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead, updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte, dropMarkerAtPlayhead, selectMarker, deselectAllMarkers, deleteSelectedMarker, getSelectedMarkerCueN };
