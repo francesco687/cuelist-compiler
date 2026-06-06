@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 struct ColorPickerPopover: View {
     @Binding var selection: String          // "" = no color

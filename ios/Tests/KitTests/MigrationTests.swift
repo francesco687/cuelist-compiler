@@ -1,5 +1,5 @@
 import XCTest
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 final class MigrationTests: XCTestCase {
     private func loadSong1Raw() throws -> Data {

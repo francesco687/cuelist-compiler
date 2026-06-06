@@ -1,6 +1,6 @@
 import XCTest
 import Network
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 @MainActor
 final class URLSessionWebSocketConnectionTests: XCTestCase {

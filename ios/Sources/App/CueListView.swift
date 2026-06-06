@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 struct CueListView: View {
     @Environment(ProjectStore.self) private var store

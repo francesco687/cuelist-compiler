@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// The Send tab — a full-page OSC send flow (replaces the old bottom SendBarView).
 /// Violet accent family (Send→MA), distinct from the aqua capture family.

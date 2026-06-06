@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Sheet for adding a note by text or voice. If `targetCue` is set the note is
 /// pinned to that cue; otherwise the router decides which cue(s) it belongs to,

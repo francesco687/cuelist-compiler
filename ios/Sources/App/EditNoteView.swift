@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Edit or clear a single cue's saved note (the `\n`-joined `cue.notes` blob).
 /// Distinct from NotesCaptureView, which *captures/routes* new notes.

@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Tappable numeric sequence field. Replaces the seq Stepper — type a value,
 /// committed on focus-loss/return, clamped to 1...9999.
