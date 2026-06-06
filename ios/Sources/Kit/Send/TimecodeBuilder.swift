@@ -14,13 +14,13 @@ import Foundation
 ///   CmdSubTrack `Acquire('CmdSubTrack')` → Event `Acquire()` per cue, with
 ///   `rawtime` (1 s = 16777216 internal units) and `cuedestination` (Cue handle).
 ///
-/// OVERWRITE (the web `buildTcCmdLines` proven path): each send wipes every
-/// TimeRange on the track, then writes one fresh TimeRange + CmdSubTrack holding
-/// exactly the ticked cues. So re-sending never duplicates a cue's event. A
-/// blind-append variant was tried and abandoned: `Acquire()` creates a NEW empty
-/// TimeRange every call, so prior events were never found and stacked up instead
-/// (desk diagnostics 2026-06-06). Cost of overwrite: cues not ticked in a given
-/// send are not on the track after it — send the full set you want each time.
+/// OVERWRITE by clearing events: each send deletes every existing Event from the
+/// track's CmdSubTrack(s), then writes the ticked cues into a fresh CmdSubTrack —
+/// so re-sending never duplicates a cue's event. We clear EVENTS, not TimeRanges:
+/// TimeRanges are structural and protected (`tr:Delete(i)` → "deletion of the
+/// child object is prohibited"). Cost: cues not ticked in a given send are not on
+/// the track after it — send the full set you want each time. (Desk-proven
+/// 2026-06-06 after ruling out blind-append and TimeRange-wipe.)
 ///
 /// We emit ONE inline-`Lua "..."` command per song carrying all ticked cues.
 /// The body is single-quoted Lua throughout — it contains NO double-quotes, so
@@ -81,11 +81,17 @@ public enum TimecodeBuilder {
         // `buildTcCmdLines` path: flat statements joined by `;`, no function wrapper,
         // no pcall (MA3 reports uncaught Lua errors itself), and terse Printfs.
         //
-        // OVERWRITE: wipe every TimeRange on the track, then create one fresh
-        // TimeRange + CmdSubTrack and write the ticked cues — so a re-sent cue is
-        // never duplicated. tg[2] is the first user Track (tg[1] is an internal
-        // pseudo-track); a missing tg[2] reports the TrackGroup child count. The
-        // few Printfs land in MA3's System Monitor (the hub's OSC is send-only).
+        // OVERWRITE by clearing EVENTS, not TimeRanges. TimeRanges are structural
+        // and protected — `tr:Delete(i)` on one returns "deletion of the child
+        // object is prohibited". So we walk every TimeRange's CmdSubTrack(s) and
+        // delete their event children (events are user content and ARE deletable),
+        // then write the ticked cues into a fresh CmdSubTrack. This clears prior
+        // events wherever they live, so a re-sent cue is never duplicated.
+        //
+        // `sb:Delete(i)` is parent:Delete(1-basedChildIndex) — the index form
+        // (no-arg child `:Delete()` errors with "Wrong parameter #2"). Reverse
+        // iteration keeps indices valid. tg[2] is the first user Track (tg[1] is an
+        // internal pseudo-track). Printfs land in MA3's System Monitor (send-only OSC).
         let body = [
             "local n=\(n)",
             "local s=DataPool().sequences[n]",
@@ -95,13 +101,13 @@ public enum TimecodeBuilder {
             "if not tg then Printf('[Saetta TC] TC '..n..' no TrackGroup') return end",
             "local tr=tg[2]",
             "if not tr then Printf('[Saetta TC] TC '..n..' no Track tg[2] (#tg='..tostring(#tg)..')') return end",
-            "local trc=tr:Children()",
-            "for i=#trc,1,-1 do tr:Delete(i) end",
+            "local cl=0",
+            "for _,r in ipairs(tr:Children()) do for _,sb in ipairs(r:Children()) do local ev=sb:Children() for i=#ev,1,-1 do sb:Delete(i) cl=cl+1 end end end",
             "local rng=tr:Acquire()",
             "local sub=rng:Acquire('CmdSubTrack')",
             "local k=0",
             "for _,c in ipairs({\(cuesLit)}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence '..n..' Cue '..c[1]) if cue then e:Set('cuedestination',cue) end k=k+1 end",
-            "Printf('[Saetta TC] seq '..n..' wrote '..k..' event(s)')",
+            "Printf('[Saetta TC] seq '..n..' cleared '..cl..' wrote '..k)",
         ].joined(separator: ";")
 
         return ["Lua \"\(body)\""]
