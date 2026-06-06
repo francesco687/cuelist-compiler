@@ -1,7 +1,7 @@
 import Foundation
 
 /// Turns ticked cues into grandMA3 Timecode events via the Lua Object API,
-/// UPSERTing per cue. Convention: TC pool number == sequence number. 25 fps.
+/// OVERWRITING the track each send. TC pool number == sequence number. 25 fps.
 ///
 /// Events on MA3 are NOT addressable via the command-line `Store Timecode ...`
 /// syntax — that path only creates pool entries / TrackGroups / Tracks and
@@ -14,11 +14,13 @@ import Foundation
 ///   CmdSubTrack `Acquire('CmdSubTrack')` → Event `Acquire()` per cue, with
 ///   `rawtime` (1 s = 16777216 internal units) and `cuedestination` (Cue handle).
 ///
-/// UPSERT variant of the web `buildTcCmdLines` path: instead of wiping the whole
-/// track (web) or blindly appending (which stacked duplicate events for a
-/// re-sent cue), we delete only the existing events whose `cuedestination` points
-/// to a cue we're re-sending, then append the fresh ones. Events for OTHER cues
-/// stay untouched, and re-sending a cue replaces rather than duplicates it.
+/// OVERWRITE (the web `buildTcCmdLines` proven path): each send wipes every
+/// TimeRange on the track, then writes one fresh TimeRange + CmdSubTrack holding
+/// exactly the ticked cues. So re-sending never duplicates a cue's event. A
+/// blind-append variant was tried and abandoned: `Acquire()` creates a NEW empty
+/// TimeRange every call, so prior events were never found and stacked up instead
+/// (desk diagnostics 2026-06-06). Cost of overwrite: cues not ticked in a given
+/// send are not on the track after it — send the full set you want each time.
 ///
 /// We emit ONE inline-`Lua "..."` command per song carrying all ticked cues.
 /// The body is single-quoted Lua throughout — it contains NO double-quotes, so
@@ -58,37 +60,32 @@ public enum TimecodeBuilder {
             }
     }
 
-    /// At most ONE inline-Lua command for the song's ticked+valid cues.
-    /// Empty when nothing is ticked/valid. Append-only: no delete phase.
+    /// ONE inline-Lua command that OVERWRITES the song's TC track with the
+    /// ticked+valid cues. Empty when nothing is ticked/valid.
     public static func lines(song: Song, ticked: Set<UUID>) -> [String] {
         let evs = events(song: song, ticked: ticked)
         guard !evs.isEmpty else { return [] }
 
         let n = song.sequence
-        // {cueN,rawtime} pairs for the desk-side append loop.
+        // {cueN,rawtime} pairs for the desk-side write loop.
         let cuesLit = evs.map { "{\(formatN($0.cueN)),\($0.rawtime)}" }.joined(separator: ",")
-        // Set of cue numbers we're (re)sending, for the per-cue cleanup pass.
-        let wantLit = evs.map { "[\(formatN($0.cueN))]=true" }.joined(separator: ",")
 
         // Single-quoted Lua only — NO double-quotes/backslashes inside the outer
         // `Lua "..."` wrapper (MA3's command-line tokenizer terminates the arg at
         // the first `"` and ignores backslash escapes).
         //
-        // Diagnostics: the work runs inside `go()` wrapped in `pcall`, and every
-        // exit point `Printf`s to MA3's System Monitor / command-line feedback.
-        // Silent guard bails were why an "accepted" command could leave the
-        // timeline empty with zero feedback — now each failure names itself, the
-        // TrackGroup child count is reported when `tg[2]` is missing (the prime
-        // suspect: only the internal pseudo-track exists, so the user Track at
-        // tg[2] was never created), and runtime errors surface via pcall.
+        // OVERWRITE (the web `buildTcCmdLines` proven path): wipe every TimeRange
+        // on the track, then create one fresh TimeRange + CmdSubTrack and write the
+        // ticked cues into it. This is why there are never duplicate events for a
+        // re-sent cue — the track is rebuilt each send — and it sidesteps the
+        // cross-command "find the existing event" problem (Acquire creates a NEW
+        // empty TimeRange every call, so prior events were never found). The wipe
+        // also clears any leftover empty ranges from the earlier append attempts.
         //
-        // tg[2] is the first user Track (tg[1] is an internal pseudo-track).
-        // UPSERT per cue: we never wipe the whole track, but before appending we
-        // delete any existing event whose `cuedestination` points to a cue we're
-        // re-sending — so re-sending replaces that cue's event instead of stacking
-        // a duplicate, while events for OTHER cues are left untouched. Matching is
-        // by cue number read off the event's `cuedestination` handle (`.no`),
-        // wrapped in pcall; a `removed N` Printf confirms the cleanup landed.
+        // Diagnostics: work runs inside `go()` wrapped in `pcall`; every exit point
+        // `Printf`s to MA3's System Monitor (the only feedback channel — the hub's
+        // OSC is send-only). tg[2] is the first user Track (tg[1] is an internal
+        // pseudo-track); a missing tg[2] reports the TrackGroup child count.
         let body = [
             "local n=\(n)",
             "local function go()",
@@ -100,20 +97,19 @@ public enum TimecodeBuilder {
             "if not tg then Printf('[Saetta TC] TC '..n..' has no TrackGroup') return end",
             "local tr=tg[2]",
             "if not tr then Printf('[Saetta TC] TC '..n..' has no user Track at tg[2] (TrackGroup child count='..tostring(#tg)..') -- create a Track targeting Sequence '..n..' on the desk first') return end",
+            // Wipe every existing TimeRange on the track (overwrite).
+            "local trc=tr:Children()",
+            "local wiped=#trc",
+            "for i=#trc,1,-1 do trc[i]:Delete() end",
+            "Printf('[Saetta TC] wiped '..wiped..' existing TimeRange(s)')",
+            // Build one fresh TimeRange + CmdSubTrack and write the ticked cues.
             "local rng=tr:Acquire()",
             "if not rng then Printf('[Saetta TC] could not Acquire TimeRange on TC '..n) return end",
             "local sub=rng:Acquire('CmdSubTrack')",
             "if not sub then Printf('[Saetta TC] could not Acquire CmdSubTrack on TC '..n) return end",
-            // Per-cue cleanup: drop existing events for the cues we're re-sending.
-            "local want={\(wantLit)}",
-            "local existing=sub:Children()",
-            "local removed=0 local unresolved=0",
-            "for i=#existing,1,-1 do local e=existing[i] local no pcall(function() local d=e.cuedestination if d~=nil then no=tonumber(tostring(d.no)) end end) if no==nil then unresolved=unresolved+1 elseif want[no] then e:Delete() removed=removed+1 end end",
-            "Printf('[Saetta TC] removed '..removed..' existing event(s) for re-sent cue(s)'..(unresolved>0 and ' (warn: '..unresolved..' event(s) had no readable cuedestination)' or ''))",
-            // Append the fresh events.
             "local k=0",
             "for _,c in ipairs({\(cuesLit)}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence '..n..' Cue '..c[1]) if cue then e:Set('cuedestination',cue) else Printf('[Saetta TC] warn: Sequence '..n..' Cue '..c[1]..' not found, event has no destination') end k=k+1 end",
-            "Printf('[Saetta TC] seq '..n..' appended '..k..' event(s)')",
+            "Printf('[Saetta TC] seq '..n..' wrote '..k..' event(s)')",
             "end",
             "local ok,err=pcall(go)",
             "if not ok then Printf('[Saetta TC] ERROR: '..tostring(err)) end",

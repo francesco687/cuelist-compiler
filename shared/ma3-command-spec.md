@@ -152,40 +152,39 @@ The Lua code performs (in order):
   when OSC is unavailable.
 - Older MA versions used `:Aquire()` (typo, no `c`). Current builds accept both.
 
-## Timecode insert (Saetta iOS — per-cue upsert variant)
+## Timecode insert (Saetta iOS — overwrite, ticked cues)
 
 Saetta reuses the **same Object API hierarchy** above (TrackGroup `Children()[1]`,
-Track `tg[2]`, TimeRange, CmdSubTrack, Event), but sends timecode for individually
-**ticked** cues and is a **per-cue upsert**: it does not wipe the whole track (web
-overwrite) nor blindly append. Before adding events it removes any existing event
-whose `cuedestination` points to a cue being re-sent, then appends fresh events —
-so re-sending a cue **replaces** its event and events for **other** cues are
-preserved.
+Track `tg[2]`, TimeRange, CmdSubTrack, Event) and **overwrites** the song's TC
+track with the individually **ticked** cues — the web `buildTcCmdLines` proven
+path. Each send wipes the track and rebuilds it, so re-sending a cue is never
+duplicated.
 
 `TimecodeBuilder.lines(song:ticked:)` emits **one** `Lua "<single-line code>"`
 command per song carrying the ticked cues. The body runs inside `pcall(go)` and
 `Printf`s a diagnostic at every exit point (which object was missing, the
-TrackGroup child count when `tg[2]` is absent, events removed, events appended,
+TrackGroup child count when `tg[2]` is absent, TimeRanges wiped, events written,
 runtime errors) to MA3's System Monitor — the only feedback channel available,
 since the hub's OSC is send-only. Desk-side, `go()` does (single-quoted Lua
 throughout — no double-quotes inside the `Lua "..."` wrapper):
 
 1. **Resolve** `DataPool().sequences[N]` and `DataPool().timecodes[N]`. Bail if either missing.
 2. **Locate** TrackGroup `t:Children()[1]` and Track `tg[2]`. Bail if either missing.
-3. **Acquire** (not wipe) the TimeRange `tr:Acquire()` and `CmdSubTrack`
-   `rng:Acquire('CmdSubTrack')` — `Acquire` returns the existing child if present.
-4. **Cleanup:** build the set of cue numbers being re-sent; iterate the
-   CmdSubTrack's existing events in reverse and `:Delete()` any whose
-   `cuedestination` (`.no`, read defensively under `pcall`) is in that set.
+3. **Wipe** every TimeRange: `local trc=tr:Children()` then
+   `for i=#trc,1,-1 do trc[i]:Delete() end`.
+4. **Create** one fresh TimeRange `tr:Acquire()` and `CmdSubTrack`
+   `rng:Acquire('CmdSubTrack')`.
 5. **For each ticked cue**, ascending by `cue.n`: `e = sub:Acquire()` (a new
    Event), `e:Set('rawtime', <raw>)`, `cue = GetObject('Sequence N Cue c')`; if
    truthy, `e:Set('cuedestination', cue)`.
 
 `<raw>` = `round(seconds * 16777216)`, `seconds` = SMPTE→seconds at 25 fps.
 
-> **Divergence note** — this upsert variant intentionally differs from the web
-> `buildTcCmdLines` overwrite path: it operates over the ticked cues (not all valid
-> cues) and replaces per-cue rather than wiping the whole track, so manually-placed
-> or other-cue events survive. The cleanup matches events by the cue number read
-> off `cuedestination`; events whose destination can't be read are left in place
-> and counted in the `Printf` warning (decision 2026-06-06).
+> **History note** — an append/upsert variant (skip the wipe; reuse the existing
+> TimeRange/CmdSubTrack and replace only re-sent cues) was tried and abandoned on
+> 2026-06-06: desk diagnostics showed `tr:Acquire()` creates a **new empty
+> TimeRange every call** rather than returning the existing one, so prior events
+> were never found and instead accumulated across orphan TimeRanges. Overwrite
+> (matching the web path, all in one command) is the reliable model. Cost: cues
+> not ticked in a given send are not on the track afterward — send the full set
+> each time.
