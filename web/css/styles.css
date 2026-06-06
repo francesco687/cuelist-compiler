@@ -684,6 +684,16 @@
     cursor: pointer;
   }
   #timeline .marker:hover { background: rgba(255, 200, 50, 1); width: 2px; }
+  #timeline .marker { cursor: grab; }
+  #timeline .marker.selected {
+    background: rgba(255, 200, 50, 1);
+    width: 3px;
+    box-shadow: 0 0 4px rgba(255, 200, 50, 0.8);
+  }
+  #timeline .marker.selected .marker-label {
+    color: #111;
+    background: rgba(255, 200, 50, 0.9);
+  }
   #timeline .marker.current {
     background: rgba(91, 141, 214, 1);
     width: 2px;
