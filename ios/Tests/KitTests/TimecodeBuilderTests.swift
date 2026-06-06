@@ -17,29 +17,58 @@ final class TimecodeBuilderTests: XCTestCase {
         let events = TimecodeBuilder.events(song: s, ticked: ticked)
         XCTAssertEqual(events.map(\.cueN), [1])                 // c4 dropped (invalid), c3 not ticked
         XCTAssertEqual(events[0].sequence, 12)
-        XCTAssertEqual(events[0].seconds, "5.0")
+        // rawtime = round(5.0 * 16777216) = 83886080 (1 s = 2^24 internal units).
+        XCTAssertEqual(events[0].rawtime, 5 * 16_777_216)
     }
 
-    func test_lines_emit_one_inline_lua_per_event() {
+    func test_lines_emit_one_object_api_command_per_song() {
         let s = song()
         let ticked: Set<UUID> = [s.cues[0].id]
         let lines = TimecodeBuilder.lines(song: s, ticked: ticked)
+        // ONE inline-Lua command per song, not per cue.
         XCTAssertEqual(lines.count, 1)
-        // Append-only: NO Delete commands anywhere (would clobber existing events).
-        XCTAssertFalse(lines.joined().contains("Delete"))
-        // Proven inner commands are present, addressed at the self-counted next index.
         let line = lines[0]
+
+        // Append-only: NO wipe phase — neither the command-line `Delete` keyword
+        // nor the Object-API `:Delete()` mutator may appear (either clobbers events).
+        XCTAssertFalse(line.contains("Delete"))
+
+        // Object-API hierarchy on the proven path.
         XCTAssertTrue(line.hasPrefix("Lua \""))
-        XCTAssertTrue(line.contains("Store Timecode '..n..'.1.1.1.1"))
-        XCTAssertTrue(line.contains("Goto Cue 1 Sequence '..n"))
-        XCTAssertTrue(line.contains("Property"))
-        XCTAssertTrue(line.contains("5.0"))
-        // The MA3 command-line tokenizer terminates a `Lua "..."` argument at the first
-        // \" — so the body must carry NO escaped double-quotes. Inner quotes are built
-        // desk-side via string.char(34)/(39). Guard against the old broken escaping.
+        XCTAssertTrue(line.contains("DataPool().timecodes[12]"))
+        XCTAssertTrue(line.contains("DataPool().sequences[12]"))
+        XCTAssertTrue(line.contains("t:Children()[1]"))
+        XCTAssertTrue(line.contains("local tr=tg[2]"), "must target tg[2], the user Track (tg[1] is a pseudo-track)")
+        XCTAssertTrue(line.contains("rng=tr:Acquire()"))
+        XCTAssertTrue(line.contains("sub=rng:Acquire('CmdSubTrack')"))
+        XCTAssertTrue(line.contains("e:Set('rawtime',c[2])"))
+        XCTAssertTrue(line.contains("GetObject('Sequence 12 Cue '..c[1])"))
+        XCTAssertTrue(line.contains("e:Set('cuedestination',cue)"))
+        // The {cueN,rawtime} literal for c1: 5 s → 83886080.
+        XCTAssertTrue(line.contains("{1,83886080}"))
+
+        // The MA3 command-line tokenizer terminates a `Lua "..."` argument at the
+        // first `"` and ignores backslash escapes — so the body must contain NO
+        // double-quotes and NO backslashes. Single-quoted Lua throughout.
         let body = String(line.dropFirst("Lua \"".count).dropLast())   // strip outer Lua "..."
         XCTAssertFalse(body.contains("\""), "body must contain no double-quote chars")
         XCTAssertFalse(body.contains("\\"), "body must contain no backslash escapes")
-        XCTAssertTrue(line.contains("string.char(34)"))
+    }
+
+    func test_multiple_ticked_cues_share_one_command_ascending() {
+        let s = song()
+        let ticked: Set<UUID> = [s.cues[2].id, s.cues[0].id]   // c3 + c1, out of order
+        let lines = TimecodeBuilder.lines(song: s, ticked: ticked)
+        XCTAssertEqual(lines.count, 1)
+        // Both pairs in one ipairs literal, ascending by cue number: c1 then c3.
+        // c1: 5 s → 83886080; c3: 10 s → 167772160.
+        XCTAssertTrue(lines[0].contains("{1,83886080},{3,167772160}"))
+    }
+
+    func test_no_ticked_valid_cues_emits_nothing() {
+        let s = song()
+        XCTAssertTrue(TimecodeBuilder.lines(song: s, ticked: []).isEmpty)
+        // Only the invalid cue ticked → still empty.
+        XCTAssertTrue(TimecodeBuilder.lines(song: s, ticked: [s.cues[3].id]).isEmpty)
     }
 }
