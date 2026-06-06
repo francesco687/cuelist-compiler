@@ -27,6 +27,20 @@ final class HubClientTests: XCTestCase {
         return (client, mock)
     }
 
+    /// Build a client already driven to `.online` with a connected mock socket.
+    private func makeOnlineClient() -> (HubClient, MockHubConnection) {
+        let (client, mock) = makeClient()
+        client.connect(); mock.emit(.opened)
+        return (client, mock)
+    }
+
+    /// Parse a captured `cmd` frame string back to its `line` value (nil if not a cmd frame).
+    private func frameToCmdLine(_ frame: String) -> String? {
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(frame.utf8)) as? [String: Any],
+              obj["type"] as? String == "cmd" else { return nil }
+        return obj["line"] as? String
+    }
+
     func testConnectMovesToOnlineOnOpen() {
         let (client, mock) = makeClient()
         client.connect()
@@ -103,6 +117,17 @@ final class HubClientTests: XCTestCase {
         let obj = try JSONSerialization.jsonObject(with: Data(mock.sent[0].utf8)) as! [String: Any]
         XCTAssertEqual(obj["type"] as? String, "cmd")
         XCTAssertEqual(obj["line"] as? String, "Go+")
+    }
+
+    func test_sendLines_sends_each_line_as_cmd_and_reports_done() async {
+        let (client, spy) = makeOnlineClient()
+        client.sendLines(["A", "B", "C"], intervalMs: 0)
+        // Let the throttled Task drain.
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        let sentLines = spy.sent.compactMap { frameToCmdLine($0) }
+        XCTAssertEqual(sentLines, ["A", "B", "C"])
+        XCTAssertEqual(client.lastResult, .done(total: 3))
+        XCTAssertNil(client.progress)
     }
 
     func testHostPortPersist() {
