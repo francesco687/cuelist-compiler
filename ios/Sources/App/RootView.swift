@@ -16,6 +16,8 @@ struct RootView: View {
 
     var body: some View {
         TabView {
+            LiveView()
+                .tabItem { Label("Live", systemImage: "play.circle.fill") }
             authorTab
                 .tabItem { Label("Author", systemImage: "square.and.pencil") }
             SendView()

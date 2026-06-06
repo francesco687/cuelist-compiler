@@ -15,6 +15,7 @@ public struct PulledSequence: Equatable, Sendable, Identifiable, Decodable {
 public enum OutgoingMessage {
     case compileSend(project: Project, defaults: Defaults, selection: Selection)
     case pullSequences
+    case cmd(line: String)
 
     private struct CompileSend: Encodable {
         let type = "compile-send"
@@ -25,6 +26,8 @@ public enum OutgoingMessage {
 
     private struct PullSequences: Encodable { let type = "pull-sequences" }
 
+    private struct Cmd: Encodable { let type = "cmd"; let line: String }
+
     public func jsonData() throws -> Data {
         let enc = JSONEncoder()
         switch self {
@@ -33,6 +36,8 @@ public enum OutgoingMessage {
                                               selection: selection.rawValue))
         case .pullSequences:
             return try enc.encode(PullSequences())
+        case let .cmd(line):
+            return try enc.encode(Cmd(line: line))
         }
     }
 
