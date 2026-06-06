@@ -67,8 +67,12 @@ public final class HubClient {
     }
 
     public func connect() {
+        if mode == .relay && pairingCode.isEmpty {
+            state = .error("enter the pairing code")
+            return
+        }
         guard let url else {
-            state = .error(mode == .relay ? "set relay URL + pairing code" : "set hub host first")
+            state = .error(mode == .relay ? "set the relay URL" : "set the hub host first")
             return
         }
         state = .connecting
