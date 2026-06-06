@@ -49,12 +49,8 @@ final class TimecodeBuilderTests: XCTestCase {
         // The {cueN,rawtime} literal for c1: 5 s → 83886080.
         XCTAssertTrue(line.contains("{1,83886080}"))
 
-        // Diagnostics: every exit point Printfs to MA3's System Monitor, and the
-        // whole thing runs under pcall so runtime errors surface instead of
-        // vanishing silently (the reason an "accepted" command could leave the
-        // timeline empty with no feedback).
-        XCTAssertTrue(line.contains("[Saetta TC]"), "must carry Printf diagnostics")
-        XCTAssertTrue(line.contains("pcall(go)"), "work must run under pcall to catch runtime errors")
+        // A terse Printf reports the outcome to MA3's System Monitor.
+        XCTAssertTrue(line.contains("[Saetta TC]"), "must carry a Printf diagnostic")
 
         // The MA3 command-line tokenizer terminates a `Lua "..."` argument at the
         // first `"` and ignores backslash escapes — so the body must contain NO
@@ -62,6 +58,10 @@ final class TimecodeBuilderTests: XCTestCase {
         let body = String(line.dropFirst("Lua \"".count).dropLast())   // strip outer Lua "..."
         XCTAssertFalse(body.contains("\""), "body must contain no double-quote chars")
         XCTAssertFalse(body.contains("\\"), "body must contain no backslash escapes")
+
+        // Length guard: the grandMA3 command line truncates a `Lua "..."` arg around
+        // ~1 KB. A truncated command yields cascading syntax errors. Keep it lean.
+        XCTAssertLessThan(line.count, 900, "Lua command must stay well under the MA3 command-line length limit")
     }
 
     func test_multiple_ticked_cues_share_one_command_ascending() {
