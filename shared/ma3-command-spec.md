@@ -47,6 +47,7 @@ For each song (in show order), for each cue (sorted ascending by cue number):
    - Without a cue name: `Store Sequence <seq> Cue <n> <FLAG> /NoConfirmation`
 4. If the cue has a fade: `Set Sequence <seq> Cue <n> Fade <f>`
 5. If the cue has a delay: `Set Sequence <seq> Cue <n> Delay <d>`
+6. If the cue has a non-empty note: `Set Sequence <seq> Cue <n> "Note" "<note>"`
 
 After all songs and cues: a final `ClearAll`.
 
@@ -63,6 +64,11 @@ Cue-level `fade`/`delay` have no default fallback — emitted only if set on the
 ## String escaping
 
 Group, preset, and cue names have `"` replaced with `\"`. Names are trimmed.
+
+Cue notes are collapsed to a single line (newlines/tabs/whitespace runs → one
+space), trimmed, and `"` replaced with `\"`. A note that is empty or
+whitespace-only emits no command, leaving the desk's existing Note field
+untouched.
 
 ## Notes
 
