@@ -101,7 +101,8 @@ Independent from the sequence/cue command sequence above. Driven by the
 ```
 DataPool().timecodes[N]
   └─ TrackGroup (Children()[1])
-       └─ Track (Children()[1], target = Sequence N)
+       └─ Track (tg[2], target = Sequence N)   -- tg[1] is an internal pseudo-track;
+                                               --   user Track sits at index 2
             └─ TimeRange (Acquire())
                  └─ CmdSubTrack (Acquire('CmdSubTrack'))
                       └─ Event (Acquire())  -- one per cue
@@ -124,7 +125,9 @@ Lua "<single-line Lua code>"
 The Lua code performs (in order):
 
 1. **Resolve** Sequence `<N>` and Timecode pool entry `<N>`. Bail if either missing.
-2. **Locate** TrackGroup `Children()[1]` and Track `Children()[1]`. Bail if either missing.
+2. **Locate** TrackGroup `Children()[1]` and Track `tg[2]` (not `tg[1]` — that index
+   is an internal pseudo-track whose events visually attach to the TG header row in
+   the Timecode editor instead of the user's Sequence-targeted Track). Bail if either missing.
 3. **Wipe** all existing TimeRange children of the Track via reverse iteration + `:Delete()`.
 4. **Acquire** a fresh TimeRange and a `CmdSubTrack` inside it.
 5. **For each cue** with valid `position`, ascending by `cue.n`:
