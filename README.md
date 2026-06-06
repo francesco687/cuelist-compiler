@@ -9,7 +9,7 @@ send them live over OSC.
 |------|------|
 | `web/` | The authoring web app (open `web/index.html` — no build). |
 | `desktop/` | **Desktop app (Electron) — recommended for operators.** Packages the web UI, sends OSC/UDP directly to the desk, and embeds the hub so an iPhone can connect as a companion. |
-| `ios/` | Native SwiftUI frontend (companion controller). |
+| `ios/` | **Saetta** — native SwiftUI companion controller. Sends Cues, Notes, and per-cue Timecode as three independent actions; Timecode is append-only for ticked cues (pre-create the TC pool Track on the desk first). |
 | `proxy/` | WebSocket→OSC bridge for live send (browser/dev). |
 | `hub/` | WebSocket→compile→OSC hub — used by the iPhone app and embedded in the desktop app. |
 | `shared/` | `ma3-command-spec.md` — the command contract both frontends implement. |
