@@ -60,6 +60,7 @@ public enum IncomingMessage: Equatable, Sendable {
     case pullError(message: String)                  // pull failed (trigger/timeout/parse)
     case joined                                      // relay: this side joined a room
     case peer(connected: Bool)                       // relay: the other side connected/dropped
+    case joinError(message: String)                  // relay: join rejected (bad/taken code, relay full)
     case other                                        // pong / sent / unknown — ignored by the client
 
     private struct Envelope: Decodable {
@@ -82,6 +83,7 @@ public enum IncomingMessage: Equatable, Sendable {
         case "pull-error": return .pullError(message: e.message ?? "pull failed")
         case "joined":     return .joined
         case "peer":       return .peer(connected: e.connected ?? false)
+        case "join-error": return .joinError(message: e.message ?? "pairing rejected")
         default:           return .other
         }
     }

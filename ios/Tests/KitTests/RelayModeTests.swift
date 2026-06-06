@@ -18,6 +18,11 @@ final class RelayModeTests: XCTestCase {
         let msg = try IncomingMessage.decode("{\"type\":\"joined\"}")
         XCTAssertEqual(msg, .joined)
     }
+
+    func testDecodeJoinError() throws {
+        let msg = try IncomingMessage.decode("{\"type\":\"join-error\",\"message\":\"role taken\"}")
+        XCTAssertEqual(msg, .joinError(message: "role taken"))
+    }
 }
 
 @MainActor
@@ -64,5 +69,14 @@ final class HubClientRelayTests: XCTestCase {
         let conn = FakeConn()
         let c = makeClient(conn)
         XCTAssertEqual(c.url?.absoluteString, "wss://cuelist-relay.fly.dev")
+    }
+
+    func testJoinErrorSurfacesReasonAsErrorState() {
+        let conn = FakeConn()
+        let c = makeClient(conn)
+        c.connect()
+        conn.onEvent?(.opened)
+        conn.onEvent?(.text("{\"type\":\"join-error\",\"message\":\"role taken\"}"))
+        XCTAssertEqual(c.state, .error("role taken"))
     }
 }
