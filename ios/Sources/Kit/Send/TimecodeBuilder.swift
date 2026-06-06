@@ -1,34 +1,48 @@
 import Foundation
 
-/// Turns ticked cues into APPEND-ONLY grandMA3 Timecode commands.
-/// Convention: TC pool number == sequence number. 25 fps. `time` is float seconds.
+/// Turns ticked cues into APPEND-ONLY grandMA3 Timecode events via the Lua
+/// Object API. Convention: TC pool number == sequence number. 25 fps.
 ///
-/// Append-only is the whole point: we never issue the web overwrite path's
-/// `Delete ... × 200` cleanup, so timecodes already on the desk for other cues are
-/// untouched. Each ticked cue becomes ONE inline-Lua command that, desk-side:
-///   1. reads the current event count of TC pool N's subtrack,
-///   2. `Store`s a new `Goto Cue c Sequence N` event (lands at the next index),
-///   3. `Set`s that event's `time` property to the SMPTE→seconds value.
-/// The two inner `Cmd(...)` strings are proven (see web ma3-command-spec). Only the
-/// count accessor (`tcCountLuaExpr`) is desk-verified in the onPC smoke task.
+/// Events on MA3 are NOT addressable via the command-line `Store Timecode ...`
+/// syntax — that path only creates pool entries / TrackGroups / Tracks and
+/// returns "Cannot Create Object" for events (proven dead-end on a real desk
+/// 2026-06-06). Events live only behind the Object API (forum thread 68641).
+///
+/// Object hierarchy (see `shared/ma3-command-spec.md` §Timecode):
+///   DataPool().timecodes[N] → TrackGroup `Children()[1]` → Track `tg[2]`
+///   (tg[1] is an internal pseudo-track) → TimeRange `Acquire()` →
+///   CmdSubTrack `Acquire('CmdSubTrack')` → Event `Acquire()` per cue, with
+///   `rawtime` (1 s = 16777216 internal units) and `cuedestination` (Cue handle).
+///
+/// APPEND-ONLY variant of the web `buildTcCmdLines` path: we reuse the same
+/// hierarchy but OMIT the delete phase, so timecodes already on the desk for
+/// other cues are untouched. Trade-off: re-sending the same cue appends a
+/// duplicate event (no dedup) — accepted for non-destructive per-cue sends.
+///
+/// We emit ONE inline-`Lua "..."` command per song carrying all ticked cues.
+/// The body is single-quoted Lua throughout — it contains NO double-quotes, so
+/// the outer `Lua "..."` wrapper parses cleanly through OSC and MA3's command
+/// line (the MA3 tokenizer terminates a `Lua "..."` argument at the first `"`
+/// and does NOT honor backslash escapes).
 public enum TimecodeBuilder {
+
+    /// MA3 internal time units per second (`2^24`).
+    static let rawPerSecond = 16_777_216
 
     public struct Event: Equatable {
         public let sequence: Int
         public let cueN: Double
-        public let seconds: String
+        public let rawtime: Int
     }
 
     private static func formatN(_ n: Double) -> String {
         n.rounded() == n ? String(Int(n)) : String(n)
     }
 
-    /// Lua expression (evaluated desk-side) yielding the count of existing events
-    /// in TC pool `n`'s subtrack, so the new event appends at `count + 1`.
-    /// HYPOTHESIS — verified/corrected in the onPC smoke task. Isolated here so the
-    /// fix is one constant + one golden test, nothing else.
-    static func tcCountLuaExpr(_ poolVar: String) -> String {
-        "Root().ShowData.DataPools.Default.Timecodes:Ptr(\(poolVar)).Tracks:Ptr(1).TrackGroups:Ptr(1).Tracks:Ptr(1).Count"
+    /// SMPTE → MA3 `rawtime` integer: `round(seconds * 16777216)`.
+    static func rawtime(_ position: String) -> Int? {
+        guard let secs = Smpte.seconds(position) else { return nil }
+        return Int((secs * Double(rawPerSecond)).rounded())
     }
 
     /// Ticked + valid cues for this song, ascending by cue number.
@@ -38,31 +52,38 @@ public enum TimecodeBuilder {
             .filter { Smpte.isValid($0.position) }
             .sorted { $0.n < $1.n }
             .compactMap { cue -> Event? in
-                guard let secs = Smpte.secondsString(cue.position) else { return nil }
-                return Event(sequence: song.sequence, cueN: cue.n, seconds: secs)
+                guard let raw = rawtime(cue.position) else { return nil }
+                return Event(sequence: song.sequence, cueN: cue.n, rawtime: raw)
             }
     }
 
-    /// One inline-Lua `cmd` line per ticked+valid cue. Append-only.
+    /// At most ONE inline-Lua command for the song's ticked+valid cues.
+    /// Empty when nothing is ticked/valid. Append-only: no delete phase.
     public static func lines(song: Song, ticked: Set<UUID>) -> [String] {
-        events(song: song, ticked: ticked).map { ev in
-            let n = ev.sequence
-            let c = formatN(ev.cueN)
-            let s = ev.seconds
-            // Build the Lua body, then escape the outer `cmd` string's quotes.
-            // Inner single quotes wrap MA3 Cmd strings; \" appears in the Goto label.
-            let count = tcCountLuaExpr("n")
-            // MA3's command-line tokenizer does NOT honor backslash escapes inside a
-            // `Lua "..."` argument — a literal \" terminates the string early. So the
-            // body must contain NO double-quotes (and no backslashes) except the outer
-            // delimiters. We synthesize the quote chars desk-side: q=" (34), a=' (39).
-            let body =
-                "local n=\(n) " +
-                "local q=string.char(34) local a=string.char(39) " +
-                "local i=(\(count) or 0)+1 " +
-                "Cmd('Store Timecode '..n..'.1.1.1.1 '..q..'Goto Cue \(c) Sequence '..n..q..' /NoConfirmation') " +
-                "Cmd('Set Timecode '..n..'.1.1.1.1.'..i..' Property '..a..'time'..a..' \(s)')"
-            return "Lua \"\(body)\""
-        }
+        let evs = events(song: song, ticked: ticked)
+        guard !evs.isEmpty else { return [] }
+
+        let n = song.sequence
+        // {cueN,rawtime} pairs for the desk-side loop.
+        let cuesLit = evs.map { "{\(formatN($0.cueN)),\($0.rawtime)}" }.joined(separator: ",")
+
+        // Single-quoted Lua only. tg[2] is the first user Track (tg[1] is an
+        // internal pseudo-track that renders on the TG header row). No wipe:
+        // `tr:Acquire()` / `sub:Acquire('CmdSubTrack')` reuse existing children;
+        // `sub:Acquire()` per cue always creates a fresh Event (so we append).
+        let body = [
+            "local s=DataPool().sequences[\(n)]",
+            "local t=DataPool().timecodes[\(n)]",
+            "if not s or not t then return end",
+            "local tg=t:Children()[1]",
+            "if not tg then return end",
+            "local tr=tg[2]",
+            "if not tr then return end",
+            "local rng=tr:Acquire()",
+            "local sub=rng:Acquire('CmdSubTrack')",
+            "for _,c in ipairs({\(cuesLit)}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence \(n) Cue '..c[1]) if cue then e:Set('cuedestination',cue) end end",
+        ].joined(separator: ";")
+
+        return ["Lua \"\(body)\""]
     }
 }

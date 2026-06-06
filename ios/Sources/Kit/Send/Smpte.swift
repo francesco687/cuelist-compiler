@@ -19,11 +19,17 @@ public enum Smpte {
         return p.m < 60 && p.sec < 60 && p.f < fps
     }
 
+    /// Exact seconds as a Double, nil for invalid input. The basis for both the
+    /// human-readable `secondsString` and the MA3 Object-API `rawtime` integer.
+    public static func seconds(_ s: String) -> Double? {
+        guard isValid(s), let p = parts(s) else { return nil }
+        return Double(p.h) * 3600 + Double(p.m) * 60 + Double(p.sec) + Double(p.f) / Double(fps)
+    }
+
     /// Seconds as a float STRING for the MA3 `Set ... Property 'time' <secs>` command.
     /// nil for invalid input. Uses the shortest exact decimal (e.g. "0.2", "5.0").
     public static func secondsString(_ s: String) -> String? {
-        guard isValid(s), let p = parts(s) else { return nil }
-        let seconds = Double(p.h) * 3600 + Double(p.m) * 60 + Double(p.sec) + Double(p.f) / Double(fps)
+        guard let seconds = seconds(s) else { return nil }
         // Trim to avoid float noise; keep at least one decimal place.
         var str = String(format: "%.6f", seconds)
         while str.contains("."), str.hasSuffix("0") { str.removeLast() }
