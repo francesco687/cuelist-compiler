@@ -87,3 +87,24 @@ test('cue note emits a Set "Note" line after Store on the OSC path', () => {
   // whitespace-only note emits nothing
   assert.ok(!lines.some((l) => l.startsWith('Set Sequence 7 Cue 2 "Note"')), 'empty note emits no line');
 });
+
+test('cue note appears in the exported Lua plugin (data + emitter)', () => {
+  const api = createCompiler();
+  const project = {
+    songs: [{ id: 's1', name: 'S', sequence: 7, cues: [
+      { n: 1, name: 'Q1', fade: '', delay: '', notes: 'tighten on the "hot" spot',
+        actions: [{ group: 'G', presets: { color: { name: 'C', fade: '', delay: '' } } }] },
+    ] }],
+    activeSongId: 's1', storeMode: 'Overwrite',
+  };
+  const migrated = api.migrateState(project);
+  const lua = String(api.buildLua(migrated.songs, 'T'));
+
+  // data table carries the sanitized + escaped note
+  assert.ok(lua.includes('note="tighten on the \\"hot\\" spot"'), 'note in SONGS table');
+  // main loop emits the Set "Note" command when c.note is present
+  assert.ok(
+    lua.includes('Cmd(\'Set Sequence \'..song.seq..\' Cue \'..c.n..\' "Note" "\'..c.note..\'"\')'),
+    'note emitter in main loop'
+  );
+});

@@ -37,7 +37,7 @@ function createCompiler({ webJsDir } = {}) {
     read('util.js'),
     read('state.js'),
     read('compile.js'),
-    'globalThis.__api = { buildCmdLines, migrateState, makeDefaults,' +
+    'globalThis.__api = { buildCmdLines, buildLua, migrateState, makeDefaults,' +
     '  setState: (s) => { state = s; }, setDefaults: (d) => { defaults = d; } };',
   ].join('\n;\n');
 

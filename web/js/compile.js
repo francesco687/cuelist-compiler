@@ -41,6 +41,8 @@ function songToLuaEntry(song) {
     let header = `    {n=${cue.n}, name="${(cue.name || '').trim().replace(/"/g, '\\"')}"`;
     if (cue.fade && String(cue.fade).trim()) header += `, fade=${cue.fade}`;
     if (cue.delay && String(cue.delay).trim()) header += `, delay=${cue.delay}`;
+    const note = sanitizeNote(cue.notes);
+    if (note) header += `, note="${note}"`;
     if (actions.length === 0) {
       lines.push(header + ', actions={}},');
     } else {
@@ -91,6 +93,7 @@ function buildLua(songs, headerTitle) {
   lines.push('      end');
   lines.push('      if c.fade  then Cmd(\'Set Sequence \'..song.seq..\' Cue \'..c.n..\' Fade \'..c.fade)   end');
   lines.push('      if c.delay then Cmd(\'Set Sequence \'..song.seq..\' Cue \'..c.n..\' Delay \'..c.delay) end');
+  lines.push('      if c.note  then Cmd(\'Set Sequence \'..song.seq..\' Cue \'..c.n..\' "Note" "\'..c.note..\'"\') end');
   lines.push('    end');
   lines.push('  end');
   lines.push('  Cmd("ClearAll")');
