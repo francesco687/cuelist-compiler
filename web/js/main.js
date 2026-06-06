@@ -135,6 +135,23 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Marker hotkeys: M to drop at playhead, Delete/Backspace to remove the
+// selected marker. Both no-op while typing in form fields.
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+  if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    CC.audio.dropMarkerAtPlayhead();
+    return;
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (CC.audio.deleteSelectedMarker()) {
+      e.preventDefault();
+    }
+  }
+});
+
 wireLoadAudio();
 
 window.addEventListener('resize', () => {
