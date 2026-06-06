@@ -46,6 +46,11 @@ Configure via env:
 grandMA3: **Menu > Network > MA Network Configuration > OSC** — input UDP `8000`,
 prefix `gma3`, **Echo Input = Yes** (required for `/cmd` to dispatch).
 
+> **Echo-loop caveat (same-box onPC):** with Echo Input on, keep that OSC entry's
+> **Output destination off the input address** (`127.0.0.1:8000`). If the echo is
+> sent back to the input, each received command runs **twice**. A desk on the
+> network is unaffected; it only bites when onPC and the hub share `127.0.0.1`.
+
 ## Protocol
 
 ```
