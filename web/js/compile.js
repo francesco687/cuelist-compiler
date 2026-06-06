@@ -3,6 +3,17 @@
 // same sequence. Any change here must also update shared/ma3-command-spec.md in
 // the same PR. Depends on: constants (POOLS, POOL_NUM), state, util (download).
 
+// Collapse a free-text (often voice-captured, multi-line) note into one safe
+// command-line token: newlines/tabs/runs of whitespace → single space, trimmed,
+// then " escaped to \". Returns '' for null/empty/whitespace-only input.
+function sanitizeNote(raw) {
+  return String(raw == null ? '' : raw)
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/"/g, '\\"');
+}
+
 function songToLuaEntry(song) {
   const lines = [];
   const seq = parseInt(song.sequence) || 1;
@@ -125,6 +136,8 @@ function buildCmdLines(songs) {
       }
       if (cue.fade  && String(cue.fade).trim())  out.push(`Set Sequence ${seq} Cue ${cue.n} Fade ${cue.fade}`);
       if (cue.delay && String(cue.delay).trim()) out.push(`Set Sequence ${seq} Cue ${cue.n} Delay ${cue.delay}`);
+      const note = sanitizeNote(cue.notes);
+      if (note) out.push(`Set Sequence ${seq} Cue ${cue.n} "Note" "${note}"`);
     });
   });
   out.push('ClearAll');

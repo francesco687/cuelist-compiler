@@ -64,3 +64,26 @@ test('selection: current returns only the active song; all returns both', () => 
   assert.ok(current.includes('Group "G2"'), current.join('\n'));
   assert.ok(!current.includes('Group "G1"'), 'current must exclude the non-active song: ' + current.join('\n'));
 });
+
+test('cue note emits a Set "Note" line after Store on the OSC path', () => {
+  const api = createCompiler();
+  const project = {
+    songs: [{ id: 's1', name: 'S', sequence: 7, cues: [
+      { n: 1, name: 'Q1', fade: '', delay: '',
+        notes: 'tighten on the "hot" spot\nsecond line',
+        actions: [{ group: 'G', presets: { color: { name: 'C', fade: '', delay: '' } } }] },
+      { n: 2, name: 'Q2', fade: '', delay: '', notes: '   ',
+        actions: [{ group: 'G', presets: { color: { name: 'C', fade: '', delay: '' } } }] },
+    ] }],
+    activeSongId: 's1', storeMode: 'Overwrite',
+  };
+  const lines = compileShow(api, { project, selection: 'all' });
+
+  const noteLine = 'Set Sequence 7 Cue 1 "Note" "tighten on the \\"hot\\" spot second line"';
+  const storeIdx = lines.indexOf('Store Sequence 7 Cue 1 "Q1" /Overwrite /NoConfirmation');
+  const noteIdx = lines.indexOf(noteLine);
+  assert.ok(storeIdx !== -1, 'store line present');
+  assert.ok(noteIdx === storeIdx + 1, 'note line immediately after its Store');
+  // whitespace-only note emits nothing
+  assert.ok(!lines.some((l) => l.startsWith('Set Sequence 7 Cue 2 "Note"')), 'empty note emits no line');
+});
