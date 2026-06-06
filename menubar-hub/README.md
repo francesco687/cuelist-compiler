@@ -27,6 +27,20 @@ settings.
 4. The dot turns green when the phone pairs; GO+/GO-/PAUSE/Send/Pull from the
    phone now flow laptop → desk, and each shows in the Activity log.
 
+## Gotchas
+
+- **onPC on the same Mac → OSC echo loop.** `Echo Input = Yes` is required for
+  `/cmd` to dispatch, but if that OSC entry's **Output destination** points back at
+  the input (`127.0.0.1:8000`), the echoed command re-enters its own input and
+  **every command runs twice** (one tap → two GOs). Fix: set the OSC row's Output
+  **Destination IP off-loopback** (e.g. the Mac's LAN IP, or disable Output), and
+  keep Input `8000` + Echo Input `Yes`. A real desk on the network doesn't hit this.
+- **Pairing code is regenerated on every launch** and only persisted once you change
+  a setting from the popover — so the displayed code is stable across a session, but
+  a relaunch yields a new one. Copy the current code into the phone each session.
+- **Packaging standalone** (not run-from-source) must bundle the sibling `hub/` and
+  `web/` trees — this app `require`s `../../hub/src/*` and the compiler reads `web/js`.
+
 ## Test
 
 ```sh

@@ -239,3 +239,34 @@ cuelist-compiler/
 - **Pairing code is regenerable** from the popover (assumed yes).
 - **Hybrid LAN-direct + relay-fallback** is the most likely v2 follow-up.
 - **Signed installer** for the menubar app deferred (run-from-source for v1).
+
+## Smoke results — Phase E PASSED (2026-06-06)
+
+Cellular acceptance smoke run end-to-end and **passed**.
+
+- **Relay deployed:** Fly app `cuelist-relay` (region `ams`, single machine via
+  `fly apps create` + `fly deploy --ha=false`; `shared-cpu-1x`/256mb, always-on).
+  `GET https://cuelist-relay.fly.dev/healthz` → `ok`. New-hostname DNS took ~30s to
+  resolve globally after first deploy.
+- **Hub:** menubar app run-from-source on the Mac; **iOS app** built + installed on
+  jPhone (2) (`xcrun devicectl`). Phone on **cellular (WiFi off)**.
+- **Chain proven:** jPhone → Fly relay (ams) → menubar hub (Mac) → OSC `/gma3/cmd`
+  :8000 → grandMA3 onPC. A local UDP capture on `8000` caught valid `/gma3/cmd`
+  packets for **GO+ / GO- / PAUSE** and a full **Send-all** (`Store Sequence 165
+  Cue 1..4 /Merge /NoConfirmation`). One tap = exactly one frame at the hub.
+
+Two issues surfaced, **neither a transport bug** — both addressed on this branch:
+
+1. **Pairing failed first try** because the 12-char mixed-case base64url code
+   (`d4jQVvOab_ZY`, adjacent `QVv`, `_`) is too error-prone to hand-type. Fixed:
+   `generatePairingCode` now uses a 9-char unambiguous lowercase alphabet
+   (`23456789abcdefghjkmnpqrstuvwxyz`, no `0/1/i/l/o`, no case).
+2. **"GO fires twice per tap" was a grandMA3 OSC echo loop**, reproduced with a
+   single direct OSC packet (zero phone involvement): `Echo Input = Yes` + the OSC
+   row's Output destination pointing back at `127.0.0.1:8000` re-injects the echoed
+   command. Fixed at the desk by moving the Output destination off-loopback;
+   documented in `hub/README.md` and `menubar-hub/README.md`.
+
+Also tightened the iOS relay-mode error wording (`"set the relay URL"` /
+`"enter the pairing code"` instead of the misleading `"set relay URL + pairing
+code"`, which actually only fires when the URL is empty).
