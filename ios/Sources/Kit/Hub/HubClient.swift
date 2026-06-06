@@ -8,6 +8,8 @@ public enum ConnectionState: Equatable, Sendable {
     public var isOnline: Bool { self == .online }
 }
 
+public enum HubMode: String, Sendable { case direct, relay }
+
 public struct SendProgress: Equatable, Sendable { public var sent: Int; public var total: Int }
 
 public enum SendResult: Equatable, Sendable {
@@ -32,11 +34,18 @@ public final class HubClient {
     public var host: String { didSet { defaults.set(host, forKey: Keys.host) } }
     public var port: Int    { didSet { defaults.set(port, forKey: Keys.port) } }
 
+    public var mode: HubMode { didSet { defaults.set(mode.rawValue, forKey: Keys.mode) } }
+    public var relayURL: String { didSet { defaults.set(relayURL, forKey: Keys.relayURL) } }
+    public var pairingCode: String { didSet { defaults.set(pairingCode, forKey: Keys.pairingCode) } }
+
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let makeConnection: (URL) -> HubConnection
     @ObservationIgnored private var connection: HubConnection?
 
-    private enum Keys { static let host = "hubHost"; static let port = "hubPort" }
+    private enum Keys {
+        static let host = "hubHost"; static let port = "hubPort"
+        static let mode = "hubMode"; static let relayURL = "hubRelayURL"; static let pairingCode = "hubPairingCode"
+    }
 
     public init(defaults: UserDefaults = .standard,
                 makeConnection: @escaping (URL) -> HubConnection) {
@@ -45,12 +54,23 @@ public final class HubClient {
         self.host = defaults.string(forKey: Keys.host) ?? ""
         let p = defaults.integer(forKey: Keys.port)
         self.port = p == 0 ? 9000 : p
+        self.mode = HubMode(rawValue: defaults.string(forKey: Keys.mode) ?? "") ?? .direct
+        self.relayURL = defaults.string(forKey: Keys.relayURL) ?? ""
+        self.pairingCode = defaults.string(forKey: Keys.pairingCode) ?? ""
     }
 
-    public var url: URL? { URL(string: "ws://\(host):\(port)") }
+    public var url: URL? {
+        switch mode {
+        case .direct: return URL(string: "ws://\(host):\(port)")
+        case .relay:  return relayURL.isEmpty ? nil : URL(string: relayURL)
+        }
+    }
 
     public func connect() {
-        guard let url else { state = .error("set hub host first"); return }
+        guard let url else {
+            state = .error(mode == .relay ? "set relay URL + pairing code" : "set hub host first")
+            return
+        }
         state = .connecting
         connection?.close()                 // tear down any prior socket before replacing
         let conn = makeConnection(url)
@@ -59,7 +79,15 @@ public final class HubClient {
             guard let self else { return }
             switch event {
             case .opened:
-                self.state = .online
+                switch self.mode {
+                case .direct:
+                    self.state = .online
+                case .relay:
+                    // Join the room first; stay .connecting until the laptop (peer) is present.
+                    if let join = try? OutgoingMessage.join(room: self.pairingCode, role: "phone").jsonString() {
+                        conn.send(join)
+                    }
+                }
             case let .text(text):
                 self.handle(text)
             case let .closed(reason):
@@ -124,8 +152,10 @@ public final class HubClient {
         case let .pullError(message):
             isPulling = false
             pullError = message
-        case .joined, .peer:
-            break                                    // relay control frames — handled in relay mode (Task D2)
+        case .joined:
+            break                                  // waiting for a peer; no state change yet
+        case let .peer(connected):
+            state = connected ? .online : .connecting
         case .other:
             break
         }
