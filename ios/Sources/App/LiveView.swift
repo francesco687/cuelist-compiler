@@ -8,6 +8,12 @@ import SaettaKit
 struct LiveView: View {
     @Environment(HubClient.self) private var hub
     @State private var fireCount = 0
+    @State private var messageText = ""
+    @State private var didSend = false
+
+    private var canSend: Bool {
+        hub.state.isOnline && ConsoleMessage.line(text: messageText) != nil
+    }
 
     var body: some View {
         NavigationStack {
@@ -15,6 +21,8 @@ struct LiveView: View {
                 Theme.canvas
                 VStack(spacing: 14) {
                     connectionRow
+
+                    // Top half — transport (was full-screen).
                     VStack(spacing: 14) {
                         TransportButton(title: "GO+", symbol: "arrow.right.circle.fill",
                                         tint: Theme.ok) { fire("Go+") }
@@ -23,8 +31,13 @@ struct LiveView: View {
                         TransportButton(title: "GO-", symbol: "arrow.left.circle.fill",
                                         tint: Theme.textFaint) { fire("Go-") }
                     }
+                    .frame(maxHeight: .infinity)
                     .disabled(!hub.state.isOnline)
                     .opacity(hub.state.isOnline ? 1 : 0.4)
+
+                    // Bottom half — control area (grows with future controls).
+                    controlSection
+                        .frame(maxHeight: .infinity, alignment: .top)
                 }
                 .padding(20)
             }
@@ -32,6 +45,44 @@ struct LiveView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .sensoryFeedback(.impact(weight: .medium), trigger: fireCount)
+        }
+    }
+
+    // MARK: Control area
+
+    @ViewBuilder private var controlSection: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                TextField("Message to console\u{2026}", text: $messageText)
+                    .textFieldStyle(.plain)
+                    .submitLabel(.send)
+                    .onSubmit { sendMessage() }
+                    .padding(.vertical, 10).padding(.horizontal, 12)
+                    .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
+
+                Button("Send") { sendMessage() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.accentSolid)
+                    .disabled(!canSend)
+            }
+            if didSend {
+                Label("Sent", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 12)).foregroundStyle(Theme.ok)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func sendMessage() {
+        guard canSend else { return }
+        hub.sendConsoleMessage(messageText)
+        fireCount += 1                         // haptic, same trigger as transport
+        messageText = ""
+        withAnimation { didSend = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            withAnimation { didSend = false }
         }
     }
 
