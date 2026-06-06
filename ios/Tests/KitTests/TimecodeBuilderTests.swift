@@ -29,9 +29,15 @@ final class TimecodeBuilderTests: XCTestCase {
         XCTAssertEqual(lines.count, 1)
         let line = lines[0]
 
-        // Append-only: NO wipe phase — neither the command-line `Delete` keyword
-        // nor the Object-API `:Delete()` mutator may appear (either clobbers events).
-        XCTAssertFalse(line.contains("Delete"))
+        // Upsert: a per-cue cleanup pass deletes only existing events whose
+        // cuedestination is in the re-sent set, keyed by cue number — NOT a
+        // wholesale track wipe. So `:Delete()` is present, gated on `want[...]`.
+        XCTAssertTrue(line.contains("local want={[1]=true}"), "must build the re-sent cue set")
+        XCTAssertTrue(line.contains("e.cuedestination"), "cleanup must match on cuedestination")
+        XCTAssertTrue(line.contains("e:Delete()"), "must delete the prior event for a re-sent cue")
+        XCTAssertTrue(line.contains("if no==nil then") || line.contains("want[no]"), "delete must be gated on the re-sent cue set, not unconditional")
+        // It must NOT do the web overwrite-path wholesale wipe of all TimeRanges.
+        XCTAssertFalse(line.contains("tr:Children()"), "must not wipe the whole track")
 
         // Object-API hierarchy on the proven path. Pool index goes through `n`.
         XCTAssertTrue(line.hasPrefix("Lua \""))
@@ -71,6 +77,8 @@ final class TimecodeBuilderTests: XCTestCase {
         // Both pairs in one ipairs literal, ascending by cue number: c1 then c3.
         // c1: 5 s → 83886080; c3: 10 s → 167772160.
         XCTAssertTrue(lines[0].contains("{1,83886080},{3,167772160}"))
+        // The cleanup set covers both re-sent cues.
+        XCTAssertTrue(lines[0].contains("local want={[1]=true,[3]=true}"))
     }
 
     func test_no_ticked_valid_cues_emits_nothing() {

@@ -20,6 +20,7 @@ All notable changes to this project are documented here. Format based on
   see `shared/ma3-command-spec.md` §Timecode show). Pre-condition: Track in
   TC pool created on MA3 first.
 - iOS app renamed to **Saetta**. Send tab split into Send Cues / Send Notes /
-  Send Timecode. New per-cue timecode tick box: ticked cues are appended to the
-  grandMA3 Timecode pool (Lua Object API, append-only) without disturbing
-  existing events.
+  Send Timecode. New per-cue timecode tick box: ticked cues are written to the
+  grandMA3 Timecode pool (Lua Object API, per-cue upsert) — re-sending a cue
+  replaces its event instead of duplicating, and events for other cues are left
+  untouched. The send Lua self-reports via `Printf` to MA3's System Monitor.
