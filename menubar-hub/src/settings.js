@@ -3,9 +3,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-// 12-char url-safe code (~71 bits) — generated once on the laptop, typed into the phone.
+// Unambiguous code — generated once on the laptop, typed into the phone by hand.
+// Lowercase + digits only, with the look-alikes 0/1/i/l/o removed (31-char alphabet,
+// ~44 bits over 9 chars). No capitals/underscore so there's no case or symbol to
+// fat-finger — a base64url code like `d4jQVvOab_ZY` was too error-prone to type.
+const CODE_ALPHABET = '23456789abcdefghjkmnpqrstuvwxyz';
+const CODE_LEN = 9;
 function generatePairingCode() {
-  return crypto.randomBytes(9).toString('base64url').slice(0, 12);
+  const bytes = crypto.randomBytes(CODE_LEN);
+  let out = '';
+  for (let i = 0; i < CODE_LEN; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  return out;
 }
 
 function defaults() {
