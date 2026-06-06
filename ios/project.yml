@@ -1,4 +1,4 @@
-name: CuelistCompiler
+name: Saetta
 options:
   bundleIdPrefix: com.blearred
   deploymentTarget:
@@ -12,36 +12,36 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.9"
 targets:
-  CuelistCompilerKit:
+  SaettaKit:
     type: framework
     platform: iOS
     sources:
       - path: Sources/Kit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.cuelistcompiler.kit
+        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.saetta.kit
         ENABLE_TESTABILITY: YES
         GENERATE_INFOPLIST_FILE: YES
-  CuelistCompiler:
+  Saetta:
     type: application
     platform: iOS
     sources:
       - path: Sources/App
     dependencies:
-      - target: CuelistCompilerKit
+      - target: SaettaKit
     info:
       path: Sources/App/Info.plist
       properties:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSLocalNetworkUsageDescription: "Cuelist Compiler connects to your hub on the local network to send shows to your console."
-        NSMicrophoneUsageDescription: "Cuelist Compiler records short voice commands to author cues."
+        NSLocalNetworkUsageDescription: "Saetta connects to your hub on the local network to send shows to your console."
+        NSMicrophoneUsageDescription: "Saetta records short voice commands to author cues."
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.cuelistcompiler
-  CuelistCompilerKitTests:
+        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.saetta
+  SaettaKitTests:
     type: bundle.unit-test
     platform: iOS
     sources:
@@ -49,20 +49,20 @@ targets:
       - path: ../examples/SONG_1.json
         buildPhase: resources
     dependencies:
-      - target: CuelistCompilerKit
+      - target: SaettaKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.cuelistcompiler.kittests
+        PRODUCT_BUNDLE_IDENTIFIER: com.blearred.saetta.kittests
         GENERATE_INFOPLIST_FILE: YES
 schemes:
-  CuelistCompilerKit:
+  SaettaKit:
     build:
       targets:
-        CuelistCompilerKit: all
+        SaettaKit: all
     test:
       targets:
-        - CuelistCompilerKitTests
-  CuelistCompiler:
+        - SaettaKitTests
+  Saetta:
     build:
       targets:
-        CuelistCompiler: all
+        Saetta: all
