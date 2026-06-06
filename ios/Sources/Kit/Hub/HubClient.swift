@@ -41,6 +41,7 @@ public final class HubClient {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let makeConnection: (URL) -> HubConnection
     @ObservationIgnored private var connection: HubConnection?
+    @ObservationIgnored private var sendTask: Task<Void, Never>?
 
     private enum Keys {
         static let host = "hubHost"; static let port = "hubPort"
@@ -149,9 +150,11 @@ public final class HubClient {
         guard !lines.isEmpty else { return }
         progress = SendProgress(sent: 0, total: lines.count)
         lastResult = nil
-        Task { [weak self] in
+        sendTask?.cancel()                              // supersede any in-flight batch
+        sendTask = Task { [weak self] in
             guard let self else { return }
             for (i, line) in lines.enumerated() {
+                if Task.isCancelled { return }          // superseded — leave state to the newer task
                 guard let conn = self.connection else { break }
                 if let text = try? OutgoingMessage.cmd(line: line).jsonString() {
                     conn.send(text)
@@ -161,6 +164,7 @@ public final class HubClient {
                     try? await Task.sleep(nanoseconds: UInt64(intervalMs) * 1_000_000)
                 }
             }
+            if Task.isCancelled { return }              // don't stomp the newer task's completion
             self.progress = nil
             self.lastResult = .done(total: lines.count)
         }
