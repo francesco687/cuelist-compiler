@@ -12,7 +12,7 @@ let audioRAF = null;
 const audioCache = new Map(); // songId -> { audioEl, audioBuffer, audioGainL, audioGainR, fileName }
 let currentAudioSongId = null;
 let selectedMarkerCueN = null;
-let markerDragState = null; // { cueN, timelineRect, durationS } during a drag, else null
+let markerDragState = null; // { cueN, timelineRect, durationS, moved } during a drag, else null
 const channelMute = { L: false, R: false };
 
 async function loadAudioFile(file) {
@@ -408,7 +408,8 @@ function startMarkerDrag(cueN, evt) {
   markerDragState = {
     cueN,
     timelineRect: tl.getBoundingClientRect(),
-    durationS: audioBuffer.duration
+    durationS: audioBuffer.duration,
+    moved: false
   };
   document.body.style.cursor = 'grabbing';
   window.addEventListener('mousemove', onMarkerDragMove);
@@ -417,6 +418,7 @@ function startMarkerDrag(cueN, evt) {
 
 function onMarkerDragMove(evt) {
   if (!markerDragState) return;
+  markerDragState.moved = true;
   const song = activeSong();
   if (!song) return;
   const { cueN, timelineRect, durationS } = markerDragState;
@@ -433,11 +435,12 @@ function onMarkerDragMove(evt) {
 function onMarkerDragEnd() {
   if (!markerDragState) return;
   const song = activeSong();
+  const moved = markerDragState.moved;
   markerDragState = null;
   document.body.style.cursor = '';
   window.removeEventListener('mousemove', onMarkerDragMove);
   window.removeEventListener('mouseup', onMarkerDragEnd);
-  if (song) {
+  if (moved && song) {
     CC.state.resortAndRenumber(song);
     saveState();
     render();
