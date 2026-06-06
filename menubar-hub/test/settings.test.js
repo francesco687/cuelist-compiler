@@ -12,9 +12,11 @@ test('defaults include relay + ma3 fields and a generated pairing code', () => {
   assert.ok(d.pairingCode.length >= 8, 'pairing code should be >= 8 chars');
 });
 
-test('generatePairingCode is url-safe and >= 8 chars', () => {
+test('generatePairingCode uses an unambiguous lowercase alphabet, >= 8 chars', () => {
   const code = generatePairingCode();
-  assert.ok(/^[A-Za-z0-9_-]{8,}$/.test(code), `unexpected code: ${code}`);
+  // lowercase + digits only, no look-alikes (0/1/i/l/o) and no case-sensitivity — easy to hand-type
+  assert.ok(/^[23456789abcdefghjkmnpqrstuvwxyz]{8,}$/.test(code), `unexpected code: ${code}`);
+  assert.ok(!/[01ilo]/.test(code), `code has ambiguous chars: ${code}`);
   assert.notStrictEqual(generatePairingCode(), generatePairingCode());
 });
 
