@@ -32,7 +32,10 @@ final class TimecodeBuilderTests: XCTestCase {
         // Overwrite: wipe every TimeRange on the track, then rebuild — so a
         // re-sent cue is never duplicated.
         XCTAssertTrue(line.contains("local trc=tr:Children()"), "must read the track's TimeRanges to wipe them")
-        XCTAssertTrue(line.contains("for i=#trc,1,-1 do trc[i]:Delete() end"), "must wipe all TimeRanges (overwrite)")
+        // Delete is parent:Delete(1-basedChildIndex) on this firmware — calling
+        // :Delete() with no arg on the child errors ("Wrong parameter #2").
+        XCTAssertTrue(line.contains("for i=#trc,1,-1 do tr:Delete(i) end"), "must wipe TimeRanges via tr:Delete(index)")
+        XCTAssertFalse(line.contains("trc[i]:Delete()"), "child :Delete() with no index is the broken form")
 
         // Object-API hierarchy on the proven path. Pool index goes through `n`.
         XCTAssertTrue(line.hasPrefix("Lua \""))
