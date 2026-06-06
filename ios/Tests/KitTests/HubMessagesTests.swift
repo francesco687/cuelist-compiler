@@ -53,4 +53,11 @@ final class HubMessagesTests: XCTestCase {
         XCTAssertEqual(try IncomingMessage.decode(#"{"type":"pull-error","message":"timed out"}"#),
                        .pullError(message: "timed out"))
     }
+
+    func testEncodeCmd() throws {
+        let obj = try JSONSerialization.jsonObject(
+            with: OutgoingMessage.cmd(line: "Go+").jsonData()) as! [String: Any]
+        XCTAssertEqual(obj["type"] as? String, "cmd")
+        XCTAssertEqual(obj["line"] as? String, "Go+")
+    }
 }
