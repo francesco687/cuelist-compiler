@@ -83,4 +83,18 @@ public enum MA3CommandBuilder {
         out.append("ClearAll")
         return out
     }
+
+    /// `Set Sequence N Cue n "Note" "..."` for every cue with a non-empty
+    /// sanitized note. Emits nothing for empty/whitespace-only notes.
+    public static func noteLines(songs: [Song]) -> [String] {
+        var out: [String] = []
+        for song in songs {
+            for cue in song.cues {
+                let note = sanitizeNote(cue.notes)
+                if note.isEmpty { continue }
+                out.append("Set Sequence \(song.sequence) Cue \(formatN(cue.n)) \"Note\" \"\(note)\"")
+            }
+        }
+        return out
+    }
 }

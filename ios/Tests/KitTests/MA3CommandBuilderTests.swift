@@ -88,4 +88,17 @@ final class MA3CommandBuilderTests: XCTestCase {
         XCTAssertEqual(fade25Lines.count, 1,
                        "Default fade line should appear exactly once (cue 1 only, not cue 2)")
     }
+
+    func test_noteLines_only_for_cues_with_notes() {
+        var presets: [Pool: Preset] = [:]
+        for p in Pool.allCases { presets[p] = Preset() }
+        let withNote = Cue(n: 1, name: "A", actions: [Action(group: "G", presets: presets)],
+                           notes: "  multi\nline\tnote with \"quote\"  ")
+        let noNote = Cue(n: 2, name: "B", actions: [Action(group: "G", presets: presets)], notes: "   ")
+        let song = Song(id: "s1", sequence: 7, cues: [withNote, noNote])
+        let lines = MA3CommandBuilder.noteLines(songs: [song])
+        XCTAssertEqual(lines, [
+            "Set Sequence 7 Cue 1 \"Note\" \"multi line note with \\\"quote\\\"\"",
+        ])
+    }
 }
