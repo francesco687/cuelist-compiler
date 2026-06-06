@@ -50,23 +50,8 @@ struct SendView: View {
                             hub.sendNotes(project: store.project, selection: .all)
                         }
 
-                        // Hand-rolled (not sendRow): single-scope, count-in-label, auto-clears after send. No icon — the ticked count is the visual signal.
-                        // Timecode: active song only, ticked cues only.
-                        Button {
-                            if let song = store.project.activeSong {
-                                hub.sendTimecode(song: song, ticked: store.tcSelection)
-                                store.clearTcSelection()
-                            }
-                        } label: {
-                            Text(tickedCount > 0 ? "Send Timecode (\(tickedCount) ticked)" : "Send Timecode")
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 13)
-                                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radius))
-                                .foregroundStyle(tickedCount > 0 ? Theme.text : Theme.textDim)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!canSendTimecode)
+                        // Matches sendRow chrome (icon + row), single button driven by ticked cues. Active song only, auto-clears after send.
+                        timecodeRow
                     }
                     .disabled(!hub.state.isOnline)
                     .opacity(hub.state.isOnline ? 1 : 0.5)
@@ -107,6 +92,28 @@ struct SendView: View {
             Button("All Songs", action: allAction)
                 .buttonStyle(.bordered)
                 .accessibilityLabel("\(title) – all songs")
+        }
+        .padding(.vertical, 10).padding(.horizontal, 12)
+        .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
+    }
+
+    // Mirrors sendRow's container, but TC is a single ticked-driven action (no Current/All scope).
+    @ViewBuilder private var timecodeRow: some View {
+        HStack(spacing: 10) {
+            Label("Send Timecode", systemImage: "timer")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Theme.text)
+            Spacer()
+            Button(tickedCount > 0 ? "Send (\(tickedCount))" : "Send") {
+                if let song = store.project.activeSong {
+                    hub.sendTimecode(song: song, ticked: store.tcSelection)
+                    store.clearTcSelection()
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.accentSolid)
+            .disabled(!canSendTimecode)
+            .accessibilityLabel("Send timecode – \(tickedCount) ticked cues")
         }
         .padding(.vertical, 10).padding(.horizontal, 12)
         .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
