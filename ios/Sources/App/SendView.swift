@@ -36,31 +36,37 @@ struct SendView: View {
                         .pickerStyle(.segmented)
                     }
 
-                    // Primary actions
-                    VStack(spacing: 12) {
-                        Button {
-                            hub.send(project: store.project, defaults: store.defaults, selection: .current)
-                        } label: {
-                            Label("Send \u{2192} MA", systemImage: "paperplane.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 15)
-                                .background(Theme.accentGradient, in: RoundedRectangle(cornerRadius: Theme.radius))
-                                .foregroundStyle(.white)
-                                .shadow(color: Theme.accentSolid.opacity(0.4), radius: 14, y: 3)
+                    // Three decoupled send actions
+                    VStack(spacing: 14) {
+                        sendRow(title: "Send Cues", systemImage: "paperplane.fill", primary: true) {
+                            hub.sendCues(project: store.project, defaults: store.defaults, selection: .current)
+                        } allAction: {
+                            hub.sendCues(project: store.project, defaults: store.defaults, selection: .all)
                         }
+
+                        sendRow(title: "Send Notes", systemImage: "square.and.pencil", primary: false) {
+                            hub.sendNotes(project: store.project, selection: .current)
+                        } allAction: {
+                            hub.sendNotes(project: store.project, selection: .all)
+                        }
+
+                        // Timecode: active song only, ticked cues only.
                         Button {
-                            hub.send(project: store.project, defaults: store.defaults, selection: .all)
+                            if let song = store.project.activeSong {
+                                hub.sendTimecode(song: song, ticked: store.tcSelection)
+                                store.clearTcSelection()
+                            }
                         } label: {
-                            Text("Send All Songs")
+                            Text(tickedCount > 0 ? "Send Timecode (\(tickedCount) ticked)" : "Send Timecode")
                                 .font(.system(size: 14, weight: .medium))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 13)
                                 .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radius))
-                                .foregroundStyle(Theme.text)
+                                .foregroundStyle(tickedCount > 0 ? Theme.text : Theme.textDim)
                         }
+                        .buttonStyle(.plain)
+                        .disabled(tickedCount == 0)
                     }
-                    .buttonStyle(.plain)
                     .disabled(!hub.state.isOnline)
                     .opacity(hub.state.isOnline ? 1 : 0.5)
 
@@ -73,6 +79,30 @@ struct SendView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
         }
+    }
+
+    private var tickedCount: Int {
+        guard let song = store.project.activeSong else { return 0 }
+        return song.cues.filter { store.tcSelection.contains($0.id) && Smpte.isValid($0.position) }.count
+    }
+
+    @ViewBuilder
+    private func sendRow(title: String, systemImage: String, primary: Bool,
+                         currentAction: @escaping () -> Void,
+                         allAction: @escaping () -> Void) -> some View {
+        HStack(spacing: 10) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 14, weight: primary ? .semibold : .medium))
+                .foregroundStyle(Theme.text)
+            Spacer()
+            Button("current", action: currentAction)
+                .buttonStyle(.borderedProminent)
+                .tint(primary ? Theme.accentSolid : Theme.surface2)
+            Button("all songs", action: allAction)
+                .buttonStyle(.bordered)
+        }
+        .padding(.vertical, 10).padding(.horizontal, 12)
+        .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
     }
 
     @ViewBuilder private var resultRow: some View {
