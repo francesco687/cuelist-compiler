@@ -47,6 +47,7 @@ public extension ProjectStore {
     func removeCue(id: UUID) {
         let i = activeSongIndex()
         project.songs[i].cues.removeAll { $0.id == id }
+        removeTc(id)   // drop any stale TC tick for the deleted cue
     }
 
     func sortActiveCues() {
@@ -71,6 +72,7 @@ public extension ProjectStore {
     func removeCues(ids: Set<UUID>) {
         let i = activeSongIndex()
         project.songs[i].cues.removeAll { ids.contains($0.id) }
+        tcSelection.subtract(ids)   // drop any stale TC ticks for deleted cues
     }
 
     /// Reorder the active song's cues (for List `.onMove`).
