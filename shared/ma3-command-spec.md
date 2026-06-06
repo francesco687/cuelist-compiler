@@ -128,8 +128,10 @@ The Lua code performs (in order):
 2. **Locate** TrackGroup `Children()[1]` and Track `tg[2]` (not `tg[1]` — that index
    is an internal pseudo-track whose events visually attach to the TG header row in
    the Timecode editor instead of the user's Sequence-targeted Track). Bail if either missing.
-3. **Wipe** all existing TimeRange children of the Track via reverse iteration + `:Delete()`.
-4. **Acquire** a fresh TimeRange and a `CmdSubTrack` inside it.
+3. **Clear existing events** (overwrite): for every TimeRange on the Track, for
+   every CmdSubTrack in it, delete its Event children via reverse iteration +
+   `sb:Delete(i)`. Do **not** delete the TimeRanges themselves — see Delete notes.
+4. **Acquire** a TimeRange and a `CmdSubTrack` inside it.
 5. **For each cue** with valid `position`, ascending by `cue.n`:
    - `:Acquire()` a new Event under the CmdSubTrack.
    - `Set('rawtime', round(seconds * 16777216))`.
@@ -144,7 +146,12 @@ The Lua code performs (in order):
 - `Acquire()` semantics: on TimeRange / CmdSubTrack it returns the existing child
   if present, else creates one. On CmdSubTrack for Events, it always creates a
   new Event (so iterating `Acquire()` in a loop produces N distinct events).
-- `:Delete()` is the property-API mutator, not the command-line `Delete` keyword.
+- **Delete** (proven on a real desk 2026-06-06): it is `parent:Delete(1-basedChildIndex)`
+  — a no-arg `child:Delete()` errors with "Wrong parameter #2". And **TimeRanges
+  are structural**: `track:Delete(i)` on a TimeRange returns "deletion of the child
+  object is prohibited". So clear events at the CmdSubTrack level (`sb:Delete(i)`),
+  never delete TimeRanges. (`:Delete` is the property-API mutator, not the
+  command-line `Delete` keyword.)
 - The whole Lua command is one OSC packet per song; `sendCmdLinesViaOsc`'s
   throttle (20 ms) is mostly slack here.
 - `buildTcLua` produces a paste-into-MA3 plugin that runs the **same** Object
