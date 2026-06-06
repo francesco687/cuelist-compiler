@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Third tab — absorbs the old Author top slider-menu.
 struct SettingsTabView: View {

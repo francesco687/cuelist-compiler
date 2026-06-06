@@ -1,5 +1,5 @@
 import XCTest
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 final class ShowEditApplierActionTests: XCTestCase {
     private func base() -> Project {

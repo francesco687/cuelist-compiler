@@ -1,5 +1,5 @@
 import XCTest
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 final class CueSummaryTests: XCTestCase {
     func testSummaryComposesParts() {

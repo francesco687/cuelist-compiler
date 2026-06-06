@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// The Live tab — run cues on the console-selected executor.
 /// Bare command-line transport (GO+/GO-/PAUSE) over the hub's `cmd` passthrough.

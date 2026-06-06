@@ -1,5 +1,5 @@
 import XCTest
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 @MainActor
 final class ProjectStoreNotesTests: XCTestCase {

@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// "Pull from MA" — asks the hub for the sequence list in the loaded showfile
 /// and shows it, searchable. Display-only for now (picking a sequence to pull its

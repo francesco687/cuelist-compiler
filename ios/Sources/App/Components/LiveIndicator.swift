@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Hub connection signal: green dot = online ("linked"), amber = connecting,
 /// red = error, faint = offline. Mirrors desktop's --ok green.

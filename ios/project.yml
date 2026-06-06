@@ -32,6 +32,7 @@ targets:
     info:
       path: Sources/App/Info.plist
       properties:
+        CFBundleDisplayName: Saetta
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSLocalNetworkUsageDescription: "Saetta connects to your hub on the local network to send shows to your console."

@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Reusable aqua tap-to-talk button. Drives the shared VoiceCaptureController.
 /// `fullWidth` = full-bleed pill; `showIcon` toggles the mic glyph; `compact`
