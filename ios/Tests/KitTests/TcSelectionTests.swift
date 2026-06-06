@@ -32,6 +32,25 @@ final class TcSelectionTests: XCTestCase {
         XCTAssertTrue(s.isTcSelected(b))
     }
 
+    func test_removeCue_clears_its_tick() {
+        let s = store()
+        s.addCue()
+        let id = s.activeSong.cues[0].id
+        s.toggleTc(id)
+        XCTAssertTrue(s.isTcSelected(id))
+        s.removeCue(id: id)
+        XCTAssertFalse(s.isTcSelected(id), "deleting a cue must drop its TC tick (no ghost UUID)")
+    }
+
+    func test_removeCues_clears_their_ticks() {
+        let s = store()
+        s.addCue(); s.addCue()
+        let a = s.activeSong.cues[0].id, b = s.activeSong.cues[1].id
+        s.toggleTc(a); s.toggleTc(b)
+        s.removeCues(ids: [a, b])
+        XCTAssertTrue(s.tcSelection.isEmpty, "bulk-deleting cues must drop their TC ticks")
+    }
+
     func test_selection_not_persisted() {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let id = UUID()
