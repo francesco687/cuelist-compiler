@@ -15,6 +15,11 @@ public final class ProjectStore {
     public var project: Project { didSet { scheduleSave() } }
     public var defaults: Defaults { didSet { scheduleSave() } }
 
+    /// Cues (by `Cue.id`) ticked for the next Send Timecode. TRANSIENT: it is a
+    /// plain property (not part of `project`), so it is never written to disk and
+    /// resets to empty on every launch. Cleared after a successful TC send.
+    public var tcSelection: Set<UUID> = []
+
     @ObservationIgnored let directory: URL
     @ObservationIgnored private let projectURL: URL
     @ObservationIgnored private let defaultsURL: URL
@@ -59,6 +64,14 @@ public final class ProjectStore {
             self?.saveNow()
         }
     }
+
+    public func isTcSelected(_ id: UUID) -> Bool { tcSelection.contains(id) }
+
+    public func toggleTc(_ id: UUID) {
+        if tcSelection.contains(id) { tcSelection.remove(id) } else { tcSelection.insert(id) }
+    }
+
+    public func clearTcSelection() { tcSelection.removeAll() }
 
     /// Synchronous write — used by tests and on background/terminate.
     public func saveNow() {
