@@ -130,6 +130,22 @@ final class HubClientTests: XCTestCase {
         XCTAssertNil(client.progress)
     }
 
+    func test_sendLines_supersedes_prior_batch_cleanly() async {
+        let (client, spy) = makeOnlineClient()
+        // First batch with a real interval so it is still in flight when the second starts.
+        client.sendLines(["X1", "X2", "X3"], intervalMs: 50)
+        // Immediately supersede with a fast second batch.
+        client.sendLines(["A", "B", "C"], intervalMs: 0)
+        try? await Task.sleep(nanoseconds: 300_000_000)  // let everything drain
+        let sent = spy.sent.compactMap { frameToCmdLine($0) }
+        // The final result must reflect the SECOND batch, not be stomped by the first.
+        XCTAssertEqual(client.lastResult, .done(total: 3))
+        XCTAssertNil(client.progress)
+        // The second batch's lines must all have been sent in order.
+        XCTAssertEqual(sent.suffix(3), ["A", "B", "C"])
+        // The first batch was cancelled, so its completion never overwrote the second's.
+    }
+
     func testHostPortPersist() {
         let suite = "cc-test-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!
