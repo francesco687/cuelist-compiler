@@ -6,9 +6,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 function loadStateSandbox() {
-  const win = { CC: {} };
   const sandbox = {
-    window: win,
+    window: { CC: {} },
     console,
     FPS: 25,
     localStorage: {
@@ -17,13 +16,7 @@ function loadStateSandbox() {
       setItem(k, v) { this._data[k] = String(v); },
     },
   };
-  // state.js writes `window.CC = window.CC || {}` then uses bare `CC.state = …`
-  // In a real browser window.CC creates a global CC; in vm we wire it up manually.
-  Object.defineProperty(sandbox, 'CC', {
-    get() { return sandbox.window.CC; },
-    set(v) { sandbox.window.CC = v; },
-    configurable: true,
-  });
+  sandbox.CC = sandbox.window.CC;
   vm.createContext(sandbox);
   for (const f of ['constants.js', 'util.js', 'state.js']) {
     const code = fs.readFileSync(path.resolve(__dirname, '..', 'js', f), 'utf8');
@@ -74,6 +67,13 @@ test('appendCueWithTcAndResort: null/undefined song → no throw, no mutation', 
   const S = loadStateSandbox();
   S.appendCueWithTcAndResort(null, '00:00:05:00');
   S.appendCueWithTcAndResort(undefined, '00:00:05:00');
+});
+
+test('appendCueWithTcAndResort: { cues: null } → no throw, no mutation', () => {
+  const S = loadStateSandbox();
+  const song = { cues: null };
+  S.appendCueWithTcAndResort(song, '00:00:05:00');
+  assert.strictEqual(song.cues, null);
 });
 
 test('resortAndRenumber: idempotent (running twice produces same result)', () => {
