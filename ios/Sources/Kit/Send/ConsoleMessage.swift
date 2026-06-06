@@ -22,10 +22,14 @@ public enum ConsoleMessage {
         return "Lua \"MessageBox({title=[[\(t)]], message=[[\(msg)]], commands={{value=1,name=[[OK]]}}})\""
     }
 
-    /// Make arbitrary text safe for the two parsers (MA command line + Lua long bracket).
+    /// Make arbitrary text safe for the two parsers (MA command line + Lua long bracket)
+    /// and the OSC string transport (which is NUL-terminated — a stray control byte
+    /// would truncate the command mid-flight).
     static func sanitize(_ s: String) -> String {
         var out = s
         for ws in ["\n", "\r", "\t"] { out = out.replacingOccurrences(of: ws, with: " ") }
+        // Drop remaining control characters (NUL/DEL etc.) before they reach the wire.
+        out = String(out.unicodeScalars.filter { $0.value >= 0x20 && $0.value != 0x7F })
         out = out.replacingOccurrences(of: "\"", with: "")   // would close the outer Lua "..."
         // Strip ALL square brackets. A lone trailing `]` merges with our `]]`
         // delimiter into `]]]`, closing the Lua [[ ... ]] long string early and
@@ -33,8 +37,8 @@ public enum ConsoleMessage {
         // obviously safe and avoids depending on Lua long-string nesting rules.
         out = out.replacingOccurrences(of: "[", with: "")
         out = out.replacingOccurrences(of: "]", with: "")
-        while out.contains("  ") { out = out.replacingOccurrences(of: "  ", with: " ") }
-        out = out.trimmingCharacters(in: .whitespaces)
+        // Collapse runs of spaces (and trim ends) in one O(n) pass.
+        out = out.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
         if out.count > maxLength { out = String(out.prefix(maxLength)) }
         return out
     }

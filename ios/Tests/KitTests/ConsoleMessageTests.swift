@@ -46,7 +46,12 @@ final class ConsoleMessageTests: XCTestCase {
         let start = line.range(of: "message=[[")!.upperBound
         let end = line.range(of: "]], commands")!.lowerBound
         let msg = String(line[start..<end])
-        XCTAssertEqual(msg.count, 200)
+        XCTAssertEqual(msg.count, ConsoleMessage.maxLength)
+    }
+
+    func test_strips_control_characters() {
+        let line = ConsoleMessage.line(text: "a\u{0}b\u{7}c")   // NUL + BEL must be removed
+        XCTAssertEqual(line, "Lua \"MessageBox({title=[[Saetta]], message=[[abc]], commands={{value=1,name=[[OK]]}}})\"")
     }
 
     func test_empty_text_returns_nil() {
