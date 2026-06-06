@@ -189,3 +189,36 @@ The Swift TC builder is unit-tested at the **string level** (given a cue + count
 1. **Tick persistence:** transient (recommended, default above) vs. persisted-with-project? 
 2. **Send Cues note removal:** confirmed full decouple — Send Cues emits zero note lines. (Locked; re-flagging because it changes existing send output.)
 3. **TC mechanism fork** (inline Lua vs. read-back + plain cmds) is deliberately left to resolve at step 6 against a real onPC; the spec commits to *append-only, existing events preserved* as the invariant, not to the exact wire syntax.
+
+---
+
+## Device smoke results — 2026-06-06 (real grandMA3 console, seq/TC pool 42)
+
+Path: jPhone (2) → relay (`cuelist-relay.fly.dev`, redeployed today — had dropped to
+0 machines) → menubar-hub → OSC `/gma3/cmd` → desk `10.0.0.2:8000`.
+
+**Proven on hardware:**
+- Transport + connection (relay path) end-to-end.
+- Inline-Lua **string escaping**. First attempt used `\"…\"` for the Goto label; MA3's
+  command-line tokenizer does NOT honor backslash escapes inside `Lua "..."` — it
+  terminated the string at the first `\"`, giving `unfinished string near <eof>`.
+  **Fix (committed `be87919`):** synthesize the quote chars desk-side with
+  `q=string.char(34)`, `a=string.char(39)`; the OSC payload now carries no inner
+  quotes/backslashes. Confirmed: the syntax error is gone, the desk parses the command.
+
+**Still UNRESOLVED — `tcCountLuaExpr` object path:**
+- Runtime error: `attempt to index a nil value (field 'Tracks')`.
+- The current expr is
+  `Root().ShowData.DataPools.Default.Timecodes:Ptr(n).Tracks:Ptr(1).TrackGroups:Ptr(1).Tracks:Ptr(1).Count`.
+  `Timecodes:Ptr(n)` resolves (the leading `.Default`/`Timecodes:Ptr(n)` are fine), but
+  `.Tracks` on the Timecode object is nil.
+- Two problems suspected: (a) the order is inverted — grandMA3 hierarchy is
+  Timecode → **TrackGroup → Track**, so the *leading* `.Tracks` is wrong; (b) named
+  child-collection properties (`.Tracks`/`.TrackGroups`) may not exist at all — may need
+  `:Children()` / `:Ptr()` navigation or the `Timecode(p).Element(1)...` form sketched
+  earlier in this doc.
+
+**Next session:** run a discovery probe to map the Timecode object's child tree (depth +
+which level holds the events whose count we need = the object at address `N.1.1.1.1`),
+then set `tcCountLuaExpr` to the verified accessor + update the golden test. Send Cues /
+Send Notes decoupling was not separately verified this session.
