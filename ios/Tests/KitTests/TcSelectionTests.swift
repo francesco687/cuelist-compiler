@@ -21,6 +21,17 @@ final class TcSelectionTests: XCTestCase {
         XCTAssertTrue(s.tcSelection.isEmpty)
     }
 
+    func test_removeTc_removes_only_that_id() {
+        let s = store()
+        let a = UUID(), b = UUID()
+        s.toggleTc(a); s.toggleTc(b)
+        s.removeTc(a)
+        XCTAssertFalse(s.isTcSelected(a))
+        XCTAssertTrue(s.isTcSelected(b))
+        s.removeTc(a)   // removing an absent id is a no-op
+        XCTAssertTrue(s.isTcSelected(b))
+    }
+
     func test_selection_not_persisted() {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let id = UUID()
