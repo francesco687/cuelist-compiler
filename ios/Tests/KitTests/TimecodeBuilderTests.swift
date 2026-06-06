@@ -33,19 +33,27 @@ final class TimecodeBuilderTests: XCTestCase {
         // nor the Object-API `:Delete()` mutator may appear (either clobbers events).
         XCTAssertFalse(line.contains("Delete"))
 
-        // Object-API hierarchy on the proven path.
+        // Object-API hierarchy on the proven path. Pool index goes through `n`.
         XCTAssertTrue(line.hasPrefix("Lua \""))
-        XCTAssertTrue(line.contains("DataPool().timecodes[12]"))
-        XCTAssertTrue(line.contains("DataPool().sequences[12]"))
+        XCTAssertTrue(line.contains("local n=12"))
+        XCTAssertTrue(line.contains("DataPool().timecodes[n]"))
+        XCTAssertTrue(line.contains("DataPool().sequences[n]"))
         XCTAssertTrue(line.contains("t:Children()[1]"))
         XCTAssertTrue(line.contains("local tr=tg[2]"), "must target tg[2], the user Track (tg[1] is a pseudo-track)")
         XCTAssertTrue(line.contains("rng=tr:Acquire()"))
         XCTAssertTrue(line.contains("sub=rng:Acquire('CmdSubTrack')"))
         XCTAssertTrue(line.contains("e:Set('rawtime',c[2])"))
-        XCTAssertTrue(line.contains("GetObject('Sequence 12 Cue '..c[1])"))
+        XCTAssertTrue(line.contains("GetObject('Sequence '..n..' Cue '..c[1])"))
         XCTAssertTrue(line.contains("e:Set('cuedestination',cue)"))
         // The {cueN,rawtime} literal for c1: 5 s → 83886080.
         XCTAssertTrue(line.contains("{1,83886080}"))
+
+        // Diagnostics: every exit point Printfs to MA3's System Monitor, and the
+        // whole thing runs under pcall so runtime errors surface instead of
+        // vanishing silently (the reason an "accepted" command could leave the
+        // timeline empty with no feedback).
+        XCTAssertTrue(line.contains("[Saetta TC]"), "must carry Printf diagnostics")
+        XCTAssertTrue(line.contains("pcall(go)"), "work must run under pcall to catch runtime errors")
 
         // The MA3 command-line tokenizer terminates a `Lua "..."` argument at the
         // first `"` and ignores backslash escapes — so the body must contain NO
