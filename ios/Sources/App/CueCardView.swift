@@ -33,6 +33,7 @@ struct CueCardView: View {
             }.count
         }
     }
+    private var tcValid: Bool { Smpte.isValid(cue.position) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -103,6 +104,33 @@ struct CueCardView: View {
                     Spacer()
                 }
                 .padding(.top, 2)
+
+                HStack(spacing: 10) {
+                    Text("TC").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textDim)
+                    TextField("HH:MM:SS:FF", text: $cue.position)
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(tcValid ? Theme.text : Theme.danger)
+                        .autocorrectionDisabled()
+                        .keyboardType(.numbersAndPunctuation)
+                        .frame(maxWidth: 130)
+                        .padding(.vertical, 6).padding(.horizontal, 8)
+                        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                        .onChange(of: cue.position) { _, newValue in
+                            if !Smpte.isValid(newValue) { store.tcSelection.remove(cue.id) }
+                        }
+                    Spacer()
+                    Button {
+                        store.toggleTc(cue.id)
+                    } label: {
+                        Image(systemName: store.isTcSelected(cue.id) ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 20))
+                            .foregroundStyle(tcValid ? Theme.accentSolid : Theme.textFaint)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!tcValid)
+                    .accessibilityLabel("Include timecode in Send Timecode")
+                }
+                .padding(.top, 4)
 
                 HStack {
                     Spacer()
