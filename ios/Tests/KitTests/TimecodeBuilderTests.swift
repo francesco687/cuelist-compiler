@@ -34,5 +34,12 @@ final class TimecodeBuilderTests: XCTestCase {
         XCTAssertTrue(line.contains("Goto Cue 1 Sequence '..n"))
         XCTAssertTrue(line.contains("Property"))
         XCTAssertTrue(line.contains("5.0"))
+        // The MA3 command-line tokenizer terminates a `Lua "..."` argument at the first
+        // \" — so the body must carry NO escaped double-quotes. Inner quotes are built
+        // desk-side via string.char(34)/(39). Guard against the old broken escaping.
+        let body = String(line.dropFirst("Lua \"".count).dropLast())   // strip outer Lua "..."
+        XCTAssertFalse(body.contains("\""), "body must contain no double-quote chars")
+        XCTAssertFalse(body.contains("\\"), "body must contain no backslash escapes")
+        XCTAssertTrue(line.contains("string.char(34)"))
     }
 }
