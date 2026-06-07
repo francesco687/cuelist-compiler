@@ -246,7 +246,8 @@ function drawRuler(canvas, duration, trim) {
       const mins = Math.floor(t / 60);
       const secs = Math.floor(t % 60);
       const label = `${mins}:${secs.toString().padStart(2, '0')}`;
-      ctx.fillText(label, x + 3, h - 3);
+      const labelW = ctx.measureText(label).width;
+      if (x + 3 + labelW <= w) ctx.fillText(label, x + 3, h - 3);
     }
   }
 }
