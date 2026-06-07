@@ -9,12 +9,13 @@ function newSong() {
     name: '',
     sequence: maxSeq > 0 ? maxSeq + 1 : 1,
     cues: [],
-    audioFileName: ''
+    audioFileName: '',
+    audioTrim: { startS: 0, endS: null }
   };
 }
 
 function newProject() {
-  const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+  const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioTrim: { startS: 0, endS: null } };
   return { songs: [song], activeSongId: song.id, storeMode: 'Overwrite' };
 }
 
@@ -118,10 +119,16 @@ function migrateState(s) {
     if (!song.id) song.id = genId();
     if (!Array.isArray(song.cues)) song.cues = [];
     if (typeof song.audioFileName !== 'string') song.audioFileName = '';
+    if (!song.audioTrim || typeof song.audioTrim !== 'object') {
+      song.audioTrim = { startS: 0, endS: null };
+    } else {
+      if (typeof song.audioTrim.startS !== 'number' || song.audioTrim.startS < 0) song.audioTrim.startS = 0;
+      if (song.audioTrim.endS != null && typeof song.audioTrim.endS !== 'number') song.audioTrim.endS = null;
+    }
     migrateCues(song.cues);
   });
   if (s.songs.length === 0) {
-    const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+    const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioTrim: { startS: 0, endS: null } };
     s.songs.push(song);
   }
   if (!s.songs.find(x => x.id === s.activeSongId)) {
@@ -374,7 +381,8 @@ function importCsv(file) {
           name: trackName,
           sequence,
           cues,
-          audioFileName: ''
+          audioFileName: '',
+          audioTrim: { startS: 0, endS: null }
         };
         state.songs.push(song);
         added++;
@@ -383,7 +391,7 @@ function importCsv(file) {
       });
 
       if (state.songs.length === 0) {
-        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioTrim: { startS: 0, endS: null } };
         state.songs.push(ns);
         state.activeSongId = ns.id;
       } else if (lastId) {
