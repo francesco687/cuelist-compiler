@@ -10,14 +10,29 @@ let client = null;
 let settings = settingsModule.defaults();
 let state = { relay: 'offline', peer: false };
 
+// In a packaged build the hub core and web compiler don't sit at their dev-time
+// relative paths — electron-builder ships them under Resources (see extraResources).
+// Inject the core and point the compiler at the bundled web/js. In dev both are
+// undefined, so relay-client falls back to its own sibling-repo requires.
+function hubCore() {
+  return app.isPackaged
+    ? require(path.join(process.resourcesPath, 'hub', 'src', 'handle'))
+    : undefined;
+}
+function packagedWebJsDir() {
+  return app.isPackaged ? path.join(process.resourcesPath, 'web', 'js') : undefined;
+}
+
 function buildClient() {
   if (client) client.close();
   state = { relay: 'connecting', peer: false };
-  client = new RelayHubClient(settings, {
+  // webJsDir is injected per-run (not persisted) so settings.json stays portable.
+  const runtimeConfig = { ...settings, webJsDir: packagedWebJsDir() };
+  client = new RelayHubClient(runtimeConfig, {
     onState: (s) => { state.relay = s; pushToRenderer('hub:state', s); updateTrayTitle(); },
     onPeer:  (b) => { state.peer = b;  pushToRenderer('hub:peer', b);  updateTrayTitle(); },
     onLog:   (e) => pushToRenderer('hub:log', e),
-  });
+  }, { core: hubCore() });
   client.connect();
 }
 
@@ -68,7 +83,7 @@ app.whenReady().then(() => {
   settings = settingsModule.load(app.getPath('userData'));
 
   tray = new Tray(trayIcon());
-  tray.setToolTip('Cuelist Internet Hub');
+  tray.setToolTip('Saetta Hub');
   tray.on('click', togglePopover);
   updateTrayTitle();
 

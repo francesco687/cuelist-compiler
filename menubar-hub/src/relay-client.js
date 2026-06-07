@@ -4,8 +4,11 @@
 // Electron app installs `ws` via `npm install` and gets it at runtime.
 let WebSocket;
 try { WebSocket = require('ws'); } catch { /* ws absent in hermetic tests; injected makeSocket is used instead */ }
-// Default core is the shared hub logic; injectable for tests.
-const defaultCore = require('../../hub/src/handle');
+// Default core is the shared hub logic; injectable for tests. In the packaged app
+// the sibling hub/ tree isn't at this relative path (it ships under Resources and
+// is injected by main.js), so tolerate the require failing here.
+let defaultCore;
+try { defaultCore = require('../../hub/src/handle'); } catch { /* core injected in packaged build */ }
 
 const CONTROL_TYPES = new Set(['joined', 'peer', 'join-error']);
 
