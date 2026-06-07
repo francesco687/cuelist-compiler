@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import SaettaKit
 
 @main
@@ -31,7 +32,10 @@ struct SaettaApp: App {
                 .environment(notes)
                 .tint(Theme.accentSolid)
                 .preferredColorScheme(.dark)
-                .onAppear { if !hub.host.isEmpty { hub.connect() } }
+                .onAppear {
+                    hub.operatorName = UIDevice.current.name
+                    if !hub.host.isEmpty || hub.mode == .relay { hub.connect() }
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { store.saveNow() }

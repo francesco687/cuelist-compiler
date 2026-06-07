@@ -37,6 +37,13 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Status") { Text(statusText) }
                 }
+                if !hub.roster.isEmpty {
+                    Section("Connected") {
+                        ForEach(hub.roster) { op in
+                            Text(op.name)
+                        }
+                    }
+                }
                 Section {
                     SecureField("OpenAI API key", text: $openAIKey)
                         .autocorrectionDisabled().textInputAutocapitalization(.never)
