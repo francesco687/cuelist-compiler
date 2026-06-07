@@ -527,10 +527,10 @@ function updatePlayhead() {
     const segDur = (trim.endS != null ? trim.endS : dur) - trim.startS;
     subEl.textContent = `${secondsToMMSS(Math.max(0, songT))} / ${secondsToMMSS(Math.max(0, segDur))}`;
   }
-  updateCurrentMarker(t);
+  updateCurrentMarker(songT);
 }
 
-function updateCurrentMarker(t) {
+function updateCurrentMarker(songT) {
   const song = activeSong();
   if (!song) return;
   const positions = song.cues
@@ -539,7 +539,7 @@ function updateCurrentMarker(t) {
   if (positions.length === 0) return;
   let currentId = null;
   for (const { c, s } of positions) {
-    if (s <= t) currentId = c;
+    if (s <= songT) currentId = c;
     else break;
   }
   document.querySelectorAll('#markers .marker').forEach(m => {
@@ -585,7 +585,7 @@ function renderMarkers() {
     });
     markers.appendChild(m);
   });
-  updateCurrentMarker(audioEl ? audioEl.currentTime : 0);
+  updateCurrentMarker(audioEl ? fileToSongTime(audioEl.currentTime, trim) : 0);
 }
 
 function updateTrimVisual() {
