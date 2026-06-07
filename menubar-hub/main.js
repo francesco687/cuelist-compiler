@@ -1,6 +1,6 @@
 'use strict';
 const path = require('node:path');
-const { app, Tray, BrowserWindow, ipcMain, nativeImage, screen } = require('electron');
+const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, screen } = require('electron');
 const settingsModule = require('./src/settings');
 const { RelayHubClient } = require('./src/relay-client');
 
@@ -60,6 +60,19 @@ function createPopover() {
   popover.on('blur', () => { if (popover && !popover.isDestroyed()) popover.hide(); });
 }
 
+function quitApp() {
+  // Real teardown: before-quit closes the relay client; app.quit() overrides the
+  // window-all-closed keep-alive so the menubar process actually exits.
+  app.quit();
+}
+
+function showTrayMenu() {
+  const menu = Menu.buildFromTemplate([
+    { label: 'Quit Saetta Hub', accelerator: 'Command+Q', click: quitApp },
+  ]);
+  tray.popUpContextMenu(menu);
+}
+
 function togglePopover() {
   if (!popover) return;
   if (popover.isVisible()) { popover.hide(); return; }
@@ -88,6 +101,7 @@ app.whenReady().then(() => {
   tray = new Tray(trayIcon());
   tray.setToolTip('Saetta Hub');
   tray.on('click', togglePopover);
+  tray.on('right-click', showTrayMenu);          // right-click → Quit (left-click stays popover)
   updateTrayTitle();
 
   createPopover();
