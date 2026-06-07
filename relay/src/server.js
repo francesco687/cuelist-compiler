@@ -29,7 +29,7 @@ function startRelay({ port, host, joinTimeoutMs = DEFAULT_JOIN_TIMEOUT_MS } = {}
         let msg;
         try { msg = JSON.parse(text); } catch { return ws.close(); }
         if (msg.type !== 'join') return ws.close();
-        const res = rooms.join(ws, msg.room, msg.role);
+        const res = rooms.join(ws, msg.room, msg.role, msg.name);
         if (!res.ok) { try { ws.send(JSON.stringify({ type: 'join-error', message: res.error })); } catch {} return ws.close(); }
         joined = true;
         clearTimeout(joinTimer);
