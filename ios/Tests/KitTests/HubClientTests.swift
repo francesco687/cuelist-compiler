@@ -171,4 +171,81 @@ final class HubClientTests: XCTestCase {
         client.sendConsoleMessage("   ")
         XCTAssertEqual(mock.sent.count, 0)
     }
+
+    // MARK: - Task 8: roster-driven state, device-name identity, auto-reconnect
+
+    func testRosterDrivesOnlineState() {
+        let (client, mock) = makeClient()
+        client.mode = .relay; client.relayURL = "wss://x"; client.pairingCode = "code1234"
+        client.connect(); mock.emit(.opened)
+        XCTAssertEqual(client.state, .connecting)
+        mock.emit(.text("{\"type\":\"roster\",\"hub\":true,\"phones\":[{\"cid\":\"p1\",\"name\":\"Matteo\"}]}"))
+        XCTAssertEqual(client.state, .online)
+        XCTAssertEqual(client.roster, [Operator(cid: "p1", name: "Matteo")])
+        mock.emit(.text("{\"type\":\"roster\",\"hub\":false,\"phones\":[]}"))
+        XCTAssertEqual(client.state, .connecting)
+    }
+
+    func testJoinSendsOperatorName() {
+        let (client, mock) = makeClient()
+        client.mode = .relay; client.relayURL = "wss://x"; client.pairingCode = "code1234"
+        client.operatorName = "Matteo's iPhone"
+        client.connect(); mock.emit(.opened)
+        XCTAssertTrue(mock.sent.contains { $0.contains("\"name\":\"Matteo's iPhone\"") })
+    }
+
+    func testAutoReconnectAfterCloseInRelayMode() {
+        var conns: [MockHubConnection] = []
+        var scheduled: [() -> Void] = []
+        let d = UserDefaults(suiteName: "cc-test-\(UUID().uuidString)")!
+        let client = HubClient(defaults: d,
+                               makeConnection: { _ in let m = MockHubConnection(); conns.append(m); return m },
+                               scheduleAfter: { _, work in scheduled.append(work) })
+        client.mode = .relay; client.relayURL = "wss://x"; client.pairingCode = "code1234"
+        client.connect()
+        XCTAssertEqual(conns.count, 1)
+        conns[0].emit(.closed(nil))
+        XCTAssertEqual(scheduled.count, 1)     // a reconnect was scheduled
+        scheduled[0]()                          // fire it
+        XCTAssertEqual(conns.count, 2)          // reconnected with a fresh connection
+    }
+
+    func testNoReconnectAfterManualDisconnect() {
+        var conns: [MockHubConnection] = []
+        var scheduled: [() -> Void] = []
+        let d = UserDefaults(suiteName: "cc-test-\(UUID().uuidString)")!
+        let client = HubClient(defaults: d,
+                               makeConnection: { _ in let m = MockHubConnection(); conns.append(m); return m },
+                               scheduleAfter: { _, work in scheduled.append(work) })
+        client.mode = .relay; client.relayURL = "wss://x"; client.pairingCode = "code1234"
+        client.connect()
+        client.disconnect()
+        conns[0].emit(.closed(nil))
+        XCTAssertEqual(scheduled.count, 0)     // user asked to stop; don't reconnect
+    }
+
+    func testBackoffDoublesAndCapsThenResetsOnHub() {
+        // Backoff math: wait = backoff; backoff = min(backoff*2, 15)
+        // Sequence: 1, 2, 4, 8, 15(=min(16,15)), 15(=min(30,15)) → [1,2,4,8,15,15]
+        // After a roster with hub:true, backoff resets to 1 → next wait = 1.
+        var conns: [MockHubConnection] = []
+        var delays: [TimeInterval] = []
+        var fire: [() -> Void] = []
+        let d = UserDefaults(suiteName: "cc-test-\(UUID().uuidString)")!
+        let client = HubClient(defaults: d,
+                               makeConnection: { _ in let m = MockHubConnection(); conns.append(m); return m },
+                               scheduleAfter: { delay, work in delays.append(delay); fire.append(work) })
+        client.mode = .relay; client.relayURL = "wss://x"; client.pairingCode = "code1234"
+        client.connect()                        // conns[0]
+        // Drop 6 times, firing each scheduled reconnect to build the next connection.
+        for i in 0..<6 {
+            conns[i].emit(.closed(nil))         // triggers scheduleReconnect → appends to delays/fire
+            fire[i]()                           // fires → connect() → builds conns[i+1]
+        }
+        XCTAssertEqual(delays, [1, 2, 4, 8, 15, 15])
+        // conns[6] is now live; a healthy roster message resets backoff to 1.
+        conns[6].emit(.text("{\"type\":\"roster\",\"hub\":true,\"phones\":[]}"))
+        conns[6].emit(.closed(nil))             // triggers scheduleReconnect with reset backoff
+        XCTAssertEqual(delays.last, 1)
+    }
 }

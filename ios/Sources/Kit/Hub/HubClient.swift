@@ -38,10 +38,18 @@ public final class HubClient {
     public var relayURL: String { didSet { defaults.set(relayURL, forKey: Keys.relayURL) } }
     public var pairingCode: String { didSet { defaults.set(pairingCode, forKey: Keys.pairingCode) } }
 
+    public private(set) var roster: [Operator] = []
+    public var operatorName: String = ""
+
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let makeConnection: (URL) -> HubConnection
+    @ObservationIgnored private let scheduleAfter: (TimeInterval, @escaping () -> Void) -> Void
     @ObservationIgnored private var connection: HubConnection?
     @ObservationIgnored private var sendTask: Task<Void, Never>?
+    @ObservationIgnored private var ownCid: String?
+    @ObservationIgnored private var stopped = false
+    @ObservationIgnored private var backoff: TimeInterval = 1
+    @ObservationIgnored private var generation = 0
 
     private enum Keys {
         static let host = "hubHost"; static let port = "hubPort"
@@ -49,7 +57,10 @@ public final class HubClient {
     }
 
     public init(defaults: UserDefaults = .standard,
-                makeConnection: @escaping (URL) -> HubConnection) {
+                makeConnection: @escaping (URL) -> HubConnection,
+                scheduleAfter: @escaping (TimeInterval, @escaping () -> Void) -> Void
+                    = { delay, work in DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work) }) {
+        self.scheduleAfter = scheduleAfter
         self.defaults = defaults
         self.makeConnection = makeConnection
         self.host = defaults.string(forKey: Keys.host) ?? ""
@@ -68,6 +79,7 @@ public final class HubClient {
     }
 
     public func connect() {
+        stopped = false
         if mode == .relay && pairingCode.isEmpty {
             state = .error("enter the pairing code")
             return
@@ -78,18 +90,22 @@ public final class HubClient {
         }
         state = .connecting
         connection?.close()                 // tear down any prior socket before replacing
+        generation += 1
+        let gen = generation
         let conn = makeConnection(url)
         connection = conn
         conn.connect { [weak self] event in
             guard let self else { return }
+            guard gen == self.generation else { return }
             switch event {
             case .opened:
                 switch self.mode {
                 case .direct:
                     self.state = .online
                 case .relay:
-                    // Join the room first; stay .connecting until the laptop (peer) is present.
-                    if let join = try? OutgoingMessage.join(room: self.pairingCode, role: "phone", name: nil).jsonString() {
+                    // Join the room first; stay .connecting until the hub (roster) is present.
+                    if let join = try? OutgoingMessage.join(room: self.pairingCode, role: "phone",
+                                                            name: self.operatorName.isEmpty ? nil : self.operatorName).jsonString() {
                         conn.send(join)
                     }
                 }
@@ -97,7 +113,27 @@ public final class HubClient {
                 self.handle(text)
             case let .closed(reason):
                 self.state = reason.map(ConnectionState.error) ?? .offline
+                if self.mode == .relay && !self.stopped { self.scheduleReconnect() }
             }
+        }
+    }
+
+    public func disconnect() {
+        stopped = true
+        generation += 1                     // invalidate any pending connection's events (defense in depth)
+        backoff = 1                         // reset backoff so next connect() starts fresh
+        roster = []                         // clear stale operator list immediately
+        connection?.close()
+        connection = nil
+        state = .offline
+    }
+
+    private func scheduleReconnect() {
+        let wait = backoff
+        backoff = min(backoff * 2, 15)
+        scheduleAfter(wait) { [weak self] in
+            guard let self, !self.stopped else { return }
+            self.connect()
         }
     }
 
@@ -217,13 +253,16 @@ public final class HubClient {
         case let .pullError(message):
             isPulling = false
             pullError = message
-        case .joined:
-            break                                  // waiting for a peer; no state change yet (Task 8 reads cid)
-        case .roster:
-            break                                  // placeholder; Task 8 will surface roster to UI
-        case let .peer(connected):
-            state = connected ? .online : .connecting
+        case let .joined(cid):
+            ownCid = cid                            // remember our id for self-marking
+        case let .roster(hub, phones):
+            roster = phones
+            if mode == .relay { state = hub ? .online : .connecting }
+            if hub { backoff = 1 }                  // healthy link → reset backoff
+        case let .peer(connected):                  // legacy relay; harmless if it arrives
+            if mode == .relay { state = connected ? .online : .connecting }
         case let .joinError(message):
+            stopped = true
             state = .error(message)                // surface the relay's reason (bad/taken code, full)
         case .other:
             break
