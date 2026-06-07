@@ -13,6 +13,7 @@ const audioCache = new Map(); // songId -> { audioEl, audioBuffer, audioGainL, a
 let currentAudioSongId = null;
 let selectedMarkerCueN = null;
 let markerDragState = null; // { cueN, timelineRect, durationS, moved } during a drag, else null
+let resizeObserver = null;
 const channelMute = { L: false, R: false };
 
 // --- Pure helpers (no DOM, no globals — unit-tested in test/audio-helpers.test.js)
@@ -213,6 +214,43 @@ function drawWaveform(canvas, channelData) {
   }
 }
 
+function drawRuler(canvas, duration, trim) {
+  if (!canvas || !duration) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = Math.max(1, Math.floor(w * dpr));
+  canvas.height = Math.max(1, Math.floor(h * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  const { interval, major } = pickTickInterval(duration);
+  ctx.font = '10px ui-monospace, Consolas, monospace';
+  ctx.textBaseline = 'alphabetic';
+  const startS = trim ? trim.startS : 0;
+  const endS = trim && trim.endS != null ? trim.endS : duration;
+
+  for (let t = 0; t <= duration; t += interval) {
+    const x = Math.round((t / duration) * w) + 0.5;
+    const isMajor = (Math.round(t) % major) === 0;
+    const inWindow = t >= startS && t <= endS;
+    const tickColour = inWindow ? '#888' : '#333';
+    const labelColour = inWindow ? '#aaa' : '#444';
+    ctx.strokeStyle = tickColour;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, isMajor ? 10 : 6);
+    ctx.stroke();
+    if (isMajor) {
+      ctx.fillStyle = labelColour;
+      const mins = Math.floor(t / 60);
+      const secs = Math.floor(t % 60);
+      const label = `${mins}:${secs.toString().padStart(2, '0')}`;
+      ctx.fillText(label, x + 3, h - 3);
+    }
+  }
+}
+
 function renderAudioPanel() {
   const panel = document.getElementById('audioPanel');
   if (!audioEl || !audioBuffer) {
@@ -257,6 +295,7 @@ function renderAudioPanel() {
       <input type="file" id="loadAudio" accept="audio/*" style="display:none">
     </div>
     <div id="timeline">
+      <canvas id="ruler"></canvas>
       ${ch >= 2 ? `
         <div class="channel-wave"><span class="chan-label">L</span><canvas id="waveL"></canvas></div>
         <div class="channel-wave"><span class="chan-label">R</span><canvas id="waveR"></canvas></div>
@@ -294,6 +333,11 @@ function renderAudioPanel() {
 
   // Draw waveforms once panel is in DOM (with proper width)
   requestAnimationFrame(() => {
+    const ruler = document.getElementById('ruler');
+    const song = activeSong();
+    const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+    if (ruler) drawRuler(ruler, audioBuffer.duration, trim);
+
     const waveL = document.getElementById('waveL');
     if (waveL) drawWaveform(waveL, audioBuffer.getChannelData(0));
     if (ch >= 2) {
@@ -303,6 +347,25 @@ function renderAudioPanel() {
     renderMarkers();
     updatePlayhead();
   });
+
+  const tlEl = document.getElementById('timeline');
+  if (resizeObserver) resizeObserver.disconnect();
+  if (window.ResizeObserver && tlEl) {
+    resizeObserver = new ResizeObserver(() => {
+      const ruler2 = document.getElementById('ruler');
+      const song2 = activeSong();
+      const trim2 = (song2 && song2.audioTrim) ? song2.audioTrim : { startS: 0, endS: null };
+      if (ruler2 && audioBuffer) drawRuler(ruler2, audioBuffer.duration, trim2);
+      const wl = document.getElementById('waveL');
+      if (wl && audioBuffer) drawWaveform(wl, audioBuffer.getChannelData(0));
+      if (audioBuffer && audioBuffer.numberOfChannels >= 2) {
+        const wr = document.getElementById('waveR');
+        if (wr) drawWaveform(wr, audioBuffer.getChannelData(1));
+      }
+      updatePlayhead();
+    });
+    resizeObserver.observe(tlEl);
+  }
 }
 
 function wireLoadAudio() {
