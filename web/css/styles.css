@@ -600,12 +600,28 @@
     white-space: nowrap;
     min-width: 0;
   }
-  #audioControls .time {
-    color: #ccc;
-    font-size: 0.85em;
-    font-family: ui-monospace, 'Consolas', monospace;
-    min-width: 95px;
+  #audioControls .tc-reader {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-left: auto;
+    padding-left: 8px;
+    min-width: 130px;
     text-align: right;
+    line-height: 1.1;
+  }
+  #audioControls .tc-reader #tcReader {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+  }
+  #audioControls .tc-reader #tcReaderSub {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
   }
   .channel-toggle {
     background: #2a2a2e;

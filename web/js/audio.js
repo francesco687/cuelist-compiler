@@ -249,7 +249,10 @@ function renderAudioPanel() {
         <button class="channel-toggle ${channelMute.R ? 'muted' : 'active'}" data-ch="R" title="Toggle Right channel">R</button>
       ` : ''}
       <span class="filename" title="${escapeHtml(audioFileName)}">${escapeHtml(audioFileName)}</span>
-      <span class="time" id="audioTime">0:00 / ${secondsToMMSS(dur)}</span>
+      <div class="tc-reader">
+        <span id="tcReader">00:00:00:00</span>
+        <span id="tcReaderSub">0:00 / ${secondsToMMSS(dur)}</span>
+      </div>
       <button id="reloadAudioBtn" class="ghost" title="Load a different file">Change</button>
       <input type="file" id="loadAudio" accept="audio/*" style="display:none">
     </div>
@@ -397,13 +400,29 @@ function updatePlayhead() {
   if (!audioEl || !audioBuffer) return;
   const tl = document.getElementById('timeline');
   const ph = document.getElementById('playhead');
-  const timeEl = document.getElementById('audioTime');
+  const tcEl = document.getElementById('tcReader');
+  const subEl = document.getElementById('tcReaderSub');
   if (!tl || !ph) return;
+  const song = activeSong();
+  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
   const dur = audioBuffer.duration;
   const t = audioEl.currentTime;
   const pct = dur > 0 ? t / dur : 0;
   ph.style.left = (pct * tl.clientWidth) + 'px';
-  if (timeEl) timeEl.textContent = `${secondsToMMSS(t)} / ${secondsToMMSS(dur)}`;
+
+  if (tcEl) {
+    const songT = fileToSongTime(t, trim);
+    tcEl.textContent = secondsToTimecode(Math.max(0, songT));
+    tcEl.style.color =
+      t < trim.startS ? '#888' :
+      (trim.endS != null && t > trim.endS) ? '#ff5a5a' :
+      '#fff';
+  }
+  if (subEl) {
+    const songT = fileToSongTime(t, trim);
+    const segDur = (trim.endS != null ? trim.endS : dur) - trim.startS;
+    subEl.textContent = `${secondsToMMSS(Math.max(0, songT))} / ${secondsToMMSS(Math.max(0, segDur))}`;
+  }
   updateCurrentMarker(t);
 }
 
