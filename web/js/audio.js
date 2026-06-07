@@ -331,6 +331,8 @@ function stopAudio() {
   const song = activeSong();
   const startS = (song && song.audioTrim) ? song.audioTrim.startS : 0;
   audioEl.currentTime = startS;
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = '▶';
   updatePlayhead();
 }
 

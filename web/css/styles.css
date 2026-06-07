@@ -648,11 +648,11 @@
   #audioControls .transport button:active {
     background: #1f1f23;
   }
-  #playBtn {
-    min-width: 44px !important;
-    background: #2c5e3e !important;
-    border-color: #3da668 !important;
-    color: #fff !important;
+  #audioControls .transport #playBtn {
+    min-width: 44px;
+    background: #2c5e3e;
+    border-color: #3da668;
+    color: #fff;
   }
 
   #timeline {
