@@ -50,15 +50,21 @@ class RelayHubClient {
     ws.on('message', (raw) => this._onMessage(raw.toString()));
 
     ws.on('close', () => {
+      // A retired client (replaced by buildClient on regen/settings-save, or whose
+      // server VM vanished on deploy) must NOT push state through the shared hooks —
+      // a late 'close' would otherwise clobber the live client's 'online' and wipe
+      // its roster, leaving the badge stuck on "offline" while commands still flow.
+      if (this.stopped) return;
       this._roster([]);
       this._state('offline');
-      if (!this.stopped) this._scheduleReconnect();
+      this._scheduleReconnect();
     });
 
     ws.on('error', () => { /* a 'close' follows */ });
   }
 
   async _onMessage(text) {
+    if (this.stopped) return;   // retired clients must not forward/log or touch the roster
     let msg;
     try { msg = JSON.parse(text); } catch { return; }
 

@@ -68,6 +68,39 @@ test('roster frame drives onRoster', () => {
   assert.deepStrictEqual(rosters, [[{ cid: 'p1', name: 'Matteo' }]]);
 });
 
+test('a retired client does not clobber shared state when its socket closes late', () => {
+  // Repro of the "online but shows offline" bug: buildClient() replaces a client
+  // (regen / settings save / post-deploy reconnect). The old client is close()'d,
+  // but its half-open socket fires 'close' LATE — after the new client is already
+  // online. A retired client must NOT push 'offline'/[] through the shared hooks.
+  const sock = new FakeSocket();
+  const { core } = fakeDeps();
+  const states = [];
+  const rosters = [];
+  const c = new RelayHubClient(config,
+    { onState: (s) => states.push(s), onRoster: (p) => rosters.push(p) },
+    { makeSocket: () => sock, core });
+  c.connect();
+  sock.emit('open');            // 'connecting' -> 'online'
+  c.close();                    // retire it; close() triggers a late socket 'close'
+  assert.ok(!states.includes('offline'),
+    `retired client clobbered state with 'offline': ${JSON.stringify(states)}`);
+  assert.ok(!rosters.some((r) => r.length === 0),
+    `retired client clobbered the roster with []: ${JSON.stringify(rosters)}`);
+});
+
+test('a live client DOES emit offline and reconnects when its socket drops', () => {
+  const sock = new FakeSocket();
+  const { core } = fakeDeps();
+  const states = [];
+  const c = new RelayHubClient(config, { onState: (s) => states.push(s) }, { makeSocket: () => sock, core });
+  c.connect();
+  sock.emit('open');            // 'connecting' -> 'online'
+  sock.emit('close');           // server dropped us while still live
+  assert.ok(states.includes('offline'), `live drop should surface 'offline': ${JSON.stringify(states)}`);
+  c.close();                    // stop the scheduled reconnect timer so the test exits clean
+});
+
 test('control frames (joined/roster) are NOT forwarded to handleMessage', async () => {
   const sock = new FakeSocket();
   const { osc, core } = fakeDeps();
