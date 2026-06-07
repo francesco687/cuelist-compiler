@@ -194,6 +194,26 @@ final class HubClientTests: XCTestCase {
         XCTAssertTrue(mock.sent.contains { $0.contains("\"name\":\"Matteo's iPhone\"") })
     }
 
+    func testOperatorNamePersists() {
+        let suite = "cc-test-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        let c1 = HubClient(defaults: d, makeConnection: { _ in MockHubConnection() })
+        XCTAssertEqual(c1.operatorName, "", "a fresh install has no name")
+        c1.operatorName = "Francesco"
+        let c2 = HubClient(defaults: d, makeConnection: { _ in MockHubConnection() })
+        XCTAssertEqual(c2.operatorName, "Francesco")
+    }
+
+    func testHasNameTrimsWhitespace() {
+        let (client, _) = makeClient()
+        client.operatorName = ""
+        XCTAssertFalse(client.hasName)
+        client.operatorName = "   "
+        XCTAssertFalse(client.hasName, "whitespace-only is not a name")
+        client.operatorName = "  Matteo  "
+        XCTAssertTrue(client.hasName)
+    }
+
     func testAutoReconnectAfterCloseInRelayMode() {
         var conns: [MockHubConnection] = []
         var scheduled: [() -> Void] = []

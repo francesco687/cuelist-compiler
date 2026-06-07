@@ -39,7 +39,11 @@ public final class HubClient {
     public var pairingCode: String { didSet { defaults.set(pairingCode, forKey: Keys.pairingCode) } }
 
     public private(set) var roster: [Operator] = []
-    public var operatorName: String = ""
+    public var operatorName: String { didSet { defaults.set(operatorName, forKey: Keys.operatorName) } }
+
+    /// A name the operator has actually entered (non-empty after trimming). The single
+    /// source of truth for "is this phone named" — UI gates and connect logic both use it.
+    public var hasName: Bool { !operatorName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let makeConnection: (URL) -> HubConnection
@@ -54,6 +58,7 @@ public final class HubClient {
     private enum Keys {
         static let host = "hubHost"; static let port = "hubPort"
         static let mode = "hubMode"; static let relayURL = "hubRelayURL"; static let pairingCode = "hubPairingCode"
+        static let operatorName = "hubOperatorName"
     }
 
     public init(defaults: UserDefaults = .standard,
@@ -69,6 +74,7 @@ public final class HubClient {
         self.mode = HubMode(rawValue: defaults.string(forKey: Keys.mode) ?? "") ?? .direct
         self.relayURL = defaults.string(forKey: Keys.relayURL) ?? ""
         self.pairingCode = defaults.string(forKey: Keys.pairingCode) ?? ""
+        self.operatorName = defaults.string(forKey: Keys.operatorName) ?? ""
     }
 
     public var url: URL? {

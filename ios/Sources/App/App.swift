@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import SaettaKit
 
 @main
@@ -33,8 +32,9 @@ struct SaettaApp: App {
                 .tint(Theme.accentSolid)
                 .preferredColorScheme(.dark)
                 .onAppear {
-                    hub.operatorName = UIDevice.current.name
-                    if !hub.host.isEmpty || hub.mode == .relay { hub.connect() }
+                    // Identity is the operator's own persisted name (see SettingsView);
+                    // never auto-connect nameless — RootView forces naming on first run.
+                    if hub.hasName, !hub.host.isEmpty || hub.mode == .relay { hub.connect() }
                 }
         }
         .onChange(of: scenePhase) { _, phase in
