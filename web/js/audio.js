@@ -409,9 +409,9 @@ function updatePlayhead() {
   const t = audioEl.currentTime;
   const pct = dur > 0 ? t / dur : 0;
   ph.style.left = (pct * tl.clientWidth) + 'px';
+  const songT = fileToSongTime(t, trim);
 
   if (tcEl) {
-    const songT = fileToSongTime(t, trim);
     tcEl.textContent = secondsToTimecode(Math.max(0, songT));
     tcEl.style.color =
       t < trim.startS ? '#888' :
@@ -419,7 +419,6 @@ function updatePlayhead() {
       '#fff';
   }
   if (subEl) {
-    const songT = fileToSongTime(t, trim);
     const segDur = (trim.endS != null ? trim.endS : dur) - trim.startS;
     subEl.textContent = `${secondsToMMSS(Math.max(0, songT))} / ${secondsToMMSS(Math.max(0, segDur))}`;
   }
