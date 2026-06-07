@@ -237,7 +237,13 @@ function renderAudioPanel() {
   panel.className = '';
   panel.innerHTML = `
     <div id="audioControls">
-      <button id="playBtn">${audioEl.paused ? '▶ Play' : '⏸ Pause'}</button>
+      <div class="transport">
+        <button id="prevBtn"    title="Previous marker">⏮</button>
+        <button id="stopBtn"    title="Stop (back to in-point)">⏹</button>
+        <button id="playBtn"    title="Play / Pause">${audioEl.paused ? '▶' : '⏸'}</button>
+        <button id="nextBtn"    title="Next marker">⏭</button>
+        <button id="restartBtn" title="Restart from in-point">↻</button>
+      </div>
       ${ch >= 2 ? `
         <button class="channel-toggle ${channelMute.L ? 'muted' : 'active'}" data-ch="L" title="Toggle Left channel">L</button>
         <button class="channel-toggle ${channelMute.R ? 'muted' : 'active'}" data-ch="R" title="Toggle Right channel">R</button>
@@ -260,6 +266,10 @@ function renderAudioPanel() {
   `;
 
   document.getElementById('playBtn').addEventListener('click', togglePlay);
+  document.getElementById('prevBtn').addEventListener('click', skipPrevMarker);
+  document.getElementById('stopBtn').addEventListener('click', stopAudio);
+  document.getElementById('nextBtn').addEventListener('click', skipNextMarker);
+  document.getElementById('restartBtn').addEventListener('click', restartAudio);
   document.getElementById('reloadAudioBtn').addEventListener('click', () => document.getElementById('loadAudio').click());
   document.getElementById('loadAudio').addEventListener('change', e => {
     if (e.target.files[0]) loadAudioFile(e.target.files[0]);
@@ -312,7 +322,54 @@ function togglePlay() {
     audioEl.pause();
   }
   const btn = document.getElementById('playBtn');
-  if (btn) btn.textContent = audioEl.paused ? '▶ Play' : '⏸ Pause';
+  if (btn) btn.textContent = audioEl.paused ? '▶' : '⏸';
+}
+
+function stopAudio() {
+  if (!audioEl) return;
+  audioEl.pause();
+  const song = activeSong();
+  const startS = (song && song.audioTrim) ? song.audioTrim.startS : 0;
+  audioEl.currentTime = startS;
+  updatePlayhead();
+}
+
+function restartAudio() {
+  if (!audioEl) return;
+  const wasPlaying = !audioEl.paused;
+  const song = activeSong();
+  const startS = (song && song.audioTrim) ? song.audioTrim.startS : 0;
+  audioEl.currentTime = startS;
+  if (wasPlaying && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (wasPlaying) audioEl.play();
+  updatePlayhead();
+}
+
+function skipPrevMarker() {
+  const song = activeSong();
+  if (!audioEl || !song) return;
+  const trim = song.audioTrim || { startS: 0, endS: null };
+  const songT = fileToSongTime(audioEl.currentTime, trim);
+  const target = findPrevMarker(songT, song.cues);
+  if (target) {
+    const tS = timecodeToSeconds(target.position);
+    audioEl.currentTime = songToFileTime(tS, trim);
+  } else {
+    audioEl.currentTime = trim.startS;
+  }
+  updatePlayhead();
+}
+
+function skipNextMarker() {
+  const song = activeSong();
+  if (!audioEl || !song) return;
+  const trim = song.audioTrim || { startS: 0, endS: null };
+  const songT = fileToSongTime(audioEl.currentTime, trim);
+  const target = findNextMarker(songT, song.cues);
+  if (!target) return;
+  const tS = timecodeToSeconds(target.position);
+  audioEl.currentTime = songToFileTime(tS, trim);
+  updatePlayhead();
 }
 
 function startPlayheadLoop() {
@@ -323,7 +380,7 @@ function startPlayheadLoop() {
   };
   audioRAF = requestAnimationFrame(tick);
   const btn = document.getElementById('playBtn');
-  if (btn) btn.textContent = '⏸ Pause';
+  if (btn) btn.textContent = '⏸';
 }
 
 function stopPlayheadLoop() {
@@ -331,7 +388,7 @@ function stopPlayheadLoop() {
   audioRAF = null;
   updatePlayhead();
   const btn = document.getElementById('playBtn');
-  if (btn) btn.textContent = '▶ Play';
+  if (btn) btn.textContent = '▶';
 }
 
 function updatePlayhead() {
@@ -501,7 +558,8 @@ function onMarkerDragEnd() {
 window.CC = window.CC || {};
 window.CC.audio = {
   loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel,
-  wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead,
+  wireLoadAudio, togglePlay, stopAudio, restartAudio, skipPrevMarker, skipNextMarker,
+  startPlayheadLoop, stopPlayheadLoop, updatePlayhead,
   updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte, dropMarkerAtPlayhead,
   selectMarker, deselectAllMarkers, deleteSelectedMarker, getSelectedMarkerCueN,
   // new pure helpers (test surface)

@@ -625,7 +625,35 @@
     border-color: #444;
     color: #555;
   }
-  #playBtn { min-width: 70px; }
+  #audioControls .transport {
+    display: inline-flex;
+    gap: 2px;
+  }
+  #audioControls .transport button {
+    min-width: 36px;
+    padding: 4px 8px;
+    font-size: 14px;
+    line-height: 1;
+    background: #2a2a2e;
+    border: 1px solid #444;
+    color: #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  #audioControls .transport button:hover {
+    background: #353539;
+    border-color: #555;
+    color: #fff;
+  }
+  #audioControls .transport button:active {
+    background: #1f1f23;
+  }
+  #playBtn {
+    min-width: 44px !important;
+    background: #2c5e3e !important;
+    border-color: #3da668 !important;
+    color: #fff !important;
+  }
 
   #timeline {
     position: relative;
