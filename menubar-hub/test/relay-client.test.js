@@ -36,27 +36,39 @@ test('on open it sends a hub join frame', () => {
   assert.deepStrictEqual(sock.sent[0], { type: 'join', room: 'CODE1234', role: 'hub' });
 });
 
-test('peer frame drives onPeer; phone cmd reaches OSC and replies via the socket', async () => {
+test('from-phone frame reaches OSC and replies via a to-phone envelope; log carries the name', async () => {
   const sock = new FakeSocket();
   const { osc, core } = fakeDeps();
-  const peers = []; const logs = [];
-  const c = new RelayHubClient(config, { onPeer: (b) => peers.push(b), onLog: (e) => logs.push(e) },
-    { makeSocket: () => sock, core });
+  const logs = [];
+  const c = new RelayHubClient(config, { onLog: (e) => logs.push(e) }, { makeSocket: () => sock, core });
   c.connect();
   sock.emit('open');
-  sock.emit('message', Buffer.from(JSON.stringify({ type: 'peer', connected: true })));
-  assert.deepStrictEqual(peers, [true]);
 
-  sock.emit('message', Buffer.from(JSON.stringify({ type: 'cmd', line: 'Go+' })));
-  await new Promise((r) => setTimeout(r, 0));   // let the async handler settle
+  sock.emit('message', Buffer.from(JSON.stringify({
+    type: 'from-phone', cid: 'p1', name: 'Matteo', frame: JSON.stringify({ type: 'cmd', line: 'Go+' }),
+  })));
+  await new Promise((r) => setTimeout(r, 0));
+
   assert.deepStrictEqual(osc, ['Go+']);
-  // reply went back out over the relay socket
-  assert.ok(sock.sent.some((m) => m.type === 'sent' && m.line === 'Go+'));
-  // and a log entry was emitted
-  assert.ok(logs.some((e) => e.kind === 'cmd' && e.summary === 'Go+'));
+  const reply = sock.sent.find((m) => m.type === 'to-phone');
+  assert.ok(reply, 'expected a to-phone reply');
+  assert.strictEqual(reply.cid, 'p1');
+  assert.deepStrictEqual(JSON.parse(reply.frame), { type: 'sent', line: 'Go+' });
+  assert.ok(logs.some((e) => e.kind === 'cmd' && e.name === 'Matteo'));
 });
 
-test('control frames (joined/peer) are NOT forwarded to handleMessage', async () => {
+test('roster frame drives onRoster', () => {
+  const sock = new FakeSocket();
+  const { core } = fakeDeps();
+  const rosters = [];
+  const c = new RelayHubClient(config, { onRoster: (p) => rosters.push(p) }, { makeSocket: () => sock, core });
+  c.connect();
+  sock.emit('open');
+  sock.emit('message', Buffer.from(JSON.stringify({ type: 'roster', phones: [{ cid: 'p1', name: 'Matteo' }] })));
+  assert.deepStrictEqual(rosters, [[{ cid: 'p1', name: 'Matteo' }]]);
+});
+
+test('control frames (joined/roster) are NOT forwarded to handleMessage', async () => {
   const sock = new FakeSocket();
   const { osc, core } = fakeDeps();
   const c = new RelayHubClient(config, {}, { makeSocket: () => sock, core });
