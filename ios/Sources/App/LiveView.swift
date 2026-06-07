@@ -23,7 +23,7 @@ struct LiveView: View {
                 VStack(spacing: 14) {
                     connectionRow
 
-                    // Top half — transport (was full-screen).
+                    // Transport — flexible top region, absorbs vertical slack.
                     VStack(spacing: 14) {
                         TransportButton(title: "GO+", symbol: "arrow.right.circle.fill",
                                         tint: Theme.ok) { fire("Go+") }
@@ -36,9 +36,11 @@ struct LiveView: View {
                     .disabled(!hub.state.isOnline)
                     .opacity(hub.state.isOnline ? 1 : 0.4)
 
-                    // Bottom half — control area (grows with future controls).
+                    // Assignable macro pad — fires on the desk-selected executor.
+                    MacroPadView(onFire: { fireCount += 1 })
+
+                    // Message-to-console field.
                     controlSection
-                        .frame(maxHeight: .infinity, alignment: .top)
                 }
                 .padding(20)
             }

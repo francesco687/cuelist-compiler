@@ -7,6 +7,7 @@ struct SaettaApp: App {
     @State private var hub = HubClient(makeConnection: { url in
         URLSessionWebSocketConnection(url: url)
     })
+    @State private var macroPad = MacroPad()
     @State private var voice = VoiceCaptureController(
         recorder: AVAudioFileRecorder(),
         transcriber: WhisperTranscriber(apiKey: KeychainAIKeyStore().key(for: .openAI) ?? ""),
@@ -25,6 +26,7 @@ struct SaettaApp: App {
             RootView()
                 .environment(store)
                 .environment(hub)
+                .environment(macroPad)
                 .environment(voice)
                 .environment(notes)
                 .tint(Theme.accentSolid)
