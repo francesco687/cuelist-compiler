@@ -19,7 +19,7 @@ struct RootView: View {
             LiveView()
                 .tabItem { Label("Live", systemImage: "play.circle.fill") }
             authorTab
-                .tabItem { Label("Author", systemImage: "square.and.pencil") }
+                .tabItem { Label("Program", systemImage: "square.and.pencil") }
             SendView()
                 .tabItem { Label("Send", systemImage: "paperplane") }
             SettingsTabView()
