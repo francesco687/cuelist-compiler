@@ -13,12 +13,15 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "electron": "^31.0.0",
     "electron-builder": "^25.1.8"
   },
   "build": {
     "appId": "com.blearred.saetta.hub",
     "productName": "Saetta Hub",
+    "afterSign": "build/notarize.js",
+    "afterAllArtifactBuild": "build/notarize-dmg.js",
     "directories": {
       "output": "dist"
     },
@@ -34,10 +37,19 @@
       { "from": "../web/js", "to": "web/js" }
     ],
     "mac": {
-      "target": "dir",
+      "target": [
+        { "target": "dmg", "arch": ["universal"] }
+      ],
       "category": "public.app-category.utilities",
       "icon": "build/icon.icns",
-      "identity": null
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "Saetta Hub",
+      "artifactName": "Saetta-Hub-${version}.dmg"
     }
   }
 }
