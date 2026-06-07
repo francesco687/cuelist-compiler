@@ -1,7 +1,10 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { defaults, merge, validate, generatePairingCode } = require('../src/settings');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { defaults, merge, validate, generatePairingCode, load, save, loadOrInit, filePath } = require('../src/settings');
 
 test('defaults include relay + ma3 fields and a generated pairing code', () => {
   const d = defaults();
@@ -30,4 +33,26 @@ test('validate rejects an empty relay url', () => {
 
 test('validate rejects a short pairing code', () => {
   assert.throws(() => validate(merge(defaults(), { pairingCode: 'abc' })), /invalid pairingCode/);
+});
+
+test('validate accepts a memorable custom code of 6+ lowercase-alnum', () => {
+  assert.doesNotThrow(() => validate(merge(defaults(), { pairingCode: 'tour2026' })));
+});
+
+test('validate rejects codes shorter than 6 or with bad chars', () => {
+  assert.throws(() => validate(merge(defaults(), { pairingCode: 'ab2' })), /invalid pairingCode/);
+  assert.throws(() => validate(merge(defaults(), { pairingCode: 'TOUR2026' })), /invalid pairingCode/);
+});
+
+test('loadOrInit writes defaults on first run and is stable across reloads', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'saetta-set-'));
+  try {
+    assert.strictEqual(fs.existsSync(filePath(dir)), false);
+    const first = loadOrInit(dir);
+    assert.strictEqual(fs.existsSync(filePath(dir)), true);
+    const second = loadOrInit(dir);
+    assert.strictEqual(second.pairingCode, first.pairingCode);   // not regenerated
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

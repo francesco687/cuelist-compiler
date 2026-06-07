@@ -38,7 +38,7 @@ function validate(s) {
   };
   port('ma3Port', s.ma3Port);
   if (typeof s.relayUrl !== 'string' || !/^wss?:\/\//.test(s.relayUrl)) throw new Error('invalid relayUrl');
-  if (typeof s.pairingCode !== 'string' || s.pairingCode.length < 8) throw new Error('invalid pairingCode');
+  if (typeof s.pairingCode !== 'string' || !/^[a-z0-9]{6,}$/.test(s.pairingCode)) throw new Error('invalid pairingCode');
   if (typeof s.ma3Host !== 'string' || !s.ma3Host) throw new Error('invalid ma3Host');
   if (typeof s.ma3Prefix !== 'string' || !s.ma3Prefix) throw new Error('invalid ma3Prefix');
   if (!Number.isInteger(s.intervalMs) || s.intervalMs < 0) throw new Error('invalid intervalMs');
@@ -60,4 +60,9 @@ function save(userDataDir, s) {
   return v;
 }
 
-module.exports = { defaults, merge, validate, load, save, filePath, generatePairingCode };
+function loadOrInit(userDataDir) {
+  if (!fs.existsSync(filePath(userDataDir))) return save(userDataDir, defaults());
+  return load(userDataDir);
+}
+
+module.exports = { defaults, merge, validate, load, save, loadOrInit, filePath, generatePairingCode };
