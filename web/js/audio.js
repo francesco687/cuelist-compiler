@@ -18,11 +18,11 @@ const channelMute = { L: false, R: false };
 // --- Pure helpers (no DOM, no globals — unit-tested in test/audio-helpers.test.js)
 
 function fileToSongTime(currentTime, trim) {
-  return currentTime - (trim && trim.startS ? trim.startS : 0);
+  return currentTime - (trim && typeof trim.startS === 'number' ? trim.startS : 0);
 }
 
 function songToFileTime(songT, trim) {
-  return songT + (trim && trim.startS ? trim.startS : 0);
+  return songT + (trim && typeof trim.startS === 'number' ? trim.startS : 0);
 }
 
 function clampSeek(rawS, trim, duration) {
