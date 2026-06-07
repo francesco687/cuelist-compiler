@@ -89,7 +89,7 @@ public final class HubClient {
                     self.state = .online
                 case .relay:
                     // Join the room first; stay .connecting until the laptop (peer) is present.
-                    if let join = try? OutgoingMessage.join(room: self.pairingCode, role: "phone").jsonString() {
+                    if let join = try? OutgoingMessage.join(room: self.pairingCode, role: "phone", name: nil).jsonString() {
                         conn.send(join)
                     }
                 }
@@ -218,7 +218,9 @@ public final class HubClient {
             isPulling = false
             pullError = message
         case .joined:
-            break                                  // waiting for a peer; no state change yet
+            break                                  // waiting for a peer; no state change yet (Task 8 reads cid)
+        case .roster:
+            break                                  // placeholder; Task 8 will surface roster to UI
         case let .peer(connected):
             state = connected ? .online : .connecting
         case let .joinError(message):

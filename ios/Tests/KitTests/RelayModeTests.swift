@@ -2,11 +2,12 @@ import XCTest
 @testable import SaettaKit
 
 final class RelayModeTests: XCTestCase {
-    func testJoinFrameEncodesRoleAndRoom() throws {
-        let json = try OutgoingMessage.join(room: "CODE1234", role: "phone").jsonString()
+    func testJoinFrameEncodesRoleRoomAndName() throws {
+        let json = try OutgoingMessage.join(room: "code1234", role: "phone", name: "Matteo's iPhone").jsonString()
         XCTAssertTrue(json.contains("\"type\":\"join\""))
-        XCTAssertTrue(json.contains("\"room\":\"CODE1234\""))
+        XCTAssertTrue(json.contains("\"room\":\"code1234\""))
         XCTAssertTrue(json.contains("\"role\":\"phone\""))
+        XCTAssertTrue(json.contains("\"name\":\"Matteo's iPhone\""))
     }
 
     func testDecodePeerConnected() throws {
@@ -14,9 +15,15 @@ final class RelayModeTests: XCTestCase {
         XCTAssertEqual(msg, .peer(connected: true))
     }
 
-    func testDecodeJoined() throws {
-        let msg = try IncomingMessage.decode("{\"type\":\"joined\"}")
-        XCTAssertEqual(msg, .joined)
+    func testDecodeJoinedWithCid() throws {
+        let msg = try IncomingMessage.decode("{\"type\":\"joined\",\"cid\":\"p1\"}")
+        XCTAssertEqual(msg, .joined(cid: "p1"))
+    }
+
+    func testDecodeRoster() throws {
+        let msg = try IncomingMessage.decode(
+            "{\"type\":\"roster\",\"hub\":true,\"phones\":[{\"cid\":\"p1\",\"name\":\"Matteo\"}]}")
+        XCTAssertEqual(msg, .roster(hub: true, phones: [Operator(cid: "p1", name: "Matteo")]))
     }
 
     func testDecodeJoinError() throws {

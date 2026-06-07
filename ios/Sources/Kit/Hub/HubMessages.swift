@@ -3,6 +3,14 @@ import Foundation
 /// Selection for a send: just the active song, or every song with cues.
 public enum Selection: String, Sendable { case current, all }
 
+/// One connected operator in the relay roster.
+public struct Operator: Equatable, Sendable, Decodable, Identifiable {
+    public let cid: String
+    public let name: String
+    public var id: String { cid }
+    public init(cid: String, name: String) { self.cid = cid; self.name = name }
+}
+
 /// One sequence as listed by the desk's list_sequences plugin (number + name).
 public struct PulledSequence: Equatable, Sendable, Identifiable, Decodable {
     public let no: Double
@@ -16,7 +24,7 @@ public enum OutgoingMessage {
     case compileSend(project: Project, defaults: Defaults, selection: Selection)
     case pullSequences
     case cmd(line: String)
-    case join(room: String, role: String)
+    case join(room: String, role: String, name: String?)
 
     private struct CompileSend: Encodable {
         let type = "compile-send"
@@ -29,7 +37,7 @@ public enum OutgoingMessage {
 
     private struct Cmd: Encodable { let type = "cmd"; let line: String }
 
-    private struct Join: Encodable { let type = "join"; let room: String; let role: String }
+    private struct Join: Encodable { let type = "join"; let room: String; let role: String; let name: String? }
 
     public func jsonData() throws -> Data {
         let enc = JSONEncoder()
@@ -41,8 +49,8 @@ public enum OutgoingMessage {
             return try enc.encode(PullSequences())
         case let .cmd(line):
             return try enc.encode(Cmd(line: line))
-        case let .join(room, role):
-            return try enc.encode(Join(room: room, role: role))
+        case let .join(room, role, name):
+            return try enc.encode(Join(room: room, role: role, name: name))
         }
     }
 
@@ -58,7 +66,8 @@ public enum IncomingMessage: Equatable, Sendable {
     case error(message: String)
     case sequences(version: Int, [PulledSequence])   // pull result: the showfile's sequence list
     case pullError(message: String)                  // pull failed (trigger/timeout/parse)
-    case joined                                      // relay: this side joined a room
+    case joined(cid: String?)                        // relay: joined; phone gets a cid
+    case roster(hub: Bool, phones: [Operator])       // relay: who's connected (+ hub presence)
     case peer(connected: Bool)                       // relay: the other side connected/dropped
     case joinError(message: String)                  // relay: join rejected (bad/taken code, relay full)
     case other                                        // pong / sent / unknown — ignored by the client
@@ -71,6 +80,9 @@ public enum IncomingMessage: Equatable, Sendable {
         let version: Int?
         let sequences: [PulledSequence]?
         let connected: Bool?
+        let cid: String?
+        let hub: Bool?
+        let phones: [Operator]?
     }
 
     public static func decode(_ text: String) throws -> IncomingMessage {
@@ -81,7 +93,8 @@ public enum IncomingMessage: Equatable, Sendable {
         case "error":      return .error(message: e.message ?? "unknown error")
         case "sequences":  return .sequences(version: e.version ?? 1, e.sequences ?? [])
         case "pull-error": return .pullError(message: e.message ?? "pull failed")
-        case "joined":     return .joined
+        case "joined":     return .joined(cid: e.cid)
+        case "roster":     return .roster(hub: e.hub ?? false, phones: e.phones ?? [])
         case "peer":       return .peer(connected: e.connected ?? false)
         case "join-error": return .joinError(message: e.message ?? "pairing rejected")
         default:           return .other
