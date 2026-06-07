@@ -181,7 +181,7 @@ function setChannelMute(ch, muted) {
   });
 }
 
-function drawWaveform(canvas, channelData) {
+function drawWaveform(canvas, channelData, durationS, trim) {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   canvas.width = Math.max(1, Math.floor(w * dpr));
@@ -198,13 +198,26 @@ function drawWaveform(canvas, channelData) {
 
   if (!channelData || channelData.length === 0) return;
 
-  const samplesPerPixel = Math.max(1, Math.floor(channelData.length / w));
+  // audio-mobile model: timeline x in [0,w] represents song-time [0, durationS].
+  // For each pixel, sample audio at file-time = songT + startS (= x/w * durationS + startS).
+  // Pixels whose file-time falls outside [0, audio_dur] draw nothing.
+  const offsetS = (trim && typeof trim.startS === 'number') ? trim.startS : 0;
+  const endS = (trim && trim.endS != null) ? trim.endS : Infinity;
+  const sampleRate = channelData.length / durationS;
   ctx.fillStyle = '#5b8dd6';
   for (let x = 0; x < w; x++) {
+    const songT = (x / w) * durationS;
+    const fileT = songT + offsetS;
+    if (fileT < 0 || fileT >= durationS) continue;       // outside audio file
+    if (fileT >= endS) {                                  // past end trim — render dim
+      ctx.fillStyle = '#2a3a52';
+    } else {
+      ctx.fillStyle = '#5b8dd6';
+    }
+    const i0 = Math.floor(fileT * sampleRate);
+    const i1 = Math.min(channelData.length, Math.floor((fileT + durationS / w) * sampleRate));
     let min = 1, max = -1;
-    const start = x * samplesPerPixel;
-    const end = Math.min(channelData.length, start + samplesPerPixel);
-    for (let i = start; i < end; i++) {
+    for (let i = i0; i < i1; i++) {
       const s = channelData[i];
       if (s < min) min = s;
       if (s > max) max = s;
@@ -299,17 +312,14 @@ function renderAudioPanel() {
     <div id="timeline">
       <canvas id="ruler"></canvas>
       ${ch >= 2 ? `
-        <div class="channel-wave"><span class="chan-label">L</span><canvas id="waveL"></canvas></div>
-        <div class="channel-wave"><span class="chan-label">R</span><canvas id="waveR"></canvas></div>
+        <div class="channel-wave audio-body" title="Drag to shift audio. Double-click to reset."><span class="chan-label">L</span><canvas id="waveL"></canvas></div>
+        <div class="channel-wave audio-body" title="Drag to shift audio. Double-click to reset."><span class="chan-label">R</span><canvas id="waveR"></canvas></div>
       ` : `
-        <div class="channel-wave" style="height:90px;"><canvas id="waveL"></canvas></div>
+        <div class="channel-wave audio-body" style="height:90px;" title="Drag to shift audio. Double-click to reset."><canvas id="waveL"></canvas></div>
       `}
-      <div class="trim-dim left"  id="trimDimLeft"></div>
-      <div class="trim-dim right" id="trimDimRight"></div>
       <div class="markers" id="markers"></div>
       <div class="playhead" id="playhead" style="left:0px"></div>
-      <div class="trim-handle left"  id="trimHandleLeft"  title="In point — drag to set song start"></div>
-      <div class="trim-handle right" id="trimHandleRight" title="Out point — drag to set song end"></div>
+      <div class="trim-handle" id="trimEndHandle" title="Audio end — drag to cut the tail"></div>
     </div>
   `;
 
@@ -327,27 +337,32 @@ function renderAudioPanel() {
     btn.addEventListener('click', () => setChannelMute(btn.dataset.ch, !channelMute[btn.dataset.ch]));
   });
 
-  const hL = document.getElementById('trimHandleLeft');
-  const hR = document.getElementById('trimHandleRight');
-  if (hL) {
-    hL.addEventListener('mousedown', e => startTrimDrag('left', e));
-    hL.addEventListener('dblclick', () => resetTrimSide('left'));
+  const endHandle = document.getElementById('trimEndHandle');
+  if (endHandle) {
+    endHandle.addEventListener('mousedown', startEndHandleDrag);
+    endHandle.addEventListener('dblclick', () => {
+      const song = activeSong();
+      if (song && song.audioTrim) { song.audioTrim.endS = null; redrawAudioBody(); saveState(); }
+    });
   }
-  if (hR) {
-    hR.addEventListener('mousedown', e => startTrimDrag('right', e));
-    hR.addEventListener('dblclick', () => resetTrimSide('right'));
-  }
+  panel.querySelectorAll('.audio-body').forEach(body => {
+    body.addEventListener('mousedown', startAudioBodyDrag);
+    body.addEventListener('dblclick', resetAudioTrim);
+  });
 
   const tl = document.getElementById('timeline');
   tl.addEventListener('click', e => {
     if (e.target.classList.contains('marker') || e.target.classList.contains('marker-label')) return;
     if (e.target.classList.contains('trim-handle')) return;
+    if (trimDragState && trimDragState.moved) return;  // suppress click after audio body drag
     deselectAllMarkers();
     const rect = tl.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     const song = activeSong();
     const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
-    audioEl.currentTime = clampSeek(pct * dur, trim, dur);
+    // Click position is song-time; convert to file-time for audioEl.
+    const songT = pct * dur;
+    audioEl.currentTime = clampSeek(songT + trim.startS, trim, dur);
     updatePlayhead();
   });
 
@@ -359,13 +374,13 @@ function renderAudioPanel() {
     if (ruler) drawRuler(ruler, audioBuffer.duration, trim);
 
     const waveL = document.getElementById('waveL');
-    if (waveL) drawWaveform(waveL, audioBuffer.getChannelData(0));
+    if (waveL) drawWaveform(waveL, audioBuffer.getChannelData(0), audioBuffer.duration, trim);
     if (ch >= 2) {
       const waveR = document.getElementById('waveR');
-      if (waveR) drawWaveform(waveR, audioBuffer.getChannelData(1));
+      if (waveR) drawWaveform(waveR, audioBuffer.getChannelData(1), audioBuffer.duration, trim);
     }
     renderMarkers();
-    updateTrimVisual();
+    positionEndHandle();
     updatePlayhead();
   });
 
@@ -378,12 +393,12 @@ function renderAudioPanel() {
       const trim2 = (song2 && song2.audioTrim) ? song2.audioTrim : { startS: 0, endS: null };
       if (ruler2 && audioBuffer) drawRuler(ruler2, audioBuffer.duration, trim2);
       const wl = document.getElementById('waveL');
-      if (wl && audioBuffer) drawWaveform(wl, audioBuffer.getChannelData(0));
+      if (wl && audioBuffer) drawWaveform(wl, audioBuffer.getChannelData(0), audioBuffer.duration, trim2);
       if (audioBuffer && audioBuffer.numberOfChannels >= 2) {
         const wr = document.getElementById('waveR');
-        if (wr) drawWaveform(wr, audioBuffer.getChannelData(1));
+        if (wr) drawWaveform(wr, audioBuffer.getChannelData(1), audioBuffer.duration, trim2);
       }
-      updateTrimVisual();
+      positionEndHandle();
       updatePlayhead();
     });
     resizeObserver.observe(tlEl);
@@ -512,9 +527,10 @@ function updatePlayhead() {
   if (!tl || !ph) return;
   const dur = audioBuffer.duration;
   const t = audioEl.currentTime;
-  const pct = dur > 0 ? t / dur : 0;
-  ph.style.left = (pct * tl.clientWidth) + 'px';
   const songT = fileToSongTime(t, trim);
+  // audio-mobile: playhead position is song-time, not file-time
+  const pct = dur > 0 ? songT / dur : 0;
+  ph.style.left = (Math.max(0, Math.min(1, pct)) * tl.clientWidth) + 'px';
 
   if (tcEl) {
     tcEl.textContent = secondsToTimecode(Math.max(0, songT));
@@ -555,12 +571,13 @@ function renderMarkers() {
   const dur = audioBuffer.duration;
   if (dur <= 0) return;
   const trim = song.audioTrim || { startS: 0, endS: null };
+  // audio-mobile model: markers are anchored to SMPTE timeline directly.
   song.cues.forEach(cue => {
     const sSong = timecodeToSeconds(cue.position);
     if (isNaN(sSong)) return;
-    const sFile = songToFileTime(sSong, trim);
-    const pct = sFile / dur;
+    const pct = sSong / dur;
     if (pct < 0 || pct > 1) return;
+    const sFile = songToFileTime(sSong, trim);   // for the seek-on-click only
     const m = document.createElement('div');
     m.className = 'marker';
     m.style.left = (pct * 100) + '%';
@@ -586,33 +603,6 @@ function renderMarkers() {
     markers.appendChild(m);
   });
   updateCurrentMarker(audioEl ? fileToSongTime(audioEl.currentTime, trim) : 0);
-}
-
-function updateTrimVisual() {
-  const song = activeSong();
-  if (!song || !audioBuffer) return;
-  const trim = song.audioTrim || { startS: 0, endS: null };
-  const dur = audioBuffer.duration;
-  if (!dur) return;
-  const leftPct  = (trim.startS / dur) * 100;
-  const rightPct = ((trim.endS != null ? trim.endS : dur) / dur) * 100;
-
-  const dimL = document.getElementById('trimDimLeft');
-  const dimR = document.getElementById('trimDimRight');
-  if (dimL) {
-    dimL.style.left  = '0';
-    dimL.style.width = leftPct + '%';
-    dimL.style.display = leftPct > 0 ? 'block' : 'none';
-  }
-  if (dimR) {
-    dimR.style.left  = rightPct + '%';
-    dimR.style.width = (100 - rightPct) + '%';
-    dimR.style.display = rightPct < 100 ? 'block' : 'none';
-  }
-  const hL = document.getElementById('trimHandleLeft');
-  const hR = document.getElementById('trimHandleRight');
-  if (hL) hL.style.left = leftPct + '%';
-  if (hR) hR.style.left = rightPct + '%';
 }
 
 function captureCurrentPlayheadAsSmpte() {
@@ -689,9 +679,8 @@ function onMarkerDragMove(evt) {
   if (!cue) return;
   let pct = (evt.clientX - timelineRect.left) / timelineRect.width;
   pct = Math.max(0, Math.min(1, pct));
-  const fileSeconds = pct * durationS;
-  const trim = song.audioTrim || { startS: 0, endS: null };
-  const songSeconds = fileToSongTime(fileSeconds, trim);
+  // audio-mobile model: timeline coord = song-time directly.
+  const songSeconds = pct * durationS;
   cue.position = secondsToTimecode(Math.max(0, songSeconds));
   const pin = document.querySelector(`#markers .marker[data-cue-n="${cueN}"]`);
   if (pin) pin.style.left = (pct * 100) + '%';
@@ -712,66 +701,135 @@ function onMarkerDragEnd() {
   }
 }
 
-function startTrimDrag(side, evt) {
+// audio-mobile model: drag the waveform body to change `startS` (offset);
+// drag the right-edge handle to change `endS` (audio end trim).
+
+function redrawAudioBody() {
+  if (!audioBuffer) return;
+  const song = activeSong();
+  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+  const dur = audioBuffer.duration;
+  const wl = document.getElementById('waveL');
+  if (wl) drawWaveform(wl, audioBuffer.getChannelData(0), dur, trim);
+  if (audioBuffer.numberOfChannels >= 2) {
+    const wr = document.getElementById('waveR');
+    if (wr) drawWaveform(wr, audioBuffer.getChannelData(1), dur, trim);
+  }
+  positionEndHandle();
+  updatePlayhead();
+}
+
+function positionEndHandle() {
+  const song = activeSong();
+  if (!song || !audioBuffer) return;
+  const trim = song.audioTrim || { startS: 0, endS: null };
+  const dur = audioBuffer.duration;
+  const handle = document.getElementById('trimEndHandle');
+  if (!handle) return;
+  const audioEndFile = trim.endS != null ? trim.endS : dur;
+  const audioEndSong = audioEndFile - trim.startS;          // song-time position of audio end
+  const pct = Math.max(0, Math.min(1, audioEndSong / dur));
+  handle.style.left = (pct * 100) + '%';
+}
+
+function startAudioBodyDrag(evt) {
+  if (!audioBuffer) return;
+  if (evt.target.classList.contains('trim-handle')) return;  // let handle drag take over
+  if (evt.target.classList.contains('marker') || evt.target.classList.contains('marker-label')) return;
+  const tl = document.getElementById('timeline');
+  if (!tl) return;
+  evt.preventDefault();
+  const song = activeSong();
+  if (!song) return;
+  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
+  trimDragState = {
+    kind: 'body',
+    timelineRect: tl.getBoundingClientRect(),
+    durationS: audioBuffer.duration,
+    initialClientX: evt.clientX,
+    initialStartS: song.audioTrim.startS,
+    initialEndS: song.audioTrim.endS,
+    moved: false
+  };
+  document.body.style.cursor = 'grabbing';
+  window.addEventListener('mousemove', onAudioBodyDragMove);
+  window.addEventListener('mouseup', onAudioBodyDragEnd);
+}
+
+function onAudioBodyDragMove(evt) {
+  if (!trimDragState || trimDragState.kind !== 'body') return;
+  trimDragState.moved = true;
+  const song = activeSong();
+  if (!song) return;
+  const { timelineRect, durationS, initialClientX, initialStartS, initialEndS } = trimDragState;
+  // dragging right = audio moves right = startS decreases (audio's file-t=0 lines up later on timeline)
+  const dxPx = evt.clientX - initialClientX;
+  const dxS = (dxPx / timelineRect.width) * durationS;
+  song.audioTrim.startS = initialStartS - dxS;
+  if (initialEndS != null) song.audioTrim.endS = initialEndS - dxS;
+  // No hard clamp on startS — operator can shift audio fully off either side if they want.
+  // Practical limit: don't let audio disappear entirely.
+  const minStartS = -(durationS - 0.5);
+  const maxStartS = durationS - 0.5;
+  song.audioTrim.startS = Math.max(minStartS, Math.min(maxStartS, song.audioTrim.startS));
+  redrawAudioBody();
+}
+
+function onAudioBodyDragEnd() {
+  if (!trimDragState || trimDragState.kind !== 'body') return;
+  const moved = trimDragState.moved;
+  trimDragState = null;
+  document.body.style.cursor = '';
+  window.removeEventListener('mousemove', onAudioBodyDragMove);
+  window.removeEventListener('mouseup', onAudioBodyDragEnd);
+  if (moved) saveState();
+}
+
+function startEndHandleDrag(evt) {
   if (!audioBuffer) return;
   const tl = document.getElementById('timeline');
   if (!tl) return;
   evt.preventDefault();
   evt.stopPropagation();
   trimDragState = {
-    side,
+    kind: 'end',
     timelineRect: tl.getBoundingClientRect(),
     durationS: audioBuffer.duration
   };
   document.body.style.cursor = 'ew-resize';
-  window.addEventListener('mousemove', onTrimDragMove);
-  window.addEventListener('mouseup', onTrimDragEnd);
+  window.addEventListener('mousemove', onEndHandleDragMove);
+  window.addEventListener('mouseup', onEndHandleDragEnd);
 }
 
-function onTrimDragMove(evt) {
-  if (!trimDragState) return;
+function onEndHandleDragMove(evt) {
+  if (!trimDragState || trimDragState.kind !== 'end') return;
   const song = activeSong();
   if (!song) return;
   if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
-  const trim = song.audioTrim;
-  const { side, timelineRect, durationS } = trimDragState;
+  const { timelineRect, durationS } = trimDragState;
   let pct = (evt.clientX - timelineRect.left) / timelineRect.width;
   pct = Math.max(0, Math.min(1, pct));
-  const t = pct * durationS;
-  if (side === 'left') {
-    const rightBound = (trim.endS != null ? trim.endS : durationS) - 1.0;
-    trim.startS = Math.max(0, Math.min(rightBound, t));
-  } else {
-    const leftBound = trim.startS + 1.0;
-    trim.endS = Math.max(leftBound, Math.min(durationS, t));
-  }
-  updateTrimVisual();
-  renderMarkers();
-  const ruler = document.getElementById('ruler');
-  if (ruler) drawRuler(ruler, durationS, trim);
-  updatePlayhead();
+  const songT = pct * durationS;
+  const fileT = songT + song.audioTrim.startS;
+  const leftBound = song.audioTrim.startS + 0.5;
+  song.audioTrim.endS = Math.max(leftBound, Math.min(durationS, fileT));
+  redrawAudioBody();
 }
 
-function onTrimDragEnd() {
-  if (!trimDragState) return;
+function onEndHandleDragEnd() {
+  if (!trimDragState || trimDragState.kind !== 'end') return;
   trimDragState = null;
   document.body.style.cursor = '';
-  window.removeEventListener('mousemove', onTrimDragMove);
-  window.removeEventListener('mouseup', onTrimDragEnd);
+  window.removeEventListener('mousemove', onEndHandleDragMove);
+  window.removeEventListener('mouseup', onEndHandleDragEnd);
   saveState();
 }
 
-function resetTrimSide(side) {
+function resetAudioTrim() {
   const song = activeSong();
   if (!song) return;
-  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
-  if (side === 'left')  song.audioTrim.startS = 0;
-  if (side === 'right') song.audioTrim.endS = null;
-  updateTrimVisual();
-  renderMarkers();
-  const ruler = document.getElementById('ruler');
-  if (ruler && audioBuffer) drawRuler(ruler, audioBuffer.duration, song.audioTrim);
-  updatePlayhead();
+  song.audioTrim = { startS: 0, endS: null };
+  redrawAudioBody();
   saveState();
 }
 
@@ -783,7 +841,9 @@ window.CC.audio = {
   startPlayheadLoop, stopPlayheadLoop, updatePlayhead,
   updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte, dropMarkerAtPlayhead,
   selectMarker, deselectAllMarkers, deleteSelectedMarker, getSelectedMarkerCueN,
-  // new pure helpers (test surface)
+  // audio-mobile trim model
+  redrawAudioBody, positionEndHandle, startAudioBodyDrag, startEndHandleDrag, resetAudioTrim,
+  // pure helpers (test surface)
   fileToSongTime, songToFileTime, clampSeek, shouldAutoPause, pickTickInterval,
   findPrevMarker, findNextMarker
 };

@@ -268,6 +268,58 @@ Manual smoke (operator-facing):
 - Press ↻ during playback: jumps to in-point, keeps playing.
 - Reload page → trim persists.
 
+## Addendum 2026-06-07 — Trim model revision: audio-mobile, timeline-fixed
+
+After hands-on testing of the first cut, the trim model was inverted. The spec above describes the **legacy "trim-window" model** where the timeline width = full file and markers visually shift when the in-point moves. That conflicts with how an operator thinks about cue authoring: cues are anchored to SMPTE timeline positions; the audio file is a reference that should align *under* them, not the other way around.
+
+**New model — "audio-mobile, timeline-fixed":**
+
+- **Timeline is fixed.** Width represents `audio_duration` seconds of song-time. Ruler labels `0:00 / 0:05 / ... / audio_duration` never move when the audio is offset or trimmed.
+- **Audio waveform is movable.** Drag the waveform body left/right to offset it (= what file-time aligns to timeline `0:00`). Drag the right edge of the waveform to trim the audio end (= where playback stops).
+- **Markers stay anchored to SMPTE.** A cue at `00:00:05:00` is *always* at `5 / audio_duration * width` pixels, regardless of any offset. They never move.
+- **Playhead position** is computed from song-time, not file-time: `playhead_x = songT / audio_duration * width`, where `songT = audioEl.currentTime - trim.startS`.
+- **Auto-pause** still fires when `audioEl.currentTime >= trim.endS`. Stop / Restart still seek to `trim.startS`. The MATH layer is unchanged — only the rendering model flipped.
+
+**Data model is unchanged.** `song.audioTrim = { startS, endS }` keeps the same shape and the same semantics:
+- `startS` = audio file time that maps to timeline `0:00` (= "song-time zero")
+- `endS` = audio file time where playback stops (`null` = end of file)
+
+Pure helpers (`fileToSongTime`, `songToFileTime`, `clampSeek`, `shouldAutoPause`, `pickTickInterval`, `findPrevMarker`, `findNextMarker`) are unchanged. Existing 17 unit tests still cover the contract.
+
+**What changes in rendering (`audio.js`):**
+
+| Concern | Legacy (this spec, above) | New |
+|---|---|---|
+| Marker x | `(startS + smpteSec) / dur * w` | `smpteSec / dur * w` (drop `songToFileTime` from marker math) |
+| Playhead x | `audioEl.currentTime / dur * w` | `fileToSongTime(currentTime, trim) / dur * w` |
+| Waveform draw | sample audio at `x/w * dur` | sample audio at `x/w * dur + startS` (shifted left by `startS/dur * w` pixels) |
+| Ruler labels | song-time `0..dur` | unchanged (already song-time) |
+| Trim handles | two handles AT timeline edges | one right-edge handle on the audio body + drag-the-body to shift offset |
+| Dim overlay | covers regions outside trim window | dropped (no longer meaningful — audio outside the file is just absent, drawn as silence) |
+| Click-to-seek | clamp to `[startS, endS]` in file time | seek to `clampSeek(x/w * dur + startS, trim, dur)` (still file-time under the hood) |
+| Marker drag (`onMarkerDragMove`) | pct→file→song-time write | pct→song-time write (no offset involved; markers are anchored to SMPTE) |
+| Capture (🎯) | `fileToSongTime(currentTime, trim)` | unchanged — already correct |
+| `updateCurrentMarker` | passed song-time | unchanged — already song-time after critical fix on 2026-06-07 |
+| `skipPrev/Next` window filter | filter by file-time in `[startS, endS]` | filter by song-time in `[0, endS - startS]` (or equivalent) |
+| ResizeObserver redraw set | adds `updateTrimVisual` | drops `updateTrimVisual` (no dim/handle visual to maintain) — audio waveform redraw recomputes offset shift automatically |
+
+**Interaction:**
+
+- Hover audio body → `cursor: grab`.
+- Mousedown on audio body → start drag. Mousemove: `trim.startS += (-deltaXpx) / w * dur` (drag right = startS decreases = audio shifts right; drag left = startS increases = audio shifts left). Clamp to a sensible range.
+- Mouseup → `saveState()`.
+- Right-edge handle on audio body sits at timeline x = `(audio_dur - startS) / dur * w`. Drag left → decrease `endS`. Snap-out when released.
+- Double-click on audio body → reset (`startS = 0`, `endS = null`).
+
+**Out of scope for this rework:**
+
+- Animated audio shift (no easing — snaps to drag position).
+- Snap-to-marker when dragging the audio body.
+- A "lead-in" zone (audio that plays before timeline 0, e.g. for a click track).
+- Visual hint of off-screen audio (a chevron indicating "more audio to the left/right").
+
+---
+
 ## Open questions
 
 None. All decisions locked above.
