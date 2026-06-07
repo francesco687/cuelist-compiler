@@ -1,17 +1,43 @@
 {
-  "name": "cuelist-menubar-hub",
+  "name": "saetta-hub",
   "version": "0.1.0",
   "private": true,
-  "description": "Stripped-down laptop hub: pairs with the iPhone over a Fly relay and relays OSC to grandMA3.",
+  "description": "Saetta Hub: laptop menubar app that pairs with the iPhone over a Fly relay and relays OSC to grandMA3.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "dist": "electron-builder --mac",
     "test": "node --test"
   },
   "dependencies": {
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "electron": "^31.0.0"
+    "electron": "^31.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.blearred.saetta.hub",
+    "productName": "Saetta Hub",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "../hub/src", "to": "hub/src" },
+      { "from": "../web/js", "to": "web/js" }
+    ],
+    "mac": {
+      "target": "dir",
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.icns",
+      "identity": null
+    }
   }
 }

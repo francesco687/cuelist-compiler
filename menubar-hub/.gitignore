@@ -1,0 +1,4 @@
+# electron-builder output
+dist/
+# intermediate iconset (icon.icns is committed for reproducible rebuilds)
+build/SaettaHub.iconset/
