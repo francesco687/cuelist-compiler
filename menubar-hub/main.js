@@ -25,12 +25,15 @@ function packagedWebJsDir() {
 
 function buildClient() {
   if (client) client.close();
-  state = { relay: 'connecting', peer: false };
+  state = { relay: 'connecting', peer: false, roster: [] };
   // webJsDir is injected per-run (not persisted) so settings.json stays portable.
   const runtimeConfig = { ...settings, webJsDir: packagedWebJsDir() };
   client = new RelayHubClient(runtimeConfig, {
     onState: (s) => { state.relay = s; pushToRenderer('hub:state', s); updateTrayTitle(); },
-    onPeer:  (b) => { state.peer = b;  pushToRenderer('hub:peer', b);  updateTrayTitle(); },
+    onRoster: (phones) => {
+      state.roster = phones; state.peer = phones.length > 0;
+      pushToRenderer('hub:roster', phones); updateTrayTitle();
+    },
     onLog:   (e) => pushToRenderer('hub:log', e),
   }, { core: hubCore() });
   client.connect();
@@ -80,7 +83,7 @@ function trayIcon() {
 
 app.whenReady().then(() => {
   if (app.dock) app.dock.hide();                 // menubar-only, no dock icon
-  settings = settingsModule.load(app.getPath('userData'));
+  settings = settingsModule.loadOrInit(app.getPath('userData'));
 
   tray = new Tray(trayIcon());
   tray.setToolTip('Saetta Hub');
