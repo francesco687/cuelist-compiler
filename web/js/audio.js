@@ -15,6 +15,56 @@ let selectedMarkerCueN = null;
 let markerDragState = null; // { cueN, timelineRect, durationS, moved } during a drag, else null
 const channelMute = { L: false, R: false };
 
+// --- Pure helpers (no DOM, no globals — unit-tested in test/audio-helpers.test.js)
+
+function fileToSongTime(currentTime, trim) {
+  return currentTime - (trim && trim.startS ? trim.startS : 0);
+}
+
+function songToFileTime(songT, trim) {
+  return songT + (trim && trim.startS ? trim.startS : 0);
+}
+
+function clampSeek(rawS, trim, duration) {
+  const lo = trim && typeof trim.startS === 'number' ? trim.startS : 0;
+  const hi = trim && trim.endS != null ? trim.endS : duration;
+  return Math.max(lo, Math.min(hi, rawS));
+}
+
+function shouldAutoPause(currentTime, trim, alreadyPaused) {
+  if (alreadyPaused) return false;
+  if (!trim || trim.endS == null) return false;
+  return currentTime >= trim.endS;
+}
+
+function pickTickInterval(duration) {
+  if (duration <= 30)  return { interval: 1,  major: 5  };
+  if (duration <= 120) return { interval: 5,  major: 30 };
+  return { interval: 10, major: 60 };
+}
+
+function findPrevMarker(songTime, cues) {
+  const PREV_TOL = 0.25;
+  let best = null, bestT = -Infinity;
+  for (const c of cues) {
+    const t = timecodeToSeconds(c.position);
+    if (isNaN(t)) continue;
+    if (t < songTime - PREV_TOL && t > bestT) { best = c; bestT = t; }
+  }
+  return best;
+}
+
+function findNextMarker(songTime, cues) {
+  const NEXT_TOL = 0.05;
+  let best = null, bestT = Infinity;
+  for (const c of cues) {
+    const t = timecodeToSeconds(c.position);
+    if (isNaN(t)) continue;
+    if (t > songTime + NEXT_TOL && t < bestT) { best = c; bestT = t; }
+  }
+  return best;
+}
+
 async function loadAudioFile(file) {
   const targetSongId = state.activeSongId;
   try {
@@ -449,4 +499,12 @@ function onMarkerDragEnd() {
 
 // --- public surface
 window.CC = window.CC || {};
-window.CC.audio = { loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel, wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead, updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte, dropMarkerAtPlayhead, selectMarker, deselectAllMarkers, deleteSelectedMarker, getSelectedMarkerCueN };
+window.CC.audio = {
+  loadAudioFile, setActiveAudioFromCache, setChannelMute, drawWaveform, renderAudioPanel,
+  wireLoadAudio, togglePlay, startPlayheadLoop, stopPlayheadLoop, updatePlayhead,
+  updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte, dropMarkerAtPlayhead,
+  selectMarker, deselectAllMarkers, deleteSelectedMarker, getSelectedMarkerCueN,
+  // new pure helpers (test surface)
+  fileToSongTime, songToFileTime, clampSeek, shouldAutoPause, pickTickInterval,
+  findPrevMarker, findNextMarker
+};
