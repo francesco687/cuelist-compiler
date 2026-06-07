@@ -4,6 +4,8 @@ import SaettaKit
 struct RootView: View {
     @Environment(ProjectStore.self) private var store
     @Environment(VoiceCaptureController.self) private var voice
+    @Environment(HubClient.self) private var hub
+    @State private var showSetup = false
     @State private var showNotes = false
     @State private var showRename = false
     @State private var renameText = ""
@@ -26,6 +28,10 @@ struct RootView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(Theme.accentSolid)
+        // First-run gate: force naming before the app is usable. SettingsView's Done
+        // is disabled until a name exists, so this sheet can't be dismissed nameless.
+        .onAppear { showSetup = !hub.hasName }
+        .sheet(isPresented: $showSetup) { SettingsView() }
     }
 
     private var authorTab: some View {

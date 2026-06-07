@@ -6,6 +6,7 @@
 const { createCompiler, compileShow } = require('./compile-bridge');
 const { OscSender } = require('./osc');
 const { pullSequences } = require('./pull');
+const { createMutex } = require('./serialize');
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -13,28 +14,30 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 function createContext(config) {
   const api = createCompiler({ webJsDir: config.webJsDir });
   const sender = new OscSender({ host: config.ma3Host, port: config.ma3Port, prefix: config.ma3Prefix });
-  return { api, sender, config };
+  return { api, sender, config, lock: createMutex() };
 }
 
 async function handleMessage(ctx, msg, reply) {
   const { api, sender, config } = ctx;
 
   if (msg.type === 'compile-send') {
-    let lines;
-    try {
-      lines = compileShow(api, {
-        project: msg.project, defaults: msg.defaults, selection: msg.selection || 'all',
-      });
-    } catch (e) { reply({ type: 'error', message: e.message }); return { kind: 'error', summary: e.message }; }
-    try {
-      for (let i = 0; i < lines.length; i++) {
-        await sender.send(lines[i]);
-        reply({ type: 'progress', sent: i + 1, total: lines.length });
-        if (i < lines.length - 1) await delay(config.intervalMs);
-      }
-      reply({ type: 'done', total: lines.length });
-      return { kind: 'send', summary: `${msg.selection || 'all'} → ${lines.length} lines` };
-    } catch (e) { reply({ type: 'error', message: e.message }); return { kind: 'error', summary: e.message }; }
+    return ctx.lock(async () => {
+      let lines;
+      try {
+        lines = compileShow(api, {
+          project: msg.project, defaults: msg.defaults, selection: msg.selection || 'all',
+        });
+      } catch (e) { reply({ type: 'error', message: e.message }); return { kind: 'error', summary: e.message }; }
+      try {
+        for (let i = 0; i < lines.length; i++) {
+          await sender.send(lines[i]);
+          reply({ type: 'progress', sent: i + 1, total: lines.length });
+          if (i < lines.length - 1) await delay(config.intervalMs);
+        }
+        reply({ type: 'done', total: lines.length });
+        return { kind: 'send', summary: `${msg.selection || 'all'} → ${lines.length} lines` };
+      } catch (e) { reply({ type: 'error', message: e.message }); return { kind: 'error', summary: e.message }; }
+    });
   }
 
   if (msg.type === 'cmd' && typeof msg.line === 'string') {

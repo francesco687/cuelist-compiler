@@ -18,10 +18,21 @@ function addLog(entry) {
     `<span class="ts">${hhmmss(entry.at)}</span>` +
     `<span class="kind ${entry.kind}">${kindLabel}</span>` +
     `<span class="summary"></span>`;
-  li.querySelector('.summary').textContent = entry.summary;   // textContent = no HTML injection
+  const who = entry.name ? entry.name + ' · ' : '';
+  li.querySelector('.summary').textContent = who + entry.summary;   // textContent = no HTML injection
   const feed = $('feed');
   feed.prepend(li);
   while (feed.childElementCount > 200) feed.removeChild(feed.lastChild);
+}
+
+function renderRoster(phones) {
+  const ul = $('roster');
+  ul.innerHTML = '';
+  for (const p of phones) {
+    const li = document.createElement('li');
+    li.textContent = p.name;
+    ul.appendChild(li);
+  }
 }
 
 async function init() {
@@ -30,25 +41,30 @@ async function init() {
   $('ma3Host').value = s.ma3Host;
   $('ma3Port').value = s.ma3Port;
   $('ma3Prefix').value = s.ma3Prefix;
-  $('code').textContent = s.pairingCode;
+  $('code').value = s.pairingCode;
 
   const st = await window.hub.getState();
   setStatus(st.relay, st.peer);
 
-  window.hub.onState((relay) => setStatus(relay, false));
-  window.hub.onPeer((peer) => window.hub.getState().then((x) => setStatus(x.relay, peer)));
+  window.hub.onState((relay) => window.hub.getState().then((x) => setStatus(x.relay, x.peer)));
+  window.hub.onRoster(renderRoster);
   window.hub.onLog(addLog);
 
-  $('copy').onclick = () => navigator.clipboard.writeText($('code').textContent);
-  $('regen').onclick = async () => { $('code').textContent = await window.hub.regenCode(); };
+  $('copy').onclick = () => navigator.clipboard.writeText($('code').value);
+  $('regen').onclick = async () => { $('code').value = await window.hub.regenCode(); };
   $('save').onclick = async () => {
-    const updated = await window.hub.setSettings({
-      relayUrl: $('relayUrl').value.trim(),
-      ma3Host: $('ma3Host').value.trim(),
-      ma3Port: parseInt($('ma3Port').value, 10),
-      ma3Prefix: $('ma3Prefix').value.trim(),
-    });
-    $('code').textContent = updated.pairingCode;
+    try {
+      const updated = await window.hub.setSettings({
+        relayUrl: $('relayUrl').value.trim(),
+        ma3Host: $('ma3Host').value.trim(),
+        ma3Port: parseInt($('ma3Port').value, 10),
+        ma3Prefix: $('ma3Prefix').value.trim(),
+        pairingCode: $('code').value.trim().toLowerCase(),
+      });
+      $('code').value = updated.pairingCode;
+    } catch (e) {
+      alert(e.message || 'Settings error');
+    }
   };
 }
 init();

@@ -1,6 +1,6 @@
 'use strict';
 const path = require('node:path');
-const { app, Tray, BrowserWindow, ipcMain, nativeImage, screen } = require('electron');
+const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, screen } = require('electron');
 const settingsModule = require('./src/settings');
 const { RelayHubClient } = require('./src/relay-client');
 
@@ -25,12 +25,15 @@ function packagedWebJsDir() {
 
 function buildClient() {
   if (client) client.close();
-  state = { relay: 'connecting', peer: false };
+  state = { relay: 'connecting', peer: false, roster: [] };
   // webJsDir is injected per-run (not persisted) so settings.json stays portable.
   const runtimeConfig = { ...settings, webJsDir: packagedWebJsDir() };
   client = new RelayHubClient(runtimeConfig, {
     onState: (s) => { state.relay = s; pushToRenderer('hub:state', s); updateTrayTitle(); },
-    onPeer:  (b) => { state.peer = b;  pushToRenderer('hub:peer', b);  updateTrayTitle(); },
+    onRoster: (phones) => {
+      state.roster = phones; state.peer = phones.length > 0;
+      pushToRenderer('hub:roster', phones); updateTrayTitle();
+    },
     onLog:   (e) => pushToRenderer('hub:log', e),
   }, { core: hubCore() });
   client.connect();
@@ -57,6 +60,19 @@ function createPopover() {
   popover.on('blur', () => { if (popover && !popover.isDestroyed()) popover.hide(); });
 }
 
+function quitApp() {
+  // Real teardown: before-quit closes the relay client; app.quit() overrides the
+  // window-all-closed keep-alive so the menubar process actually exits.
+  app.quit();
+}
+
+function showTrayMenu() {
+  const menu = Menu.buildFromTemplate([
+    { label: 'Quit Saetta Hub', accelerator: 'Command+Q', click: quitApp },
+  ]);
+  tray.popUpContextMenu(menu);
+}
+
 function togglePopover() {
   if (!popover) return;
   if (popover.isVisible()) { popover.hide(); return; }
@@ -80,11 +96,12 @@ function trayIcon() {
 
 app.whenReady().then(() => {
   if (app.dock) app.dock.hide();                 // menubar-only, no dock icon
-  settings = settingsModule.load(app.getPath('userData'));
+  settings = settingsModule.loadOrInit(app.getPath('userData'));
 
   tray = new Tray(trayIcon());
   tray.setToolTip('Saetta Hub');
   tray.on('click', togglePopover);
+  tray.on('right-click', showTrayMenu);          // right-click → Quit (left-click stays popover)
   updateTrayTitle();
 
   createPopover();

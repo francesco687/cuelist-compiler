@@ -10,13 +10,13 @@ try { WebSocket = require('ws'); } catch { /* ws absent in hermetic tests; injec
 let defaultCore;
 try { defaultCore = require('../../hub/src/handle'); } catch { /* core injected in packaged build */ }
 
-const CONTROL_TYPES = new Set(['joined', 'peer', 'join-error']);
+const CONTROL_TYPES = new Set(['joined', 'roster', 'join-error']);
 
 /**
  * Dials the relay, joins as 'hub', and runs the shared handleMessage core for every
  * phone frame, replying back over the same relay socket. Reconnects with backoff.
  *
- * hooks: { onState(string), onPeer(bool), onLog({kind,summary,at}) }
+ * hooks: { onState(string), onRoster([{cid,name}]), onLog({kind,summary,name,at}) }
  */
 class RelayHubClient {
   constructor(config, hooks = {}, { makeSocket, core } = {}) {
@@ -32,7 +32,7 @@ class RelayHubClient {
   }
 
   _state(s) { this.hooks.onState && this.hooks.onState(s); }
-  _peer(b) { this.hooks.onPeer && this.hooks.onPeer(b); }
+  _roster(phones) { this.hooks.onRoster && this.hooks.onRoster(phones); }
   _log(entry) { this.hooks.onLog && this.hooks.onLog(entry); }
 
   connect() {
@@ -50,27 +50,41 @@ class RelayHubClient {
     ws.on('message', (raw) => this._onMessage(raw.toString()));
 
     ws.on('close', () => {
-      this._peer(false);
+      // A retired client (replaced by buildClient on regen/settings-save, or whose
+      // server VM vanished on deploy) must NOT push state through the shared hooks —
+      // a late 'close' would otherwise clobber the live client's 'online' and wipe
+      // its roster, leaving the badge stuck on "offline" while commands still flow.
+      if (this.stopped) return;
+      this._roster([]);
       this._state('offline');
-      if (!this.stopped) this._scheduleReconnect();
+      this._scheduleReconnect();
     });
 
     ws.on('error', () => { /* a 'close' follows */ });
   }
 
   async _onMessage(text) {
+    if (this.stopped) return;   // retired clients must not forward/log or touch the roster
     let msg;
     try { msg = JSON.parse(text); } catch { return; }
 
     if (CONTROL_TYPES.has(msg.type)) {
-      if (msg.type === 'peer') this._peer(!!msg.connected);
+      if (msg.type === 'roster') this._roster(msg.phones || []);
       if (msg.type === 'join-error') this._state(`error: ${msg.message}`);
       return;
     }
 
-    const reply = (obj) => { try { this.ws.send(JSON.stringify(obj)); } catch {} };
-    const out = await this.core.handleMessage(this.ctx, msg, reply);
-    if (out && out.kind && out.kind !== 'ping') this._log({ ...out, at: Date.now() });
+    if (msg.type === 'from-phone') {
+      let frame;
+      try { frame = JSON.parse(msg.frame); } catch { return; }
+      const cid = msg.cid;
+      const reply = (obj) => {
+        try { this.ws.send(JSON.stringify({ type: 'to-phone', cid, frame: JSON.stringify(obj) })); } catch {}
+      };
+      const out = await this.core.handleMessage(this.ctx, frame, reply);
+      if (out && out.kind && out.kind !== 'ping') this._log({ ...out, name: msg.name, at: Date.now() });
+      return;
+    }
   }
 
   _scheduleReconnect() {

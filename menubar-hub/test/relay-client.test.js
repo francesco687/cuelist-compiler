@@ -36,27 +36,72 @@ test('on open it sends a hub join frame', () => {
   assert.deepStrictEqual(sock.sent[0], { type: 'join', room: 'CODE1234', role: 'hub' });
 });
 
-test('peer frame drives onPeer; phone cmd reaches OSC and replies via the socket', async () => {
+test('from-phone frame reaches OSC and replies via a to-phone envelope; log carries the name', async () => {
   const sock = new FakeSocket();
   const { osc, core } = fakeDeps();
-  const peers = []; const logs = [];
-  const c = new RelayHubClient(config, { onPeer: (b) => peers.push(b), onLog: (e) => logs.push(e) },
-    { makeSocket: () => sock, core });
+  const logs = [];
+  const c = new RelayHubClient(config, { onLog: (e) => logs.push(e) }, { makeSocket: () => sock, core });
   c.connect();
   sock.emit('open');
-  sock.emit('message', Buffer.from(JSON.stringify({ type: 'peer', connected: true })));
-  assert.deepStrictEqual(peers, [true]);
 
-  sock.emit('message', Buffer.from(JSON.stringify({ type: 'cmd', line: 'Go+' })));
-  await new Promise((r) => setTimeout(r, 0));   // let the async handler settle
+  sock.emit('message', Buffer.from(JSON.stringify({
+    type: 'from-phone', cid: 'p1', name: 'Matteo', frame: JSON.stringify({ type: 'cmd', line: 'Go+' }),
+  })));
+  await new Promise((r) => setTimeout(r, 0));
+
   assert.deepStrictEqual(osc, ['Go+']);
-  // reply went back out over the relay socket
-  assert.ok(sock.sent.some((m) => m.type === 'sent' && m.line === 'Go+'));
-  // and a log entry was emitted
-  assert.ok(logs.some((e) => e.kind === 'cmd' && e.summary === 'Go+'));
+  const reply = sock.sent.find((m) => m.type === 'to-phone');
+  assert.ok(reply, 'expected a to-phone reply');
+  assert.strictEqual(reply.cid, 'p1');
+  assert.deepStrictEqual(JSON.parse(reply.frame), { type: 'sent', line: 'Go+' });
+  assert.ok(logs.some((e) => e.kind === 'cmd' && e.name === 'Matteo'));
 });
 
-test('control frames (joined/peer) are NOT forwarded to handleMessage', async () => {
+test('roster frame drives onRoster', () => {
+  const sock = new FakeSocket();
+  const { core } = fakeDeps();
+  const rosters = [];
+  const c = new RelayHubClient(config, { onRoster: (p) => rosters.push(p) }, { makeSocket: () => sock, core });
+  c.connect();
+  sock.emit('open');
+  sock.emit('message', Buffer.from(JSON.stringify({ type: 'roster', phones: [{ cid: 'p1', name: 'Matteo' }] })));
+  assert.deepStrictEqual(rosters, [[{ cid: 'p1', name: 'Matteo' }]]);
+});
+
+test('a retired client does not clobber shared state when its socket closes late', () => {
+  // Repro of the "online but shows offline" bug: buildClient() replaces a client
+  // (regen / settings save / post-deploy reconnect). The old client is close()'d,
+  // but its half-open socket fires 'close' LATE — after the new client is already
+  // online. A retired client must NOT push 'offline'/[] through the shared hooks.
+  const sock = new FakeSocket();
+  const { core } = fakeDeps();
+  const states = [];
+  const rosters = [];
+  const c = new RelayHubClient(config,
+    { onState: (s) => states.push(s), onRoster: (p) => rosters.push(p) },
+    { makeSocket: () => sock, core });
+  c.connect();
+  sock.emit('open');            // 'connecting' -> 'online'
+  c.close();                    // retire it; close() triggers a late socket 'close'
+  assert.ok(!states.includes('offline'),
+    `retired client clobbered state with 'offline': ${JSON.stringify(states)}`);
+  assert.ok(!rosters.some((r) => r.length === 0),
+    `retired client clobbered the roster with []: ${JSON.stringify(rosters)}`);
+});
+
+test('a live client DOES emit offline and reconnects when its socket drops', () => {
+  const sock = new FakeSocket();
+  const { core } = fakeDeps();
+  const states = [];
+  const c = new RelayHubClient(config, { onState: (s) => states.push(s) }, { makeSocket: () => sock, core });
+  c.connect();
+  sock.emit('open');            // 'connecting' -> 'online'
+  sock.emit('close');           // server dropped us while still live
+  assert.ok(states.includes('offline'), `live drop should surface 'offline': ${JSON.stringify(states)}`);
+  c.close();                    // stop the scheduled reconnect timer so the test exits clean
+});
+
+test('control frames (joined/roster) are NOT forwarded to handleMessage', async () => {
   const sock = new FakeSocket();
   const { osc, core } = fakeDeps();
   const c = new RelayHubClient(config, {}, { makeSocket: () => sock, core });

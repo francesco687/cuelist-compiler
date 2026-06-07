@@ -31,7 +31,11 @@ struct SaettaApp: App {
                 .environment(notes)
                 .tint(Theme.accentSolid)
                 .preferredColorScheme(.dark)
-                .onAppear { if !hub.host.isEmpty { hub.connect() } }
+                .onAppear {
+                    // Identity is the operator's own persisted name (see SettingsView);
+                    // never auto-connect nameless — RootView forces naming on first run.
+                    if hub.hasName, !hub.host.isEmpty || hub.mode == .relay { hub.connect() }
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { store.saveNow() }

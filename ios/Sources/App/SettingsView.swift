@@ -13,6 +13,15 @@ struct SettingsView: View {
         @Bindable var hub = hub
         NavigationStack {
             Form {
+                Section {
+                    TextField("Your name", text: $hub.operatorName)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("You")
+                } footer: {
+                    Text("Required — this is how others see you in the session.")
+                }
                 Section("Connection") {
                     Picker("Mode", selection: $hub.mode) {
                         Text("Direct (same WiFi)").tag(HubMode.direct)
@@ -33,9 +42,17 @@ struct SettingsView: View {
                             .autocorrectionDisabled().textInputAutocapitalization(.never)
                     }
                     Button("Connect") { hub.connect() }
+                        .disabled(!hub.hasName)
                 }
                 Section {
                     LabeledContent("Status") { Text(statusText) }
+                }
+                if !hub.roster.isEmpty {
+                    Section("Connected") {
+                        ForEach(hub.roster) { op in
+                            Text(op.name)
+                        }
+                    }
                 }
                 Section {
                     SecureField("OpenAI API key", text: $openAIKey)
@@ -55,6 +72,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { saveKeys(); dismiss() }
+                        .disabled(!hub.hasName)   // cannot leave Settings nameless
                 }
             }
             .onAppear {

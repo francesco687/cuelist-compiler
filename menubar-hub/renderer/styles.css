@@ -16,11 +16,14 @@ header { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-
 .pairing label, .loghead { color: var(--faint); font-size: 11px; text-transform: uppercase;
   letter-spacing: .04em; }
 .coderow { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-code#code { background: var(--surface); padding: 6px 10px; border-radius: 6px; flex: 1;
-  font-size: 15px; letter-spacing: .08em; }
+input#code { background: var(--surface); padding: 6px 10px; border-radius: 6px; flex: 1;
+  font-size: 15px; letter-spacing: .08em; font-family: monospace; color: var(--text); border: none; }
 button { background: var(--surface); color: var(--text); border: none; border-radius: 6px;
   padding: 6px 10px; cursor: pointer; }
 button:hover { background: #2a2e37; }
+
+ul#roster { list-style: none; margin: 6px 0 0; padding: 0; }
+ul#roster li { font-size: 12px; color: var(--faint); padding: 2px 0; }
 
 .log { margin-top: 14px; }
 ul#feed { list-style: none; margin: 6px 0 0; padding: 0; max-height: 200px; overflow-y: auto; }
