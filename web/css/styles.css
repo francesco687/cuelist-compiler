@@ -837,3 +837,40 @@
   cursor: pointer;
 }
 .cue-tc-capture:hover { background: #333; }
+
+#timeline .trim-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 3;
+}
+#timeline .trim-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  transform: translateX(-4px);
+  background: transparent;
+  border-left: 2px solid #f8f8f8;
+  cursor: ew-resize;
+  z-index: 6;
+}
+#timeline .trim-handle.right {
+  border-left: none;
+  border-right: 2px solid #f8f8f8;
+}
+#timeline .trim-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 16px;
+  background: #f8f8f8;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+#timeline .trim-handle:hover::after { opacity: 1; }

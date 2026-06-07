@@ -13,6 +13,7 @@ const audioCache = new Map(); // songId -> { audioEl, audioBuffer, audioGainL, a
 let currentAudioSongId = null;
 let selectedMarkerCueN = null;
 let markerDragState = null; // { cueN, timelineRect, durationS, moved } during a drag, else null
+let trimDragState = null;  // { side, timelineRect, durationS } during a trim drag, else null
 let resizeObserver = null;
 const channelMute = { L: false, R: false };
 
@@ -303,8 +304,12 @@ function renderAudioPanel() {
       ` : `
         <div class="channel-wave" style="height:90px;"><canvas id="waveL"></canvas></div>
       `}
+      <div class="trim-dim left"  id="trimDimLeft"></div>
+      <div class="trim-dim right" id="trimDimRight"></div>
       <div class="markers" id="markers"></div>
       <div class="playhead" id="playhead" style="left:0px"></div>
+      <div class="trim-handle left"  id="trimHandleLeft"  title="In point — drag to set song start"></div>
+      <div class="trim-handle right" id="trimHandleRight" title="Out point — drag to set song end"></div>
     </div>
   `;
 
@@ -322,13 +327,27 @@ function renderAudioPanel() {
     btn.addEventListener('click', () => setChannelMute(btn.dataset.ch, !channelMute[btn.dataset.ch]));
   });
 
+  const hL = document.getElementById('trimHandleLeft');
+  const hR = document.getElementById('trimHandleRight');
+  if (hL) {
+    hL.addEventListener('mousedown', e => startTrimDrag('left', e));
+    hL.addEventListener('dblclick', () => resetTrimSide('left'));
+  }
+  if (hR) {
+    hR.addEventListener('mousedown', e => startTrimDrag('right', e));
+    hR.addEventListener('dblclick', () => resetTrimSide('right'));
+  }
+
   const tl = document.getElementById('timeline');
   tl.addEventListener('click', e => {
     if (e.target.classList.contains('marker') || e.target.classList.contains('marker-label')) return;
+    if (e.target.classList.contains('trim-handle')) return;
     deselectAllMarkers();
     const rect = tl.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    audioEl.currentTime = Math.max(0, Math.min(dur, pct * dur));
+    const song = activeSong();
+    const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+    audioEl.currentTime = clampSeek(pct * dur, trim, dur);
     updatePlayhead();
   });
 
@@ -346,6 +365,7 @@ function renderAudioPanel() {
       if (waveR) drawWaveform(waveR, audioBuffer.getChannelData(1));
     }
     renderMarkers();
+    updateTrimVisual();
     updatePlayhead();
   });
 
@@ -363,6 +383,7 @@ function renderAudioPanel() {
         const wr = document.getElementById('waveR');
         if (wr) drawWaveform(wr, audioBuffer.getChannelData(1));
       }
+      updateTrimVisual();
       updatePlayhead();
     });
     resizeObserver.observe(tlEl);
@@ -418,11 +439,18 @@ function skipPrevMarker() {
   const song = activeSong();
   if (!audioEl || !song) return;
   const trim = song.audioTrim || { startS: 0, endS: null };
+  const dur = audioBuffer ? audioBuffer.duration : Infinity;
+  const endS = trim.endS != null ? trim.endS : dur;
+  const inWindow = song.cues.filter(c => {
+    const sSong = timecodeToSeconds(c.position);
+    if (isNaN(sSong)) return false;
+    const sFile = songToFileTime(sSong, trim);
+    return sFile >= trim.startS && sFile <= endS;
+  });
   const songT = fileToSongTime(audioEl.currentTime, trim);
-  const target = findPrevMarker(songT, song.cues);
+  const target = findPrevMarker(songT, inWindow);
   if (target) {
-    const tS = timecodeToSeconds(target.position);
-    audioEl.currentTime = songToFileTime(tS, trim);
+    audioEl.currentTime = songToFileTime(timecodeToSeconds(target.position), trim);
   } else {
     audioEl.currentTime = trim.startS;
   }
@@ -433,11 +461,18 @@ function skipNextMarker() {
   const song = activeSong();
   if (!audioEl || !song) return;
   const trim = song.audioTrim || { startS: 0, endS: null };
+  const dur = audioBuffer ? audioBuffer.duration : Infinity;
+  const endS = trim.endS != null ? trim.endS : dur;
+  const inWindow = song.cues.filter(c => {
+    const sSong = timecodeToSeconds(c.position);
+    if (isNaN(sSong)) return false;
+    const sFile = songToFileTime(sSong, trim);
+    return sFile >= trim.startS && sFile <= endS;
+  });
   const songT = fileToSongTime(audioEl.currentTime, trim);
-  const target = findNextMarker(songT, song.cues);
+  const target = findNextMarker(songT, inWindow);
   if (!target) return;
-  const tS = timecodeToSeconds(target.position);
-  audioEl.currentTime = songToFileTime(tS, trim);
+  audioEl.currentTime = songToFileTime(timecodeToSeconds(target.position), trim);
   updatePlayhead();
 }
 
@@ -462,13 +497,19 @@ function stopPlayheadLoop() {
 
 function updatePlayhead() {
   if (!audioEl || !audioBuffer) return;
+  const song = activeSong();
+  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+
+  if (shouldAutoPause(audioEl.currentTime, trim, audioEl.paused)) {
+    audioEl.pause();
+    audioEl.currentTime = trim.endS;
+  }
+
   const tl = document.getElementById('timeline');
   const ph = document.getElementById('playhead');
   const tcEl = document.getElementById('tcReader');
   const subEl = document.getElementById('tcReaderSub');
   if (!tl || !ph) return;
-  const song = activeSong();
-  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
   const dur = audioBuffer.duration;
   const t = audioEl.currentTime;
   const pct = dur > 0 ? t / dur : 0;
@@ -513,10 +554,12 @@ function renderMarkers() {
   markers.innerHTML = '';
   const dur = audioBuffer.duration;
   if (dur <= 0) return;
+  const trim = song.audioTrim || { startS: 0, endS: null };
   song.cues.forEach(cue => {
-    const s = timecodeToSeconds(cue.position);
-    if (isNaN(s)) return;
-    const pct = s / dur;
+    const sSong = timecodeToSeconds(cue.position);
+    if (isNaN(sSong)) return;
+    const sFile = songToFileTime(sSong, trim);
+    const pct = sFile / dur;
     if (pct < 0 || pct > 1) return;
     const m = document.createElement('div');
     m.className = 'marker';
@@ -535,7 +578,7 @@ function renderMarkers() {
     m.addEventListener('click', e => {
       e.stopPropagation();
       selectMarker(cue.n);
-      audioEl.currentTime = s;
+      audioEl.currentTime = sFile;
       song.cues.forEach(c => c.collapsed = (c.n !== cue.n));
       saveState();
       render();
@@ -545,9 +588,38 @@ function renderMarkers() {
   updateCurrentMarker(audioEl ? audioEl.currentTime : 0);
 }
 
+function updateTrimVisual() {
+  const song = activeSong();
+  if (!song || !audioBuffer) return;
+  const trim = song.audioTrim || { startS: 0, endS: null };
+  const dur = audioBuffer.duration;
+  if (!dur) return;
+  const leftPct  = (trim.startS / dur) * 100;
+  const rightPct = ((trim.endS != null ? trim.endS : dur) / dur) * 100;
+
+  const dimL = document.getElementById('trimDimLeft');
+  const dimR = document.getElementById('trimDimRight');
+  if (dimL) {
+    dimL.style.left  = '0';
+    dimL.style.width = leftPct + '%';
+    dimL.style.display = leftPct > 0 ? 'block' : 'none';
+  }
+  if (dimR) {
+    dimR.style.left  = rightPct + '%';
+    dimR.style.width = (100 - rightPct) + '%';
+    dimR.style.display = rightPct < 100 ? 'block' : 'none';
+  }
+  const hL = document.getElementById('trimHandleLeft');
+  const hR = document.getElementById('trimHandleRight');
+  if (hL) hL.style.left = leftPct + '%';
+  if (hR) hR.style.left = rightPct + '%';
+}
+
 function captureCurrentPlayheadAsSmpte() {
   if (!audioEl || isNaN(audioEl.currentTime)) return null;
-  return secondsToTimecode(audioEl.currentTime);
+  const song = activeSong();
+  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+  return secondsToTimecode(Math.max(0, fileToSongTime(audioEl.currentTime, trim)));
 }
 
 function dropMarkerAtPlayhead() {
@@ -617,8 +689,10 @@ function onMarkerDragMove(evt) {
   if (!cue) return;
   let pct = (evt.clientX - timelineRect.left) / timelineRect.width;
   pct = Math.max(0, Math.min(1, pct));
-  const seconds = pct * durationS;
-  cue.position = secondsToTimecode(seconds);
+  const fileSeconds = pct * durationS;
+  const trim = song.audioTrim || { startS: 0, endS: null };
+  const songSeconds = fileToSongTime(fileSeconds, trim);
+  cue.position = secondsToTimecode(Math.max(0, songSeconds));
   const pin = document.querySelector(`#markers .marker[data-cue-n="${cueN}"]`);
   if (pin) pin.style.left = (pct * 100) + '%';
 }
@@ -636,6 +710,69 @@ function onMarkerDragEnd() {
     saveState();
     render();
   }
+}
+
+function startTrimDrag(side, evt) {
+  if (!audioBuffer) return;
+  const tl = document.getElementById('timeline');
+  if (!tl) return;
+  evt.preventDefault();
+  evt.stopPropagation();
+  trimDragState = {
+    side,
+    timelineRect: tl.getBoundingClientRect(),
+    durationS: audioBuffer.duration
+  };
+  document.body.style.cursor = 'ew-resize';
+  window.addEventListener('mousemove', onTrimDragMove);
+  window.addEventListener('mouseup', onTrimDragEnd);
+}
+
+function onTrimDragMove(evt) {
+  if (!trimDragState) return;
+  const song = activeSong();
+  if (!song) return;
+  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
+  const trim = song.audioTrim;
+  const { side, timelineRect, durationS } = trimDragState;
+  let pct = (evt.clientX - timelineRect.left) / timelineRect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  const t = pct * durationS;
+  if (side === 'left') {
+    const rightBound = (trim.endS != null ? trim.endS : durationS) - 1.0;
+    trim.startS = Math.max(0, Math.min(rightBound, t));
+  } else {
+    const leftBound = trim.startS + 1.0;
+    trim.endS = Math.max(leftBound, Math.min(durationS, t));
+  }
+  updateTrimVisual();
+  renderMarkers();
+  const ruler = document.getElementById('ruler');
+  if (ruler) drawRuler(ruler, durationS, trim);
+  updatePlayhead();
+}
+
+function onTrimDragEnd() {
+  if (!trimDragState) return;
+  trimDragState = null;
+  document.body.style.cursor = '';
+  window.removeEventListener('mousemove', onTrimDragMove);
+  window.removeEventListener('mouseup', onTrimDragEnd);
+  saveState();
+}
+
+function resetTrimSide(side) {
+  const song = activeSong();
+  if (!song) return;
+  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
+  if (side === 'left')  song.audioTrim.startS = 0;
+  if (side === 'right') song.audioTrim.endS = null;
+  updateTrimVisual();
+  renderMarkers();
+  const ruler = document.getElementById('ruler');
+  if (ruler && audioBuffer) drawRuler(ruler, audioBuffer.duration, song.audioTrim);
+  updatePlayhead();
+  saveState();
 }
 
 // --- public surface
