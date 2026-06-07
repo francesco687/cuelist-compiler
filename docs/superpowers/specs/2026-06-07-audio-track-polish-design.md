@@ -241,27 +241,24 @@ audioEl.currentTime = clamped;
 | `web/css/styles.css` | Marker palette (red), playhead colour (white), transport button row, ruler row, trim handles + dim overlay, TC reader typography. |
 | `web/index.html` | Zero. Panel is fully rendered by `audio.js`. |
 | `examples/SONG_1.json` | No change. Loads with default trim. |
-| `web/test/transport.test.js` | Add cases for skip-prev/next-marker, stop, restart, auto-pause, click clamp. (Existing test file. See note below.) |
+| `web/test/audio-helpers.test.js` | NEW — pure helpers: `findPrevMarker`, `findNextMarker`, `pickTickInterval`, `shouldAutoPause`, `clampSeek`, file↔song time conversion. (`transport.test.js` already exists but covers the OSC transport — unrelated.) |
 
 `compile.js`, OSC, Lua templates, hub, iOS, ma3-command-spec.md, plugins: **untouched**. This is purely a programming-time editor change.
 
 ## Testing
 
-Unit tests under `web/test/`:
+Unit tests under `web/test/audio-helpers.test.js` (new file — `transport.test.js` is for OSC transport, do not extend):
 
-- `transport.test.js` (extend existing):
-  - `findPrevMarker(now, cues, trim)` returns expected cue
-  - `findNextMarker(now, cues, trim)` returns expected cue
-  - prev/next handle the 250 ms tolerance correctly
-  - prev returns null → caller seeks to `startS`
-  - next returns null → caller no-ops
-- New `trim.test.js`:
-  - `pickTickInterval(duration)` returns the right interval/major per the table
-  - file→song time conversion is round-trip clean with non-zero `startS`
-  - auto-pause condition: `shouldAutoPause(currentTime, trim)` returns true past `endS`, false inside, false when `endS=null`
-  - click-clamp: `clampSeek(rawSeconds, trim, duration)` clamps to `[startS, endS or duration]`
+- `findPrevMarker(songTime, cues)` returns expected cue (250 ms tolerance correctly handled)
+- `findNextMarker(songTime, cues)` returns expected cue (50 ms tolerance forward)
+- `findPrevMarker` returns null → caller seeks to `startS`
+- `findNextMarker` returns null → caller no-ops
+- `pickTickInterval(duration)` returns the right interval/major per the table
+- file→song time conversion is round-trip clean with non-zero `startS`
+- auto-pause condition: `shouldAutoPause(currentTime, trim)` returns true past `endS`, false inside, false when `endS=null`
+- click-clamp: `clampSeek(rawSeconds, trim, duration)` clamps to `[startS, endS or duration]`
 
-Test command: `cd web && node --test test/transport.test.js test/trim.test.js`.
+Test command: `cd web && node --test test/audio-helpers.test.js`.
 
 Manual smoke (operator-facing):
 - Load `examples/SONG_1.json` and its referenced audio.
