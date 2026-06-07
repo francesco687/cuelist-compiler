@@ -132,7 +132,7 @@ private struct TransportButton: View {
 }
 
 /// Brief scale + dim while pressed — the optimistic "it fired" pulse.
-private struct PressScaleStyle: ButtonStyle {
+struct PressScaleStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
