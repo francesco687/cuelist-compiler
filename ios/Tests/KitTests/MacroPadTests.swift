@@ -53,4 +53,17 @@ final class MacroPadTests: XCTestCase {
         XCTAssertEqual(p2.action(at: 3)?.id, "go_minus")
         XCTAssertNil(p2.action(at: 1))
     }
+
+    func test_unknown_persisted_id_reads_as_nil_but_is_preserved() {
+        let suite = "macropad.stale.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        // Simulate a slot persisted by a future/older build whose action id the
+        // current library no longer knows. "" marks the other three empty slots.
+        d.set(["ghost_action", "", "", ""], forKey: "macroPadSlots")
+
+        let pad = MacroPad(defaults: d)
+
+        XCTAssertNil(pad.action(at: 0), "unknown id must surface as an empty (nil) slot")
+        XCTAssertEqual(pad.slots[0], "ghost_action", "raw id must be preserved, not auto-cleared")
+    }
 }
