@@ -350,14 +350,91 @@
 
   #toolbar {
     display: flex;
-    gap: 10px;
+    gap: 14px;
     margin-top: 24px;
     padding-top: 20px;
     border-top: 1px solid #333;
     flex-wrap: wrap;
+    align-items: flex-start;
   }
   #toolbar .spacer { flex: 1; }
   #loadProject { display: none; }
+
+  #toolbar .toolbar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 12px 10px;
+    border: 1px solid #2e2e33;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.015);
+    position: relative;
+  }
+  #toolbar .toolbar-group .group-title {
+    position: absolute;
+    top: -8px;
+    left: 10px;
+    padding: 0 6px;
+    font-size: 0.7em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    background: #1a1a1d;
+  }
+  #toolbar .toolbar-group .group-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #toolbar .toolbar-group .group-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #toolbar .toolbar-group .store-label {
+    color: #aaa;
+    font-size: 0.9em;
+  }
+  #toolbar #storeMode {
+    background: #2a2a2e;
+    border: 1px solid #444;
+    color: #e8e8e8;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+
+  #toolbar .toolbar-group[data-group="send"] .send-meta { margin-bottom: 4px; }
+  #toolbar .toolbar-group[data-group="send"] .send-subs {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  #toolbar .toolbar-group[data-group="send"] .send-sub {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 8px 8px;
+    border: 1px dashed #3a3a40;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    position: relative;
+    min-width: 180px;
+  }
+  #toolbar .toolbar-group[data-group="send"] .send-sub .sub-title {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #aaa;
+    margin-bottom: 2px;
+  }
+  #toolbar .osc-btn.send-big {
+    padding: 12px 18px;
+    font-size: 1.05em;
+    font-weight: 600;
+    min-height: 44px;
+    border-radius: 5px;
+  }
 
   .empty-hint {
     text-align: center;
@@ -584,12 +661,276 @@
     margin-bottom: 14px;
   }
   #audioPanel.empty { padding: 14px; text-align: center; color: #666; }
-  #audioControls {
+  /* Reaper-style console row above the timeline */
+  #audioControls.reaper-console {
     display: flex;
     gap: 8px;
-    align-items: center;
+    align-items: stretch;
     margin-bottom: 8px;
     flex-wrap: wrap;
+  }
+  .console-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    background: #0a0e10;
+    border: 1px solid #1a2025;
+    border-radius: 4px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.025),
+      inset 0 0 0 1px #050709,
+      0 1px 0 rgba(255,255,255,0.02);
+    position: relative;
+  }
+  .console-box .led-label {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    color: #4a6055;
+    text-transform: uppercase;
+    align-self: flex-start;
+    position: absolute;
+    top: 3px;
+    left: 8px;
+  }
+  /* SMPTE LED — Reaper-ish green-on-black tube look */
+  #audioControls .tc-reader {
+    min-width: 175px;
+    justify-content: center;
+    padding: 14px 14px 6px;
+  }
+  #audioControls .tc-reader .led-main {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: #5fff8e;
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 6px rgba(95, 255, 142, 0.55), 0 0 2px rgba(95, 255, 142, 0.9);
+  }
+  #audioControls .tc-ltc,
+  #audioControls .tc-offset {
+    min-width: 175px;
+    justify-content: center;
+    padding: 14px 14px 6px;
+  }
+  #audioControls .tc-ltc .led-main,
+  #audioControls .tc-offset .led-main {
+    font-size: 24px;
+    letter-spacing: 1.5px;
+  }
+  /* LTC LED: same green as the old SMPTE display */
+  #audioControls .led-main.led-cyan {
+    color: #5fff8e;
+    text-shadow: 0 0 6px rgba(95, 255, 142, 0.55), 0 0 2px rgba(95, 255, 142, 0.9);
+  }
+  #audioControls .led-main.led-amber {
+    color: #ffb060;
+    text-shadow: 0 0 6px rgba(255, 176, 96, 0.55), 0 0 2px rgba(255, 176, 96, 0.9);
+  }
+  /* LTC config panel — green-bordered window */
+  #audioTcConfig {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 14px 14px 10px;
+    background: linear-gradient(rgba(60, 180, 110, 0.04), rgba(40, 120, 70, 0.02));
+    border: 1px solid #2a6a3e;
+    border-radius: 5px;
+    box-shadow:
+      inset 0 1px 0 rgba(95, 255, 142, 0.06),
+      0 0 0 1px rgba(95, 255, 142, 0.03);
+    position: relative;
+  }
+  #audioTcConfig::before {
+    content: 'LTC';
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    padding: 0 8px;
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 0.7em;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #5fff8e;
+    background: #1a1a1d;
+    text-shadow: 0 0 4px rgba(95, 255, 142, 0.4);
+  }
+  #audioTcConfig label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #aaa;
+    font-size: 0.85em;
+  }
+  #audioTcConfig .tc-config-label {
+    text-transform: uppercase;
+    font-size: 0.7em;
+    letter-spacing: 0.08em;
+    color: #888;
+  }
+  #audioTcConfig input {
+    background: #0a0e10;
+    border: 1px solid #1a2025;
+    color: #d8d8d8;
+    padding: 4px 8px;
+    border-radius: 3px;
+    width: 130px;
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 0.9em;
+  }
+  #audioTcConfig input:focus {
+    outline: none;
+    border-color: #3a5a4a;
+    box-shadow: 0 0 0 1px rgba(95, 255, 142, 0.2);
+  }
+  #audioTcConfig input.parse-error {
+    border-color: #a85040;
+    box-shadow: 0 0 0 1px rgba(255, 100, 80, 0.25);
+    color: #ff9080;
+  }
+  #audioTcConfig select {
+    background: #0a0e10;
+    border: 1px solid #1a2025;
+    color: #d8d8d8;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 0.85em;
+  }
+  #audioTcConfig .ltc-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #audioTcConfig .ltc-badge {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 0.8em;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: #1a1a1d;
+    color: #888;
+    border: 1px solid #2a2a2e;
+  }
+  #audioTcConfig .ltc-badge.ok {
+    background: #0d2418;
+    color: #5fff8e;
+    border-color: #1a3a26;
+  }
+  #audioTcConfig .ltc-badge.err {
+    background: #2a1010;
+    color: #ff7060;
+    border-color: #4a1a1a;
+  }
+  #audioTcConfig .ltc-badge.none { color: #555; }
+  #audioControls .tc-elapsed {
+    min-width: 110px;
+    justify-content: center;
+    padding: 14px 12px 6px;
+  }
+  #audioControls .tc-elapsed .led-sub {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 14px;
+    color: #d0a050;
+    text-shadow: 0 0 4px rgba(208, 160, 80, 0.5);
+    letter-spacing: 0.5px;
+  }
+  /* Transport block */
+  #audioControls .transport {
+    gap: 3px;
+    padding: 5px 8px;
+  }
+  #audioControls .transport button {
+    min-width: 34px;
+    padding: 5px 8px;
+    font-size: 14px;
+    line-height: 1;
+    background: linear-gradient(#2a2e33, #1a1d22);
+    border: 1px solid #0a0c0f;
+    color: #c8d0d4;
+    border-radius: 3px;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  #audioControls .transport button:hover {
+    background: linear-gradient(#3a3e44, #25282d);
+    color: #fff;
+  }
+  #audioControls .transport button:active {
+    background: linear-gradient(#1a1d22, #0e1115);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+  }
+  #audioControls .transport button.play {
+    min-width: 42px;
+    background: linear-gradient(#2c5e3e, #1d4029);
+    border-color: #061508;
+    color: #fff;
+  }
+  #audioControls .transport button.play:hover {
+    background: linear-gradient(#357055, #245232);
+  }
+  #audioControls .transport button.loop {
+    color: #d0a050;
+  }
+  #audioControls .transport button.loop.active {
+    background: linear-gradient(#5e4a1a, #3a2c0c);
+    color: #fff5b5;
+    border-color: #1a1408;
+  }
+  #audioControls .transport button.lock {
+    color: #c8d0d4;
+    font-size: 13px;
+  }
+  #audioControls .transport button.lock.on {
+    background: linear-gradient(#5a2a2e, #3a1c20);
+    color: #ffc0c0;
+    border-color: #1a0808;
+    box-shadow: inset 0 1px 0 rgba(255,150,150,0.08);
+  }
+  /* Viewport bar (mini-overview scrollbar below the timeline) */
+  #viewportBar {
+    position: relative;
+    margin-top: 6px;
+    height: 10px;
+    background: #131316;
+    border: 1px solid #2a2a2e;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  #viewportThumb {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(#3a5e7a, #2c4a62);
+    border-left: 1px solid #5b8dd6;
+    border-right: 1px solid #5b8dd6;
+    cursor: grab;
+    transition: background 80ms ease;
+  }
+  #viewportThumb:hover {
+    background: linear-gradient(#4a6e8a, #3c5a72);
+  }
+  #viewportThumb:active { cursor: grabbing; }
+  #audioControls .console-sep {
+    width: 1px;
+    background: #1a2025;
+    margin: 4px 4px;
+    align-self: stretch;
+    box-shadow: 1px 0 0 rgba(255,255,255,0.03);
+  }
+  /* Meta block (channels + filename + change) */
+  #audioControls .console-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+  }
+  #audioControls .console-meta .channels {
+    display: inline-flex;
+    gap: 2px;
   }
   #audioControls .filename {
     flex: 1;
@@ -600,13 +941,6 @@
     white-space: nowrap;
     min-width: 0;
   }
-  #audioControls .time {
-    color: #ccc;
-    font-size: 0.85em;
-    font-family: ui-monospace, 'Consolas', monospace;
-    min-width: 95px;
-    text-align: right;
-  }
   .channel-toggle {
     background: #2a2a2e;
     border: 1px solid #444;
@@ -614,6 +948,8 @@
     padding: 4px 10px;
     font-size: 0.82em;
     font-weight: 600;
+    border-radius: 3px;
+    cursor: pointer;
   }
   .channel-toggle.active {
     background: #2c5e3e;
@@ -625,7 +961,6 @@
     border-color: #444;
     color: #555;
   }
-  #playBtn { min-width: 70px; }
 
   #timeline {
     position: relative;
@@ -636,7 +971,14 @@
     user-select: none;
     cursor: pointer;
   }
-  #timeline canvas {
+  #timeline canvas#ruler {
+    display: block;
+    width: 100%;
+    height: 18px;
+    background: #131316;
+    border-bottom: 1px solid #2a2a2e;
+  }
+  #timeline .channel-wave canvas {
     display: block;
     width: 100%;
     height: 100%;
@@ -663,10 +1005,11 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: #ff5a5a;
+    background: #f8f8f8;
     pointer-events: none;
     z-index: 5;
     transform: translateX(-1px);
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
   }
   #timeline .markers {
     position: absolute;
@@ -679,39 +1022,42 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgba(255, 200, 50, 0.5);
+    background: rgba(220, 60, 60, 0.55);
     pointer-events: auto;
-    cursor: pointer;
+    cursor: grab;
   }
-  #timeline .marker:hover { background: rgba(255, 200, 50, 1); width: 2px; }
-  #timeline .marker { cursor: grab; }
+  #timeline .marker:hover {
+    background: rgba(255, 80, 80, 1);
+    width: 2px;
+  }
   #timeline .marker.selected {
-    background: rgba(255, 200, 50, 1);
+    background: #ff5050;
     width: 3px;
-    box-shadow: 0 0 4px rgba(255, 200, 50, 0.8);
+    box-shadow: 0 0 4px rgba(255, 80, 80, 0.8);
   }
   #timeline .marker.selected .marker-label {
-    color: #111;
-    background: rgba(255, 200, 50, 0.9);
+    color: #fff;
+    background: rgba(180, 40, 40, 0.95);
   }
   #timeline .marker.current {
-    background: rgba(91, 141, 214, 1);
+    background: #ff5050;
     width: 2px;
+    border-left: 2px solid #fff;
   }
   #timeline .marker .marker-label {
     position: absolute;
     top: 2px;
     left: 3px;
     font-size: 0.65em;
-    color: #f0c84a;
+    color: #fff;
     font-weight: 600;
     white-space: nowrap;
-    background: rgba(20, 20, 24, 0.7);
+    background: rgba(120, 30, 30, 0.85);
     padding: 1px 4px;
     border-radius: 2px;
     pointer-events: none;
   }
-  #timeline .marker.current .marker-label { color: #fff; background: rgba(61, 110, 198, 0.9); }
+  #timeline .marker.current .marker-label { color: #fff; background: rgba(220, 60, 60, 0.95); }
 
   .osc-pill {
     display: inline-flex;
@@ -728,6 +1074,12 @@
   .osc-pill.connecting { background: #4a3a1f; color: #e8c178; border-color: #6a5028; }
   .osc-pill.online { background: #1e4a2a; color: #8ee0a0; border-color: #2a6a3e; }
   .osc-pill.sending { background: #1f3a5a; color: #8ec0e0; border-color: #2e5a8a; }
+  .osc-target-inline {
+    color: #888;
+    font-size: 0.85em;
+    font-family: ui-monospace, Consolas, monospace;
+    margin-left: 2px;
+  }
 
   /* Desktop (Electron) status row — hidden in plain browser */
   .desk-status {
@@ -782,3 +1134,143 @@
   cursor: pointer;
 }
 .cue-tc-capture:hover { background: #333; }
+
+/* audio-mobile model: draggable body + single right-edge handle for audio end */
+#timeline .audio-body {
+  cursor: grab;
+}
+#timeline .audio-body:active {
+  cursor: grabbing;
+}
+/* When the track is locked: disable grab cursor on body + handles, show padlock vibe */
+#timeline.locked .audio-body { cursor: not-allowed; }
+#timeline.locked .audio-body:active { cursor: not-allowed; }
+#timeline.locked .trim-handle { cursor: not-allowed; opacity: 0.45; }
+#timeline.locked::before {
+  content: '🔒';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.85em;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 20;
+}
+#timeline .trim-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  transform: translateX(-4px);
+  background: transparent;
+  border-right: 2px solid #f8f8f8;
+  cursor: ew-resize;
+  z-index: 6;
+}
+#timeline .trim-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 16px;
+  background: #f8f8f8;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+#timeline .trim-handle:hover::after { opacity: 1; }
+
+/* Inline TC popup on timeline click — edit + seek to exact SMPTE */
+#timeline .tl-tc-popup {
+  position: absolute;
+  top: -42px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #0a0e10;
+  border: 1px solid #2a6a3e;
+  border-radius: 5px;
+  box-shadow:
+    inset 0 1px 0 rgba(95, 255, 142, 0.08),
+    0 4px 14px rgba(0, 0, 0, 0.55);
+}
+#timeline .tl-tc-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #0a0e10;
+  border-right: 1px solid #2a6a3e;
+  border-bottom: 1px solid #2a6a3e;
+}
+#timeline .tl-tc-input {
+  background: #050709;
+  border: 1px solid #1a2025;
+  color: #5fff8e;
+  font-family: ui-monospace, 'Consolas', monospace;
+  font-size: 1em;
+  padding: 4px 8px;
+  width: 110px;
+  border-radius: 3px;
+  outline: none;
+  letter-spacing: 0.5px;
+}
+#timeline .tl-tc-input:focus {
+  border-color: #3a6a4e;
+  box-shadow: 0 0 0 1px rgba(95, 255, 142, 0.25);
+}
+#timeline .tl-tc-input.parse-error {
+  border-color: #a85040;
+  box-shadow: 0 0 0 1px rgba(255, 100, 80, 0.3);
+  color: #ff9080;
+}
+#timeline .tl-tc-ok,
+#timeline .tl-tc-cancel {
+  background: #1a1d22;
+  border: 1px solid #0a0c0f;
+  color: #c8d0d4;
+  padding: 3px 8px;
+  font-size: 0.9em;
+  cursor: pointer;
+  border-radius: 3px;
+}
+#timeline .tl-tc-ok { color: #5fff8e; }
+#timeline .tl-tc-cancel { color: #d09080; }
+#timeline .tl-tc-ok:hover { background: #25282d; }
+#timeline .tl-tc-cancel:hover { background: #25282d; }
+
+/* Toast notification */
+#toast.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-family: inherit;
+  color: #fff;
+  background: #2a2a2e;
+  border: 1px solid #444;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+  max-width: 70vw;
+  word-break: break-all;
+}
+#toast.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+#toast.toast.success { background: #1e4a2a; border-color: #2a6a3e; color: #d8f0e2; }
+#toast.toast.error   { background: #4a1f1f; border-color: #6a2a2a; color: #f0d8d8; }
+#toast.toast.info    { background: #2a2a2e; border-color: #444;    color: #e0e0e0; }

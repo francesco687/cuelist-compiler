@@ -1,6 +1,8 @@
 'use strict';
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const fs = require('node:fs');
+const fsp = require('node:fs/promises');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const settingsModule = require('./settings');
 const { OscSender } = require('../hub/src/osc');
 const { startServer } = require('../hub/src/server');
@@ -91,6 +93,121 @@ app.whenReady().then(() => {
     hubPort: settings.hubPort,
     phoneConnected: !!(hub && hub.wss && hub.wss.clients.size > 0),
   }));
+
+  // Audio file foundation. Renderer cannot read disk directly under contextIsolation,
+  // and File.path was removed from the Web API in recent Electron. Audio picking and
+  // reading therefore round-trips through the main process.
+  ipcMain.handle('cuelist:pickAudio', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Pick audio file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Audio', extensions: ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'opus'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    if (res.canceled || !res.filePaths || res.filePaths.length === 0) return null;
+    const p = res.filePaths[0];
+    return { path: p, name: path.basename(p) };
+  });
+
+  ipcMain.handle('cuelist:readAudio', async (_e, filePath) => {
+    if (typeof filePath !== 'string' || !filePath) return { error: 'invalid path' };
+    try {
+      const buf = await fsp.readFile(filePath);
+      // Send the underlying ArrayBuffer (electron handles structured clone of typed arrays).
+      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      return { buffer: ab, name: path.basename(filePath) };
+    } catch (e) {
+      return { error: (e && e.message) || 'read failed' };
+    }
+  });
+
+  ipcMain.handle('cuelist:pathExists', async (_e, filePath) => {
+    if (typeof filePath !== 'string' || !filePath) return false;
+    try { await fsp.access(filePath, fs.constants.R_OK); return true; }
+    catch { return false; }
+  });
+
+  ipcMain.handle('cuelist:openProject', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Open project',
+      properties: ['openFile'],
+      filters: [{ name: 'Cuelist project', extensions: ['json'] }, { name: 'All files', extensions: ['*'] }],
+    });
+    if (res.canceled || !res.filePaths || res.filePaths.length === 0) return null;
+    const p = res.filePaths[0];
+    try {
+      const content = await fsp.readFile(p, 'utf8');
+      return { path: p, content };
+    } catch (e) {
+      return { error: (e && e.message) || 'read failed' };
+    }
+  });
+
+  ipcMain.handle('cuelist:saveProjectAs', async (_e, content, suggestedName) => {
+    const win = BrowserWindow.getFocusedWindow();
+    const res = await dialog.showSaveDialog(win, {
+      title: 'Save project',
+      defaultPath: typeof suggestedName === 'string' && suggestedName ? suggestedName : 'show.json',
+      filters: [{ name: 'Cuelist project', extensions: ['json'] }],
+    });
+    if (res.canceled || !res.filePath) return null;
+    try {
+      await fsp.writeFile(res.filePath, content, 'utf8');
+      return { path: res.filePath };
+    } catch (e) {
+      return { error: (e && e.message) || 'write failed' };
+    }
+  });
+
+  ipcMain.handle('cuelist:saveProjectAt', async (_e, filePath, content) => {
+    if (typeof filePath !== 'string' || !filePath) return { error: 'invalid path' };
+    try {
+      await fsp.writeFile(filePath, content, 'utf8');
+      return { ok: true };
+    } catch (e) {
+      return { error: (e && e.message) || 'write failed' };
+    }
+  });
+
+  // Save-as-bundle: pick a destination .json; create a sibling <basename>_assets/ dir.
+  ipcMain.handle('cuelist:pickBundleDir', async (_e, suggestedName) => {
+    const win = BrowserWindow.getFocusedWindow();
+    const res = await dialog.showSaveDialog(win, {
+      title: 'Save project + assets',
+      defaultPath: typeof suggestedName === 'string' && suggestedName ? suggestedName : 'show.json',
+      filters: [{ name: 'Cuelist project', extensions: ['json'] }],
+    });
+    if (res.canceled || !res.filePath) return null;
+    const jsonPath = res.filePath;
+    const dir = path.dirname(jsonPath);
+    const baseName = path.basename(jsonPath, path.extname(jsonPath));
+    const assetsDir = path.join(dir, baseName + '_assets');
+    try {
+      await fsp.mkdir(assetsDir, { recursive: true });
+      return { jsonPath, assetsDir, baseName };
+    } catch (e) {
+      return { error: (e && e.message) || 'mkdir failed' };
+    }
+  });
+
+  ipcMain.handle('cuelist:copyAudioToAssets', async (_e, srcPath, assetsDir, dstName) => {
+    if (!srcPath || !assetsDir || !dstName) return { error: 'invalid args' };
+    const dstPath = path.join(assetsDir, dstName);
+    try {
+      await fsp.copyFile(srcPath, dstPath);
+      return { dstPath };
+    } catch (e) {
+      return { error: (e && e.message) || 'copy failed' };
+    }
+  });
+
+  ipcMain.handle('cuelist:resolvePath', (_e, parts) => path.resolve(...(Array.isArray(parts) ? parts : [parts])));
+  ipcMain.handle('cuelist:relativePath', (_e, from, to) => path.relative(from, to));
+  ipcMain.handle('cuelist:isAbsolutePath', (_e, p) => typeof p === 'string' && path.isAbsolute(p));
 
   startHub();
 

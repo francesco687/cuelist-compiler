@@ -165,7 +165,7 @@ function renderSidebar() {
       state.songs.splice(idx, 1);
       audioCache.delete(song.id);
       if (state.songs.length === 0) {
-        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '' };
+        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null } };
         state.songs.push(ns);
         state.activeSongId = ns.id;
       } else if (song.id === state.activeSongId) {

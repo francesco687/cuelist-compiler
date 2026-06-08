@@ -10,12 +10,19 @@ function setOscState(s, label) {
   oscState = s;
   const pill = document.getElementById('oscPill');
   pill.className = 'osc-pill ' + s;
-  pill.textContent = label || ({
+  const isDesktop = !!(window.cuelist && window.cuelist.isDesktop);
+  const labels = isDesktop ? {
+    offline: '○ not ready',
+    connecting: '● starting…',
+    online: '● ready',
+    sending: '● sending…'
+  } : {
     offline: '○ OSC offline',
     connecting: '● connecting…',
     online: '● OSC online',
     sending: '● sending…'
-  })[s];
+  };
+  pill.textContent = label || labels[s];
   const canSend = (s === 'online');
   document.getElementById('sendOscCurrent').disabled = !canSend;
   document.getElementById('sendOscAll').disabled = !canSend;
@@ -117,8 +124,10 @@ function initDesktopChrome() {
   async function refreshStatus() {
     try {
       const st = await window.cuelist.getStatus();
-      const tl = document.getElementById('oscTargetLabel');
-      if (tl) tl.textContent = 'OSC → ' + st.oscTarget;
+      const ti = document.getElementById('oscTargetInline');
+      if (ti) { ti.textContent = '→ ' + st.oscTarget; ti.hidden = false; }
+      const pill = document.getElementById('oscPill');
+      if (pill) pill.title = `OSC target: ${st.oscTarget}\nClick to reset`;
       const pp = document.getElementById('phonePill');
       if (pp) { pp.textContent = st.phoneConnected ? '📱 phone connected' : '📱 no phone'; pp.classList.toggle('connected', st.phoneConnected); }
     } catch { /* transient IPC error — next poll recovers */ }

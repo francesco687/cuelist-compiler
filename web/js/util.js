@@ -18,6 +18,33 @@ function secondsToTimecode(s) {
   return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}:${String(ff).padStart(2,'0')}`;
 }
 
+// Parse signed SMPTE: "-01:00:00:00", "+00:30:00:00", or unsigned "01:00:00:00".
+// Empty / invalid → NaN.
+function signedTimecodeToSeconds(tc) {
+  if (tc == null || tc === '') return NaN;
+  let s = String(tc).trim();
+  let sign = 1;
+  if (s[0] === '-') { sign = -1; s = s.slice(1); }
+  else if (s[0] === '+') { s = s.slice(1); }
+  const parts = s.split(':');
+  if (parts.length !== 4) return NaN;
+  const [hh, mm, ss, ff] = parts.map(Number);
+  if ([hh, mm, ss, ff].some(isNaN)) return NaN;
+  return sign * (hh * 3600 + mm * 60 + ss + ff / FPS);
+}
+
+// Format seconds as signed SMPTE: positive → "01:00:00:00", negative → "-01:00:00:00".
+function secondsToSignedTimecode(s) {
+  if (!isFinite(s)) return '00:00:00:00';
+  const sign = s < 0 ? '-' : '';
+  const abs = Math.abs(s);
+  const hh = Math.floor(abs / 3600);
+  const mm = Math.floor((abs % 3600) / 60);
+  const ss = Math.floor(abs % 60);
+  const ff = Math.floor((abs - Math.floor(abs)) * FPS);
+  return `${sign}${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}:${String(ff).padStart(2,'0')}`;
+}
+
 function secondsToMMSS(s) {
   if (!isFinite(s) || s < 0) return '0:00';
   const mm = Math.floor(s / 60);
@@ -55,6 +82,27 @@ function download(content, filename, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+// Lightweight toast notification. kind: 'success'|'error'|'info'. Auto-dismisses after ms.
+let _toastTimer = null;
+function showToast(message, opts) {
+  if (typeof document === 'undefined') return; // safe in test sandbox
+  const kind = (opts && opts.kind) || 'info';
+  const ms = (opts && typeof opts.ms === 'number') ? opts.ms : 2500;
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    document.body.appendChild(el);
+  }
+  el.className = 'toast ' + kind + ' show';
+  el.textContent = message;
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+  _toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+    _toastTimer = null;
+  }, ms);
+}
+
 // --- public surface
 window.CC = window.CC || {};
-window.CC.util = { timecodeToSeconds, secondsToTimecode, secondsToMMSS, isValidSmpte, genId, escapeHtml, download };
+window.CC.util = { timecodeToSeconds, secondsToTimecode, secondsToMMSS, isValidSmpte, signedTimecodeToSeconds, secondsToSignedTimecode, genId, escapeHtml, download, showToast };
