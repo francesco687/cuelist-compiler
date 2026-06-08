@@ -25,7 +25,6 @@
         <div id="headerActions">
           <button id="manageMoodsBtn" class="ghost">Moods</button>
           <button id="manageDefaultsBtn" class="ghost">Defaults</button>
-          <button id="managePoolsBtn" class="ghost">Pools</button>
         </div>
       </div>
 
@@ -47,31 +46,65 @@
       <button id="addCue">+ Add Cue</button>
 
       <div id="toolbar">
-        <label style="color:#aaa;font-size:0.9em;">Store:</label>
-        <select id="storeMode" style="background:#2a2a2e;border:1px solid #444;color:#e8e8e8;padding:6px 10px;border-radius:4px;">
-          <option value="Overwrite">Overwrite</option>
-          <option value="Merge">Merge</option>
-        </select>
-        <button id="export">Export current .lua</button>
-        <button id="exportAll">Export all .lua</button>
-        <span id="oscPill" class="osc-pill offline" title="Click to reconnect to OSC proxy">○ OSC offline</span>
-        <button id="sendOscCurrent" class="osc-btn" disabled>Send current → MA</button>
-        <button id="sendOscAll" class="osc-btn" disabled>Send all → MA</button>
-        <button id="exportTc" class="ghost" title="Export TC events as .lua (paste-into-plugin)">Export TC .lua</button>
-        <button id="exportTcAll" class="ghost" title="Export all songs' TC events as .lua">Export all TC .lua</button>
-        <button id="sendTcOscCurrent" class="osc-btn" disabled title="Send TC events of current song. PRE-REQ: Track in TC pool exists.">Send TC current → MA</button>
-        <button id="sendTcOscAll" class="osc-btn" disabled title="Send TC events of all songs. PRE-REQ: Track in TC pool exists for each.">Send TC all → MA</button>
-        <button id="saveProject" class="ghost">Save Project (.json)</button>
-        <button id="loadBtn" class="ghost">Load Project</button>
-        <input type="file" id="loadProject" accept=".json">
-        <button id="importCsvBtn" class="ghost">Import .csv (CuePoints)</button>
-        <input type="file" id="importCsv" accept=".csv" style="display:none">
+        <div class="toolbar-group" data-group="send">
+          <span class="group-title">Send → MA</span>
+          <div class="group-row send-meta">
+            <label class="store-label">Store:</label>
+            <select id="storeMode">
+              <option value="Overwrite">Overwrite</option>
+              <option value="Merge">Merge</option>
+            </select>
+            <span id="oscPill" class="osc-pill offline" title="Click to reconnect to OSC proxy">○ OSC offline</span>
+            <span id="oscTargetInline" class="osc-target-inline" hidden></span>
+          </div>
+          <div class="send-subs">
+            <div class="send-sub">
+              <span class="sub-title">Cuelist</span>
+              <button id="sendOscCurrent" class="osc-btn send-big" disabled>Current → MA</button>
+              <button id="sendOscAll"     class="osc-btn send-big" disabled>All → MA</button>
+            </div>
+            <div class="send-sub">
+              <span class="sub-title">Timecode</span>
+              <button id="sendTcOscCurrent" class="osc-btn send-big" disabled title="Send TC events of current song. PRE-REQ: Track in TC pool exists.">TC current → MA</button>
+              <button id="sendTcOscAll"     class="osc-btn send-big" disabled title="Send TC events of all songs. PRE-REQ: Track in TC pool exists for each.">TC all → MA</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar-group" data-group="export">
+          <span class="group-title">Export Lua</span>
+          <div class="group-col">
+            <button id="export">Export current .lua</button>
+            <button id="exportAll">Export all .lua</button>
+            <button id="exportTc" class="ghost" title="Export TC events as .lua (paste-into-plugin)">Export TC .lua</button>
+            <button id="exportTcAll" class="ghost" title="Export all songs' TC events as .lua">Export all TC .lua</button>
+          </div>
+        </div>
+
+        <div class="toolbar-group" data-group="project">
+          <span class="group-title">Project</span>
+          <div class="group-col">
+            <button id="saveProject" class="ghost">Save Project (.json)</button>
+            <button id="saveProjectBundle" class="ghost" title="Save .json plus all audio files copied into a sibling folder. Portable.">Save Project + Assets…</button>
+            <button id="loadBtn" class="ghost">Load Project</button>
+          </div>
+          <input type="file" id="loadProject" accept=".json">
+        </div>
+
+        <div class="toolbar-group" data-group="import">
+          <span class="group-title">Import</span>
+          <div class="group-col">
+            <button id="importCsvBtn" class="ghost">Import .csv (CuePoints)</button>
+            <button id="managePoolsBtn" class="ghost">Pools from MA</button>
+          </div>
+          <input type="file" id="importCsv" accept=".csv" style="display:none">
+        </div>
+
         <div class="spacer"></div>
         <button id="clearAll" class="danger">Clear all</button>
       </div>
 
       <div id="deskStatusRow" class="desk-status" hidden>
-        <span id="oscTargetLabel">OSC → —</span>
         <span id="phonePill" class="phone-pill">📱 no phone</span>
         <button id="openSettingsBtn" type="button">⚙ Settings</button>
       </div>
@@ -162,6 +195,7 @@
 <script src="js/util.js"></script>
 <script src="js/state.js"></script>
 <script src="js/compile.js"></script>
+<script src="js/ltc.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/transport.js"></script>
 <script src="js/osc.js"></script>

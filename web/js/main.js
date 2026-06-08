@@ -49,7 +49,9 @@ document.getElementById('storeMode').addEventListener('change', e => {
 document.getElementById('export').addEventListener('click', exportLua);
 document.getElementById('exportAll').addEventListener('click', exportAllLua);
 document.getElementById('saveProject').addEventListener('click', saveProject);
-document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('loadProject').click());
+const bundleBtn = document.getElementById('saveProjectBundle');
+if (bundleBtn) bundleBtn.addEventListener('click', saveProjectAsBundle);
+document.getElementById('loadBtn').addEventListener('click', loadProjectViaPicker);
 document.getElementById('loadProject').addEventListener('change', e => {
   if (e.target.files[0]) loadProject(e.target.files[0]);
   e.target.value = '';
