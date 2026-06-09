@@ -7,7 +7,7 @@ import SwiftUI
 /// so slow drags still register whole-unit steps.
 struct JogFader: View {
     let label: String
-    let valueText: String          // running session offset, e.g. "+12°"
+    let valueText: String          // running session offset, e.g. "+12"
     let fine: Bool
     let onNudge: (Int) -> Void     // incremental delta during drag
     let onEnd: () -> Void          // drag ended → flush
