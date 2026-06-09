@@ -1,6 +1,4 @@
 // Sources/Kit/Fixture/NudgeAccumulator.swift
-import Foundation
-
 /// Coalesces a stream of relative nudge deltas (from a finger drag) into
 /// throttled emissions so a drag never floods the desk. Leading-edge emit, then
 /// sum within `intervalMs`, then emit on the next accept past the window or on
@@ -27,9 +25,13 @@ public final class NudgeAccumulator {
     }
 
     /// Emit any pending delta now (call on drag end). Returns it, or nil.
+    /// Resets the throttle clock so the next drag's first accept emits immediately.
     public func flush(atMs now: Int) -> Int? {
+        defer { lastEmitMs = nil }
         guard pending != 0 else { return nil }
-        return emit(now)
+        let out = pending
+        pending = 0
+        return out
     }
 
     private func emit(_ now: Int) -> Int? {
