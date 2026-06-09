@@ -24,7 +24,10 @@ struct FixtureControlView: View {
 
     // One accumulator per attribute key; reset on Clear / new selection.
     @State private var accumulators: [String: NudgeAccumulator] = [:]
-    @State private var version = 0             // bump to force fader value-text refresh
+    // Running per-key offset for fader display. Value-type @State so SwiftUI
+    // updates the fader's valueText in place without changing its identity
+    // (changing .id mid-drag would destroy the JogFader's gesture state).
+    @State private var offsets: [String: Int] = [:]
 
     var body: some View {
         NavigationStack {
@@ -32,15 +35,17 @@ struct FixtureControlView: View {
                 Theme.canvas
                 VStack(spacing: 14) {
                     connectionRow
-                    selectionChip
-                    categoryPicker
-                    controlArea.frame(maxHeight: .infinity)
-                    clearButton
-                    storeBar
+                    VStack(spacing: 14) {
+                        selectionChip
+                        categoryPicker
+                        controlArea.frame(maxHeight: .infinity)
+                        clearButton
+                        storeBar
+                    }
+                    .disabled(!hub.state.isOnline)
+                    .opacity(hub.state.isOnline ? 1 : 0.5)
                 }
                 .padding(20)
-                .disabled(!hub.state.isOnline)
-                .opacity(hub.state.isOnline ? 1 : 0.5)
             }
             .navigationTitle("Fixtures").navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -89,7 +94,6 @@ struct FixtureControlView: View {
                         onNudge: { nudge(key: key, attribute: item.1, delta: $0) },
                         onEnd: { flush(key: key, attribute: item.1) }
                     )
-                    .id(version)   // refresh value text after resets
                 }
             }
             Picker("", selection: $fine) {
@@ -103,20 +107,20 @@ struct FixtureControlView: View {
 
     private func nudge(key: String, attribute: String?, delta: Int) {
         let acc = accumulator(key)
-        guard let emit = acc.accept(delta: delta, atMs: nowMs()) else { return }
-        sendNudge(attribute: attribute, delta: emit)
+        let emit = acc.accept(delta: delta, atMs: nowMs())
+        offsets[key] = acc.offset                 // live display update, identity stable
+        if let emit { sendNudge(attribute: attribute, delta: emit) }
     }
     private func flush(key: String, attribute: String?) {
         let acc = accumulator(key)
         if let emit = acc.flush(atMs: nowMs()) { sendNudge(attribute: attribute, delta: emit) }
-        version += 1   // refresh displayed offset
+        offsets[key] = acc.offset
     }
     private func sendNudge(attribute: String?, delta: Int) {
         let line = attribute == nil
             ? FixtureControlBuilder.intensityNudge(delta)
             : FixtureControlBuilder.attributeNudge(attribute!, delta)
         if let line { send(line, haptic: false) }
-        version += 1
     }
     private func recall(pool: Pool, _ n: Int) {
         send(FixtureControlBuilder.recallPreset(pool: pool, number: n))
@@ -127,10 +131,10 @@ struct FixtureControlView: View {
         let a = NudgeAccumulator(); accumulators[key] = a; return a
     }
     private func offsetText(_ key: String) -> String {
-        let o = accumulators[key]?.offset ?? 0
+        let o = offsets[key] ?? 0
         return o > 0 ? "+\(o)" : "\(o)"
     }
-    private func resetAccumulators() { accumulators.removeAll(); version += 1 }
+    private func resetAccumulators() { accumulators.removeAll(); offsets.removeAll() }
     private func nowMs() -> Int { Int(ProcessInfo.processInfo.systemUptime * 1000) }
 
     private func send(_ line: String, haptic: Bool = true) {
