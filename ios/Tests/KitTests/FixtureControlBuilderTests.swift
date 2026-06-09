@@ -23,4 +23,18 @@ final class FixtureControlBuilderTests: XCTestCase {
     func test_clear_constant() {
         XCTAssertEqual(FixtureControlBuilder.clear, "ClearAll")
     }
+
+    func test_store_cue_overwrite_and_merge() {
+        XCTAssertEqual(FixtureControlBuilder.storeCue(sequence: 5, cue: 2, mode: .overwrite),
+                       "Store Sequence 5 Cue 2 /Overwrite /NoConfirmation")
+        XCTAssertEqual(FixtureControlBuilder.storeCue(sequence: 5, cue: 2, mode: .merge),
+                       "Store Sequence 5 Cue 2 /Merge /NoConfirmation")
+    }
+
+    func test_update_preset() {
+        XCTAssertEqual(FixtureControlBuilder.updatePreset(pool: .color, number: 3, mode: .overwrite),
+                       "Store Preset 4.3 /Overwrite /NoConfirmation")
+        XCTAssertEqual(FixtureControlBuilder.updatePreset(pool: .position, number: 1, mode: .merge),
+                       "Store Preset 2.1 /Merge /NoConfirmation")
+    }
 }
