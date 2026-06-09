@@ -3,10 +3,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-// Unambiguous code — generated once on the laptop, typed into the phone by hand.
-// Lowercase + digits only, with the look-alikes 0/1/i/l/o removed (31-char alphabet,
-// ~44 bits over 9 chars). No capitals/underscore so there's no case or symbol to
-// fat-finger — a base64url code like `d4jQVvOab_ZY` was too error-prone to type.
+// Fixed brand pairing code — memorable and stable so a fresh hub install (or a
+// reset settings file) lands on the same relay room every time, no re-pairing
+// dance. Lowercase letters only, so it satisfies validate() and is easy to type.
+const DEFAULT_PAIRING_CODE = 'blearred';
+
+// Random-code generation is retained for the menubar "Regenerate" action — an
+// unambiguous code (lowercase + digits, look-alikes 0/1/i/l/o removed, ~44 bits
+// over 9 chars; no capitals/underscore to fat-finger) for when a one-off is wanted.
 const CODE_ALPHABET = '23456789abcdefghjkmnpqrstuvwxyz';
 const CODE_LEN = 9;
 function generatePairingCode() {
@@ -19,7 +23,7 @@ function generatePairingCode() {
 function defaults() {
   return {
     relayUrl: 'wss://cuelist-relay.fly.dev',
-    pairingCode: generatePairingCode(),
+    pairingCode: DEFAULT_PAIRING_CODE,
     ma3Host: '127.0.0.1',
     ma3Port: 8000,
     ma3Prefix: 'gma3',
