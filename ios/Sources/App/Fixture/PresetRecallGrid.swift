@@ -12,7 +12,7 @@ struct PresetRecallGrid: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                ForEach(1...slots, id: \.self) { n in
+                ForEach(slots >= 1 ? Array(1...slots) : [], id: \.self) { n in
                     Button { onRecall(n) } label: {
                         VStack(spacing: 2) {
                             Text("\(pool.number).\(n)")
