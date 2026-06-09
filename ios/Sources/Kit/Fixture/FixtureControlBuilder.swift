@@ -25,5 +25,15 @@ public enum FixtureControlBuilder {
     /// Drop the programmer.
     public static let clear = "ClearAll"
 
+    /// "Store Sequence 5 Cue 2 /Merge /NoConfirmation".
+    public static func storeCue(sequence: Int, cue: Int, mode: StoreMode) -> String {
+        "Store Sequence \(sequence) Cue \(cue) \(mode.flag) /NoConfirmation"
+    }
+
+    /// "Store Preset 4.3 /Overwrite /NoConfirmation".
+    public static func updatePreset(pool: Pool, number: Int, mode: StoreMode) -> String {
+        "Store Preset \(pool.number).\(number) \(mode.flag) /NoConfirmation"
+    }
+
     private static func sign(_ n: Int) -> String { n < 0 ? "-" : "+" }
 }
