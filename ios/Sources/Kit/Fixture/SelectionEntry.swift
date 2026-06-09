@@ -15,7 +15,7 @@ public struct SelectionEntry: Equatable {
     /// Each part is either a multi-digit number run or a keyword token.
     private var parts: [String] = []
     /// True when the last part is an open number run that digits should extend.
-    private var inNumber = false
+    private var inNumber: Bool { parts.last.flatMap { Int($0) } != nil }
 
     public init() {}
 
@@ -25,13 +25,11 @@ public struct SelectionEntry: Equatable {
             parts[parts.count - 1] = last + digit
         } else {
             parts.append(digit)
-            inNumber = true
         }
     }
 
     public mutating func tapKeyword(_ k: Keyword) {
         parts.append(k.rawValue)
-        inNumber = false
     }
 
     /// Remove one trailing digit; if the trailing number run empties or the
@@ -43,13 +41,11 @@ public struct SelectionEntry: Equatable {
             parts[parts.count - 1] = last
         } else {
             parts.removeLast()
-            inNumber = parts.last.map { Int($0) != nil } ?? false
         }
     }
 
     public mutating func reset() {
         parts.removeAll()
-        inNumber = false
     }
 
     public var command: String { parts.joined(separator: " ") }

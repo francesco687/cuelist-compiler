@@ -44,4 +44,20 @@ final class SelectionEntryTests: XCTestCase {
         XCTAssertTrue(e.isEmpty)
         XCTAssertEqual(e.command, "")
     }
+
+    func test_backspace_across_keyword_into_number_run() {
+        var e = SelectionEntry()
+        e.tapKeyword(.fixture); e.tapDigit(1); e.tapDigit(0); e.tapDigit(1)
+        e.tapKeyword(.thru); e.tapDigit(1); e.tapDigit(0); e.tapDigit(5)
+        // "Fixture 101 Thru 105"
+        e.backspace()   // "Fixture 101 Thru 10"
+        XCTAssertEqual(e.command, "Fixture 101 Thru 10")
+        e.backspace()   // "Fixture 101 Thru 1"
+        e.backspace()   // "Fixture 101 Thru"
+        XCTAssertEqual(e.command, "Fixture 101 Thru")
+        e.backspace()   // "Fixture 101"  — back into the prior number run
+        XCTAssertEqual(e.command, "Fixture 101")
+        e.tapDigit(2)   // extends that run, proving inNumber re-derived true
+        XCTAssertEqual(e.command, "Fixture 1012")
+    }
 }
