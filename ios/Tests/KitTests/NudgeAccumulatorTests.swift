@@ -34,4 +34,14 @@ final class NudgeAccumulatorTests: XCTestCase {
         XCTAssertNil(acc.flush(atMs: 30), "nothing pending after flush")
         XCTAssertEqual(acc.offset, 7)
     }
+
+    func test_first_accept_after_flush_emits_immediately_within_window() {
+        let acc = NudgeAccumulator(intervalMs: 50)
+        _ = acc.accept(delta: 3, atMs: 0)       // first drag: emits 3, lastEmit=0
+        XCTAssertNil(acc.accept(delta: 2, atMs: 10))   // coalesced
+        XCTAssertEqual(acc.flush(atMs: 20), 2)         // drag ends, emits pending 2, clock reset
+        // New drag starts only 5ms later — within the 50ms window — must STILL emit immediately:
+        XCTAssertEqual(acc.accept(delta: 4, atMs: 25), 4, "first accept of a new drag emits immediately after flush")
+        XCTAssertEqual(acc.offset, 9)
+    }
 }
