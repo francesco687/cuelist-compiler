@@ -6,13 +6,14 @@ const os = require('node:os');
 const path = require('node:path');
 const { defaults, merge, validate, generatePairingCode, load, save, loadOrInit, filePath } = require('../src/settings');
 
-test('defaults include relay + ma3 fields and a generated pairing code', () => {
+test('defaults include relay + ma3 fields and the fixed brand pairing code', () => {
   const d = defaults();
   assert.strictEqual(d.relayUrl, 'wss://cuelist-relay.fly.dev');
   assert.strictEqual(d.ma3Host, '127.0.0.1');
   assert.strictEqual(d.ma3Port, 8000);
   assert.strictEqual(d.ma3Prefix, 'gma3');
-  assert.ok(d.pairingCode.length >= 8, 'pairing code should be >= 8 chars');
+  assert.strictEqual(d.pairingCode, 'blearred');   // memorable, stable across fresh installs
+  assert.doesNotThrow(() => validate(d), 'the default code must satisfy validate()');
 });
 
 test('generatePairingCode uses an unambiguous lowercase alphabet, >= 8 chars', () => {
