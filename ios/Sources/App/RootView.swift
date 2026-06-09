@@ -24,6 +24,8 @@ struct RootView: View {
                 .tabItem { Label("Program", systemImage: "square.and.pencil") }
             SendView()
                 .tabItem { Label("Send", systemImage: "paperplane") }
+            FixtureControlView()
+                .tabItem { Label("Fixtures", systemImage: "slider.horizontal.3") }
             SettingsTabView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
