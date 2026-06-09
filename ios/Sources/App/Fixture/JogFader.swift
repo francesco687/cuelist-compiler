@@ -11,6 +11,7 @@ struct JogFader: View {
     let fine: Bool
     let onNudge: (Int) -> Void     // incremental delta during drag
     let onEnd: () -> Void          // drag ended → flush
+    let onReset: () -> Void        // double-tap → request reset (parent confirms)
 
     @State private var lastY: CGFloat = 0
     @State private var residual: CGFloat = 0
@@ -59,6 +60,11 @@ struct JogFader: View {
                         withAnimation(.snappy(duration: 0.18)) { gripOffset = 0 }
                         onEnd()
                     }
+            )
+            // Double-tap requests a reset. Simultaneous so it coexists with the
+            // zero-distance drag (a tap fires a harmless zero-delta drag too).
+            .simultaneousGesture(
+                TapGesture(count: 2).onEnded { onReset() }
             )
 
             Text(label).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.textDim)
