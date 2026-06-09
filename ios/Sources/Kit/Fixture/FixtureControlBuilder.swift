@@ -25,12 +25,12 @@ public enum FixtureControlBuilder {
     /// Drop the programmer.
     public static let clear = "ClearAll"
 
-    /// "Store Sequence 5 Cue 2 /Merge /NoConfirmation".
+    /// "Store Sequence 5 Cue 2 /Overwrite /NoConfirmation" (mode-dependent flag).
     public static func storeCue(sequence: Int, cue: Int, mode: StoreMode) -> String {
         "Store Sequence \(sequence) Cue \(cue) \(mode.flag) /NoConfirmation"
     }
 
-    /// "Store Preset 4.3 /Overwrite /NoConfirmation".
+    /// "Store Preset 4.3 /Overwrite /NoConfirmation" (mode-dependent flag).
     public static func updatePreset(pool: Pool, number: Int, mode: StoreMode) -> String {
         "Store Preset \(pool.number).\(number) \(mode.flag) /NoConfirmation"
     }
