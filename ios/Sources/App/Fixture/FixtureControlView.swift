@@ -22,6 +22,17 @@ struct FixtureControlView: View {
     @State private var showUpdatePreset = false
     @State private var fireCount = 0
 
+    // A fader awaiting reset confirmation (set by double-tap). Identifiable so
+    // it can drive a presenting alert; carries what's needed to undo the offset.
+    private struct PendingReset: Identifiable {
+        let key: String
+        let attribute: String?     // nil = bare intensity
+        let label: String
+        let offset: Int
+        var id: String { key }
+    }
+    @State private var pendingReset: PendingReset?
+
     // One accumulator per attribute key; reset on Clear / new selection.
     @State private var accumulators: [String: NudgeAccumulator] = [:]
     // Running per-key offset for fader display. Value-type @State so SwiftUI
@@ -59,6 +70,15 @@ struct FixtureControlView: View {
             .sheet(isPresented: $showUpdatePreset) {
                 UpdatePresetSheet(mode: store.project.storeMode) { send($0) }
             }
+            .alert("Reset \(pendingReset?.label ?? "")?",
+                   isPresented: Binding(get: { pendingReset != nil },
+                                        set: { if !$0 { pendingReset = nil } }),
+                   presenting: pendingReset) { pr in
+                Button("Reset", role: .destructive) { resetFader(pr) }
+                Button("Cancel", role: .cancel) {}
+            } message: { pr in
+                Text("Returns \(pr.label) to its session baseline on the desk (\(offsetSigned(pr.offset))).")
+            }
         }
     }
 
@@ -92,7 +112,8 @@ struct FixtureControlView: View {
                         valueText: offsetText(key),
                         fine: fine,
                         onNudge: { nudge(key: key, attribute: item.1, delta: $0) },
-                        onEnd: { flush(key: key, attribute: item.1) }
+                        onEnd: { flush(key: key, attribute: item.1) },
+                        onReset: { requestReset(key: key, attribute: item.1, label: item.0) }
                     )
                 }
             }
@@ -126,14 +147,28 @@ struct FixtureControlView: View {
         send(FixtureControlBuilder.recallPreset(pool: pool, number: n))
     }
 
+    /// Double-tap on a fader: ask to confirm before undoing its nudges. No-op
+    /// when there's nothing to undo (offset already zero).
+    private func requestReset(key: String, attribute: String?, label: String) {
+        let offset = offsets[key] ?? 0
+        guard offset != 0 else { return }
+        pendingReset = PendingReset(key: key, attribute: attribute, label: label, offset: offset)
+    }
+    /// Confirmed reset: send the inverse nudge so the desk returns to this
+    /// session's baseline, then zero the local accumulator + display.
+    private func resetFader(_ pr: PendingReset) {
+        sendNudge(attribute: pr.attribute, delta: -pr.offset)
+        accumulators[pr.key] = nil
+        offsets[pr.key] = 0
+        fireCount += 1   // confirm haptic (sendNudge fires silently)
+    }
+
     private func accumulator(_ key: String) -> NudgeAccumulator {
         if let a = accumulators[key] { return a }
         let a = NudgeAccumulator(); accumulators[key] = a; return a
     }
-    private func offsetText(_ key: String) -> String {
-        let o = offsets[key] ?? 0
-        return o > 0 ? "+\(o)" : "\(o)"
-    }
+    private func offsetText(_ key: String) -> String { offsetSigned(offsets[key] ?? 0) }
+    private func offsetSigned(_ o: Int) -> String { o > 0 ? "+\(o)" : "\(o)" }
     private func resetAccumulators() { accumulators.removeAll(); offsets.removeAll() }
     private func nowMs() -> Int { Int(ProcessInfo.processInfo.systemUptime * 1000) }
 
