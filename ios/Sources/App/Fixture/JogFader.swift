@@ -15,6 +15,7 @@ struct JogFader: View {
     @State private var lastY: CGFloat = 0
     @State private var residual: CGFloat = 0
     @State private var gripOffset: CGFloat = 0
+    @State private var tickCount = 0          // bumped per whole-unit step → detent haptic
 
     private var pointsPerUnit: CGFloat { fine ? 24 : 8 }
     private let trackHeight: CGFloat = 170
@@ -48,6 +49,7 @@ struct JogFader: View {
                         if whole != 0 {
                             residual -= CGFloat(whole)
                             onNudge(whole)
+                            tickCount &+= 1     // detent tick on each whole-unit step
                         }
                         gripOffset = max(-trackHeight/2 + gripHeight/2,
                                          min(trackHeight/2 - gripHeight/2, v.translation.height))
@@ -63,5 +65,8 @@ struct JogFader: View {
             Text(valueText).font(.system(size: 14, weight: .bold).monospacedDigit())
                 .foregroundStyle(Theme.text)
         }
+        // Light "detent" tick as the value steps — picker-wheel feel, handles
+        // rapid steps during a fast drag without feeling spammy.
+        .sensoryFeedback(.selection, trigger: tickCount)
     }
 }
