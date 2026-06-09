@@ -51,7 +51,11 @@ async function init() {
   window.hub.onLog(addLog);
 
   $('copy').onclick = () => navigator.clipboard.writeText($('code').value);
-  $('regen').onclick = async () => { $('code').value = await window.hub.regenCode(); };
+  $('regen').onclick = async () => {
+    // Regenerating drops every phone currently paired — guard the accidental click.
+    if (!confirm('Generate a new pairing code?\n\nEvery phone currently paired will go offline and must be re-paired with the new code.')) return;
+    $('code').value = await window.hub.regenCode();
+  };
   $('save').onclick = async () => {
     try {
       const updated = await window.hub.setSettings({
