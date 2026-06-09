@@ -56,3 +56,38 @@ test('loadOrInit writes defaults on first run and is stable across reloads', () 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a settings save that does not touch the code preserves the pairing code', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'saetta-set-'));
+  try {
+    const first = loadOrInit(dir);
+    const code = first.pairingCode;
+    save(dir, merge(first, { ma3Host: '10.0.0.101' }));   // e.g. user sets the desk IP
+    assert.strictEqual(load(dir).pairingCode, code);       // code survives unrelated saves
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('load throws on a corrupt EXISTING file instead of silently minting a new code', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'saetta-set-'));
+  try {
+    fs.writeFileSync(filePath(dir), '{ truncated jso');   // simulate an interrupted write
+    // Must NOT return a fresh-code defaults() — that would drop every paired phone.
+    assert.throws(() => load(dir));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('save is atomic — leaves no .tmp behind and the file is complete', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'saetta-set-'));
+  try {
+    save(dir, defaults());
+    assert.strictEqual(fs.existsSync(filePath(dir) + '.tmp'), false, 'no leftover temp file');
+    const parsed = JSON.parse(fs.readFileSync(filePath(dir), 'utf8'));
+    assert.ok(parsed.pairingCode.length >= 8);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

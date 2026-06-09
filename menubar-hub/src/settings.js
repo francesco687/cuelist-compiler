@@ -48,15 +48,29 @@ function validate(s) {
 function filePath(userDataDir) { return path.join(userDataDir, 'settings.json'); }
 
 function load(userDataDir) {
+  let raw;
   try {
-    const raw = fs.readFileSync(filePath(userDataDir), 'utf8');
-    return validate(merge(defaults(), JSON.parse(raw)));
-  } catch { return defaults(); }
+    raw = fs.readFileSync(filePath(userDataDir), 'utf8');
+  } catch (e) {
+    if (e.code === 'ENOENT') return defaults();   // genuinely no file yet → first-run defaults
+    throw e;                                        // file exists but unreadable → surface, never mint a new code
+  }
+  // Parse/validate errors propagate on purpose: a corrupt EXISTING settings file
+  // must NOT silently fall back to a fresh-code defaults() — that would change the
+  // pairing code and drop every paired phone. Atomic save (below) prevents the
+  // truncated-write corruption that used to trigger this.
+  return validate(merge(defaults(), JSON.parse(raw)));
 }
 
 function save(userDataDir, s) {
   const v = validate(merge(defaults(), s));
-  fs.writeFileSync(filePath(userDataDir), JSON.stringify(v, null, 2));
+  // Atomic write: serialize to a temp file then rename over the target, so an
+  // interrupted write (crash/quit mid-save) can never leave settings.json
+  // half-written — the old reparse-corruption-into-a-new-pairing-code vector.
+  const target = filePath(userDataDir);
+  const tmp = target + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(v, null, 2));
+  fs.renameSync(tmp, target);
   return v;
 }
 

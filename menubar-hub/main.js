@@ -96,7 +96,14 @@ function trayIcon() {
 
 app.whenReady().then(() => {
   if (app.dock) app.dock.hide();                 // menubar-only, no dock icon
-  settings = settingsModule.loadOrInit(app.getPath('userData'));
+  try {
+    settings = settingsModule.loadOrInit(app.getPath('userData'));
+  } catch (e) {
+    // settings.json exists but is unreadable/corrupt. Do NOT silently regenerate the
+    // pairing code (that drops every paired phone) and do NOT overwrite the file —
+    // keep it intact for recovery and run with the in-memory defaults this launch.
+    console.error('[saetta-hub] could not read settings.json; leaving it untouched:', e.message);
+  }
 
   tray = new Tray(trayIcon());
   tray.setToolTip('Saetta Hub');
