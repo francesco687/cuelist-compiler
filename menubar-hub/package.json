@@ -42,6 +42,9 @@
       ],
       "category": "public.app-category.utilities",
       "icon": "build/icon.icns",
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "Saetta Hub sends lighting cues to your grandMA3 console over the local network."
+      },
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
