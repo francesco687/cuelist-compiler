@@ -34,6 +34,7 @@ test('restyle-guard: :root defines the required Amber HUD tokens', () => {
     '--capture','--capture-ink','--surface-1','--surface-2','--surface-3','--border',
     '--border-strong','--text','--text-dim','--text-faint','--ok','--warn','--danger',
     '--radius','--radius-sm','--radius-lg','--grid-line','--scanline','--font-mono',
+    '--canvas-1','--canvas-2','--canvas-3',
   ];
   assert.ok(/:root\s*\{/.test(css), ':root block must exist');
   for (const tok of required) {

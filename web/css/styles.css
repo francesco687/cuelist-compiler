@@ -435,7 +435,7 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: #888;
-    background: #1a1a1d;
+    background: var(--canvas-2);
   }
   #toolbar .toolbar-group .group-row {
     display: flex;
@@ -810,7 +810,7 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: #5fff8e;
-    background: #1a1a1d;
+    background: var(--canvas-2);
     text-shadow: 0 0 4px rgba(95, 255, 142, 0.4);
   }
   #audioTcConfig label {
@@ -865,7 +865,7 @@
     font-size: 0.8em;
     padding: 3px 8px;
     border-radius: 3px;
-    background: #1a1a1d;
+    background: var(--canvas-2);
     color: #888;
     border: 1px solid #2a2a2e;
   }
