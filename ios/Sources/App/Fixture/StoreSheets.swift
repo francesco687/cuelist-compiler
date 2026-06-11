@@ -166,7 +166,8 @@ private struct StorePreview: View {
                         ForEach(groups) { g in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(g.selection)
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(Theme.mono(size: 13, weight: .bold))
+                                    .hudLabel()
                                     .foregroundStyle(Theme.accentSolid)
                                     .lineLimit(1).truncationMode(.head)
                                 ForEach(g.values) { v in
@@ -174,7 +175,7 @@ private struct StorePreview: View {
                                         Text(v.label).font(.system(size: 14)).foregroundStyle(Theme.text)
                                         Spacer()
                                         Text(v.value)
-                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .font(Theme.mono(size: 13, weight: .semibold))
                                             .foregroundStyle(Theme.danger)
                                     }
                                 }
