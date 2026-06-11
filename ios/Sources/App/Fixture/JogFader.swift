@@ -31,13 +31,14 @@ struct JogFader: View {
                 let gripHeight = min(64, max(38, h * 0.28))   // big grip, scaled to the track
                 let limit = max(0, h / 2 - gripHeight / 2)
                 ZStack {
-                    RoundedRectangle(cornerRadius: 14).fill(Theme.surface2)
-                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.border, lineWidth: 0.5))
+                    RoundedRectangle(cornerRadius: Theme.radius).fill(Theme.surface2)
+                        .overlay(TickGrid().clipShape(RoundedRectangle(cornerRadius: Theme.radius)))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.border, lineWidth: 0.5))
                     Image(systemName: "chevron.up").font(.title3).foregroundStyle(Theme.textFaint)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).padding(.top, 10)
                     Image(systemName: "chevron.down").font(.title3).foregroundStyle(Theme.textFaint)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom).padding(.bottom, 10)
-                    RoundedRectangle(cornerRadius: 11)
+                    RoundedRectangle(cornerRadius: Theme.radiusSmall)
                         .fill(Theme.accentGradient)
                         .frame(height: gripHeight)
                         .padding(.horizontal, 6)
@@ -75,8 +76,8 @@ struct JogFader: View {
             }
             .frame(maxWidth: .infinity, minHeight: 90, maxHeight: .infinity)
 
-            Text(label).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textDim)
-            Text(valueText).font(.system(size: 18, weight: .bold).monospacedDigit())
+            Text(label).font(Theme.mono(size: 13, weight: .semibold)).hudLabel().foregroundStyle(Theme.textDim)
+            Text(valueText).font(Theme.mono(size: 18, weight: .bold))
                 .foregroundStyle(Theme.text)
         }
         // Light "detent" tick as the value steps — picker-wheel feel, handles

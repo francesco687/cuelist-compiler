@@ -62,6 +62,8 @@ struct FixtureControlView: View {
                         clearButton
                         storeBar
                     }
+                    .padding(14)
+                    .hudPanel()
                     .disabled(!hub.state.isOnline)
                     .opacity(hub.state.isOnline ? 1 : 0.5)
                 }
@@ -269,7 +271,7 @@ struct FixtureControlView: View {
         Button { showKeypad = true } label: {
             HStack {
                 Text(selection.isEmpty ? "No selection" : selection)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(Theme.mono(size: 15, weight: .semibold))
                     .foregroundStyle(selection.isEmpty ? Theme.textFaint : Theme.accentSolid)
                 Spacer()
                 Image(systemName: "keyboard").foregroundStyle(Theme.textDim)
@@ -290,15 +292,16 @@ struct FixtureControlView: View {
                 let selected = cat == category
                 Button { category = cat } label: {
                     Text(cat.rawValue)
-                        .font(.system(size: 12.5, weight: selected ? .semibold : .medium))
+                        .font(Theme.mono(size: 12, weight: selected ? .semibold : .medium))
+                        .hudLabel()
                         .foregroundStyle(isTouched(cat) ? Theme.danger
                                          : (selected ? Theme.text : Theme.textDim))
                         .lineLimit(1).minimumScaleFactor(0.75)
                         .frame(maxWidth: .infinity).padding(.vertical, 7)
                         .background {
                             if selected {
-                                RoundedRectangle(cornerRadius: 7).fill(Theme.accentTint)
-                                    .overlay(RoundedRectangle(cornerRadius: 7)
+                                RoundedRectangle(cornerRadius: Theme.radiusSmall).fill(Theme.accentTint)
+                                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
                                         .strokeBorder(Theme.accentBorder, lineWidth: 1))
                             }
                         }
@@ -307,12 +310,12 @@ struct FixtureControlView: View {
             }
         }
         .padding(3)
-        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 9))
+        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radius))
     }
 
     private var clearButton: some View {
         Button { send(FixtureControlBuilder.clear); resetAccumulators(); selection = "" } label: {
-            Text("Clear").font(.system(size: 15, weight: .semibold))
+            Text("Clear").font(Theme.mono(size: 14, weight: .semibold)).hudLabel()
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
                 .background(Theme.surface3, in: RoundedRectangle(cornerRadius: Theme.radius))
                 .foregroundStyle(Theme.textDim)
@@ -322,13 +325,13 @@ struct FixtureControlView: View {
     private var storeBar: some View {
         HStack(spacing: 10) {
             Button { showStoreCue = true } label: {
-                Text("Store to Cue").font(.system(size: 15, weight: .bold))
+                Text("Store to Cue").font(Theme.mono(size: 14, weight: .bold)).hudLabel()
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Theme.accentSolid, in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
                     .foregroundStyle(.white)
             }.buttonStyle(.plain)
             Button { showUpdatePreset = true } label: {
-                Text("Update Preset").font(.system(size: 15, weight: .semibold))
+                Text("Update Preset").font(Theme.mono(size: 14, weight: .semibold)).hudLabel()
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Theme.surface2, in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
                     .overlay(RoundedRectangle(cornerRadius: Theme.radiusLarge).strokeBorder(Theme.border, lineWidth: 0.5))
