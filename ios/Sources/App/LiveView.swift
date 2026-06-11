@@ -61,7 +61,7 @@ struct LiveView: View {
                     .submitLabel(.send)
                     .onSubmit { sendMessage() }
                     .padding(.vertical, 10).padding(.horizontal, 12)
-                    .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
+                    .hudPanel()
 
                 Button("Send") { sendMessage() }
                     .buttonStyle(AmberCTAStyle())
@@ -100,11 +100,11 @@ struct LiveView: View {
             HStack(spacing: 10) {
                 LiveIndicator(state: hub.state)
                 Spacer()
-                Text(hub.state.isOnline ? "Connected" : "Tap to connect")
-                    .font(.system(size: 12)).foregroundStyle(Theme.textDim)
+                Text(hub.state.isOnline ? "CONNECTED" : "TAP TO CONNECT")
+                    .font(Theme.mono(size: 11, weight: .medium)).hudLabel().foregroundStyle(Theme.textDim)
             }
             .padding(.vertical, 12).padding(.horizontal, 14)
-            .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
+            .hudPanel()
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -122,7 +122,7 @@ private struct TransportButton: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: symbol).font(.system(size: 36, weight: .bold))
-                Text(title).font(.system(size: 24, weight: .heavy))
+                Text(title).font(Theme.mono(size: 24, weight: .heavy)).hudLabel()
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
