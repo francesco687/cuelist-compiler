@@ -18,11 +18,11 @@ struct SendView: View {
                         HStack(spacing: 10) {
                             LiveIndicator(state: hub.state)
                             Spacer()
-                            Text(hub.state.isOnline ? "Connected" : "Tap to connect")
-                                .font(.system(size: 12)).foregroundStyle(Theme.textDim)
+                            Text(hub.state.isOnline ? "CONNECTED" : "TAP TO CONNECT")
+                                .font(Theme.mono(size: 11, weight: .medium)).hudLabel().foregroundStyle(Theme.textDim)
                         }
                         .padding(.vertical, 12).padding(.horizontal, 14)
-                        .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
+                        .hudPanel()
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
