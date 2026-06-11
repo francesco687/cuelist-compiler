@@ -25,7 +25,7 @@
 - Modify: `menubar-hub/src/relay-client.js` (add method to the `RelayHubClient` class, after `_scheduleReconnect()` around line 95)
 - Test: `menubar-hub/test/relay-client.test.js` (append)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `menubar-hub/test/relay-client.test.js` (the file already defines `FakeSocket`, `fakeDeps`, and `config` at the top — reuse them):
 
@@ -44,12 +44,12 @@ test('kickAll broadcasts a bare kicked frame; safe no-op before connect', () => 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd menubar-hub && npm test 2>&1 | tail -15`
 Expected: FAIL — `TypeError: c.kickAll is not a function (1 failing test, 17 passing)`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `menubar-hub/src/relay-client.js`, add this method to `RelayHubClient` between `_scheduleReconnect()` and `close()`:
 
@@ -67,12 +67,12 @@ In `menubar-hub/src/relay-client.js`, add this method to `RelayHubClient` betwee
   }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd menubar-hub && npm test 2>&1 | tail -15`
 Expected: PASS — 18 tests, 0 failures
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add menubar-hub/src/relay-client.js menubar-hub/test/relay-client.test.js
@@ -92,7 +92,7 @@ No test harness exists for `main.js`, `preload.js`, or the renderer (Electron wi
 - Modify: `menubar-hub/renderer/app.js` (`renderRoster` + `init`)
 - Modify: `menubar-hub/renderer/styles.css` (button style)
 
-- [ ] **Step 1: Add the IPC handler in `main.js`**
+- [x] **Step 1: Add the IPC handler in `main.js`**
 
 After the `hub:regenCode` handler block (ends line 129), add:
 
@@ -100,7 +100,7 @@ After the `hub:regenCode` handler block (ends line 129), add:
   ipcMain.handle('hub:kickAll', () => { if (client) client.kickAll(); });
 ```
 
-- [ ] **Step 2: Expose it in `preload.js`**
+- [x] **Step 2: Expose it in `preload.js`**
 
 After the `regenCode` line:
 
@@ -108,7 +108,7 @@ After the `regenCode` line:
   kickAll: () => ipcRenderer.invoke('hub:kickAll'),
 ```
 
-- [ ] **Step 3: Add the button in `renderer/index.html`**
+- [x] **Step 3: Add the button in `renderer/index.html`**
 
 Directly after `<ul id="roster"></ul>` (line 21), still inside `<section class="pairing">`:
 
@@ -118,7 +118,7 @@ Directly after `<ul id="roster"></ul>` (line 21), still inside `<section class="
 
 It starts `disabled` — `renderRoster` enables it only when phones are connected.
 
-- [ ] **Step 4: Wire it in `renderer/app.js`**
+- [x] **Step 4: Wire it in `renderer/app.js`**
 
 Replace the whole `renderRoster` function with (one added line at the end):
 
@@ -152,7 +152,7 @@ And after the `$('regen').onclick` block, add the confirm-gated click handler (m
 
 (No bespoke roster bookkeeping after the kick: each phone's departure makes the relay broadcast a fresh roster, which empties the list and re-disables the button.)
 
-- [ ] **Step 5: Style the button in `renderer/styles.css`**
+- [x] **Step 5: Style the button in `renderer/styles.css`**
 
 After the `ul#roster li` rule (line 26):
 
@@ -162,12 +162,12 @@ button#kick:disabled { color: var(--faint); cursor: default; }
 button#kick:disabled:hover { background: var(--surface); }
 ```
 
-- [ ] **Step 6: Run the hub test suite (regression check)**
+- [x] **Step 6: Run the hub test suite (regression check)**
 
 Run: `cd menubar-hub && npm test 2>&1 | tail -5`
 Expected: PASS — 18 tests, 0 failures
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add menubar-hub/main.js menubar-hub/preload.js menubar-hub/renderer/index.html menubar-hub/renderer/app.js menubar-hub/renderer/styles.css
@@ -183,7 +183,7 @@ git commit -m "feat(hub): confirm-gated 'Disconnect all' button in the popover"
 - Modify: `ios/Sources/Kit/Hub/HubClient.swift` (`handle(_:)`, lines 245-276)
 - Test: `ios/Tests/KitTests/HubClientTests.swift` (append)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append inside `HubClientTests` (the file already defines `MockHubConnection` and the `makeConnection`/`scheduleAfter` injection pattern — `testNoReconnectAfterManualDisconnect` is the model):
 
@@ -220,12 +220,12 @@ Append inside `HubClientTests` (the file already defines `MockHubConnection` and
     }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd ios && xcodegen generate && xcodebuild test -scheme SaettaKit -destination 'platform=iOS Simulator,name=iPhone 17 Pro' 2>&1 | tail -20`
 Expected: BUILD FAILURE — `type 'IncomingMessage' has no member 'kicked'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `ios/Sources/Kit/Hub/HubMessages.swift`, add the case to `IncomingMessage` after `.joinError` (line 73):
 
@@ -249,17 +249,17 @@ In `ios/Sources/Kit/Hub/HubClient.swift`, add to the `switch msg` in `handle(_:)
 
 (`disconnect()` sets `stopped`, bumps `generation` — which also makes the trailing socket-close event a no-op — closes the connection, clears the roster, and lands on `.offline`; the next line replaces that with the explanatory error. Tapping Connect later works because `connect()` resets `stopped`.)
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd ios && xcodegen generate && xcodebuild test -scheme SaettaKit -destination 'platform=iOS Simulator,name=iPhone 17 Pro' 2>&1 | tail -20`
 Expected: TEST SUCCEEDED, including `testKickedFrameDecodes` and `testKickedStopsReconnectClearsRosterAndExplains`
 
-- [ ] **Step 5: Build the app target (regression check)**
+- [x] **Step 5: Build the app target (regression check)**
 
 Run: `cd ios && xcodebuild build -scheme Saetta -destination 'platform=iOS Simulator,name=iPhone 17 Pro' 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ios/Sources/Kit/Hub/HubMessages.swift ios/Sources/Kit/Hub/HubClient.swift ios/Tests/KitTests/HubClientTests.swift
@@ -272,7 +272,7 @@ git commit -m "feat(ios): honor the hub's kicked frame — stop reconnecting, ex
 
 **Files:** none created; verification only.
 
-- [ ] **Step 1: Run every affected suite**
+- [x] **Step 1: Run every affected suite**
 
 ```bash
 cd menubar-hub && npm test 2>&1 | tail -5
@@ -282,7 +282,7 @@ cd ../ios && xcodegen generate && xcodebuild test -scheme SaettaKit -destination
 
 Expected: all PASS (relay is untouched — its suite is a regression check only).
 
-- [ ] **Step 2: Manual smoke (operator-driven, report instructions)**
+- [x] **Step 2: Manual smoke (operator-driven, report instructions)**
 
 Not automatable from this machine; print these instructions for the operator:
 
@@ -291,7 +291,7 @@ Not automatable from this machine; print these instructions for the operator:
 3. Click **Disconnect all** → confirm. Phone drops within a beat, shows "disconnected by hub", does NOT come back by itself; popover roster empties and the button re-disables.
 4. On the phone tap Connect — it rejoins with the same code.
 
-- [ ] **Step 3: Commit any plan-checkbox updates**
+- [x] **Step 3: Commit any plan-checkbox updates**
 
 ```bash
 git add docs/superpowers/plans/2026-06-11-hub-disconnect-all.md
