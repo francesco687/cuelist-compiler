@@ -9,6 +9,7 @@ proxy/node_modules/
 
 # Xcode / Swift (ios)
 ios/build/
+ios/build-*/
 ios/DerivedData/
 *.xcuserstate
 xcuserdata/
