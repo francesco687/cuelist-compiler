@@ -127,6 +127,7 @@ app.whenReady().then(() => {
     buildClient();
     return settings.pairingCode;
   });
+  ipcMain.handle('hub:kickAll', () => { if (client) client.kickAll(); });
 });
 
 app.on('window-all-closed', (e) => { e.preventDefault(); /* stay alive in the menubar */ });

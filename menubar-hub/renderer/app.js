@@ -33,6 +33,7 @@ function renderRoster(phones) {
     li.textContent = p.name;
     ul.appendChild(li);
   }
+  $('kick').disabled = phones.length === 0;   // nothing to kick when the room is empty
 }
 
 async function init() {
@@ -45,6 +46,7 @@ async function init() {
 
   const st = await window.hub.getState();
   setStatus(st.relay, st.peer);
+  renderRoster(st.roster || []);
 
   window.hub.onState((relay) => window.hub.getState().then((x) => setStatus(x.relay, x.peer)));
   window.hub.onRoster(renderRoster);
@@ -55,6 +57,10 @@ async function init() {
     // Regenerating drops every phone currently paired — guard the accidental click.
     if (!confirm('Generate a new pairing code?\n\nEvery phone currently paired will go offline and must be re-paired with the new code.')) return;
     $('code').value = await window.hub.regenCode();
+  };
+  $('kick').onclick = async () => {
+    if (!confirm('Disconnect all paired phones?\n\nThey can rejoin with the same pairing code.')) return;
+    await window.hub.kickAll();
   };
   $('save').onclick = async () => {
     try {

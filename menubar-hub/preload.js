@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('hub', {
   getSettings: () => ipcRenderer.invoke('hub:getSettings'),
   setSettings: (partial) => ipcRenderer.invoke('hub:setSettings', partial),
   regenCode: () => ipcRenderer.invoke('hub:regenCode'),
+  kickAll: () => ipcRenderer.invoke('hub:kickAll'),
   // push channels: main → renderer
   onState: (cb) => ipcRenderer.on('hub:state', (_e, s) => cb(s)),
   onRoster: (cb) => ipcRenderer.on('hub:roster', (_e, phones) => cb(phones)),
