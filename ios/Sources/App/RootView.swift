@@ -130,7 +130,7 @@ struct RootView: View {
             }
         } label: {
             HStack(spacing: 5) {
-                Text(name).font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.text)
+                Text(name).font(Theme.mono(size: 16, weight: .semibold)).hudLabel().foregroundStyle(Theme.text)
                 Image(systemName: "chevron.down").font(.caption2).foregroundStyle(Theme.accentSolid)
             }
         }
@@ -159,7 +159,7 @@ struct RootView: View {
                 }
                 Spacer()
                 Text("\(store.project.songs[i].cues.count) cue\(store.project.songs[i].cues.count == 1 ? "" : "s")")
-                    .font(.system(size: 12)).foregroundStyle(Theme.textFaint)
+                    .font(Theme.mono(size: 11)).hudLabel().foregroundStyle(Theme.textFaint)
             }
             .padding(.horizontal, 16).padding(.bottom, 10)
         }

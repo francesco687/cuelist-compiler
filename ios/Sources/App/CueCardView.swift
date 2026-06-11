@@ -83,7 +83,7 @@ struct CueCardView: View {
                         ForEach(Array(groupChips.prefix(3).enumerated()), id: \.offset) { _, g in Chip(text: g) }
                         if presetCount > 0 {
                             Text("\(presetCount) preset\(presetCount == 1 ? "" : "s")")
-                                .font(.system(size: 12)).foregroundStyle(Theme.textDim)
+                                .font(Theme.mono(size: 12)).hudLabel().foregroundStyle(Theme.textDim)
                         }
                     }
                 }
@@ -106,9 +106,9 @@ struct CueCardView: View {
                 .padding(.top, 2)
 
                 HStack(spacing: 10) {
-                    Text("TC").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textDim)
+                    Text("TC").font(Theme.mono(size: 11, weight: .medium)).hudLabel().foregroundStyle(Theme.textDim)
                     TextField("HH:MM:SS:FF", text: $cue.position)
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(Theme.mono(size: 13))
                         .foregroundStyle(tcValid ? Theme.text : Theme.danger)
                         .autocorrectionDisabled()
                         .keyboardType(.numbersAndPunctuation)
@@ -175,5 +175,6 @@ struct CueCardView: View {
         } message: { Text("Set the number for this cue.") }
         .padding(13)
         .cardSurface()
+        .overlay(CornerBrackets(length: 10, lineWidth: 1.5))
     }
 }
