@@ -305,8 +305,8 @@
   .color-tile {
     width: 24px;
     height: 24px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
     cursor: pointer;
     background: var(--c, #444);
     transition: transform 0.08s, outline-offset 0.08s;
@@ -327,7 +327,7 @@
     font-size: 16px;
     line-height: 1;
   }
-  .color-tile.current { outline: 2px solid #f0a830; outline-offset: 2px; }
+  .color-tile.current { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
   .group-row {
     display: flex;
     gap: 2px;
@@ -563,7 +563,7 @@
 
   .empty-hint {
     text-align: center;
-    color: #666;
+    color: var(--text-faint);
     padding: 40px 20px;
     border: 2px dashed #333;
     border-radius: 8px;
@@ -582,18 +582,22 @@
   .modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(8,6,3,0.6);
+    backdrop-filter: blur(3px);
   }
   .modal-content {
     position: relative;
-    background: #1e1e22;
-    border: 1px solid #444;
-    border-radius: 8px;
+    background:
+      radial-gradient(500px at 0% 0%, rgba(122,79,30,0.30), transparent),
+      var(--canvas-2);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-lg);
+    color: var(--text);
     padding: 18px 20px;
     width: min(820px, 92vw);
     max-height: 88vh;
     overflow-y: auto;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
   }
   .modal-header {
     display: flex;
@@ -601,19 +605,19 @@
     align-items: center;
     margin-bottom: 14px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--border);
   }
-  .modal-header h2 { margin: 0; font-size: 1.2em; color: #f0f0f0; }
+  .modal-header h2 { margin: 0; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.6px; font-size: 1em; color: var(--text); }
   .close-modal {
     background: transparent;
-    color: #888;
-    border: 1px solid #444;
+    color: var(--text-faint);
+    border: none;
     width: 30px;
     height: 30px;
     padding: 0;
     border-radius: 4px;
   }
-  .close-modal:hover { color: #fff; background: #c63d3d; border-color: #c63d3d; }
+  .close-modal:hover { color: var(--danger); }
 
   .pool-picker-toolbar {
     display: flex;
@@ -621,14 +625,20 @@
     margin-bottom: 12px;
     align-items: center;
   }
-  .pool-picker-toolbar input[type="text"] { flex: 1; }
+  .pool-picker-toolbar input[type="text"] { flex: 1; font-family: var(--font-mono); }
   .pool-picker-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 8px;
+    gap: 6px;
     max-height: 60vh;
     overflow-y: auto;
     padding-right: 4px;
+  }
+  #poolsPaste {
+    background: rgba(0,0,0,0.30) !important;
+    border: 1px solid var(--accent-border) !important;
+    color: var(--text) !important;
+    border-radius: var(--radius-sm);
   }
   .pool-tile {
     position: relative;
@@ -649,7 +659,7 @@
     transition: background 0.1s, border-color 0.1s, transform 0.05s;
     user-select: none;
   }
-  .pool-tile:hover { background: #3a3a45; border-color: #5b8dd6; }
+  .pool-tile:hover { background: #3a3a45; border-color: var(--accent-solid); }
   .pool-tile:active { transform: scale(0.97); }
   .pool-tile.current { border-color: #f0a830; background: #3a3220; }
   .pool-tile .pool-tile-no {
@@ -694,7 +704,7 @@
     line-height: 1;
     flex-shrink: 0;
   }
-  .pick-btn:hover { background: #3a3a45; color: #fff; border-color: #5b8dd6; }
+  .pick-btn:hover { background: #3a3a45; color: #fff; border-color: var(--accent-solid); }
 
   .mood-card {
     background: #232327;
@@ -726,7 +736,7 @@
     padding: 10px;
     font-size: 0.95em;
   }
-  #addMood:hover { border-color: #5b8dd6; color: #ddd; }
+  #addMood:hover { border-color: var(--accent-solid); color: #ddd; }
 
   .cue-mood-bar {
     display: flex;
@@ -1248,19 +1258,30 @@
     padding: 6px 0;
     font-size: 0.85em;
     color: #aaa;
+    border-top: 1px solid var(--border);
   }
   .phone-pill {
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     font-size: 0.9em;
-    border: 1px solid #444;
-    background: #2a2a2e;
-    color: #999;
+    font-family: var(--font-mono);
+    letter-spacing: 0.5px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
   }
-  .phone-pill.connected { background: #1e4a2a; color: #8ee0a0; border-color: #2a6a3e; }
-  .settings-error { margin: 6px 0 0; color: #d65555; font-size: 0.85em; }
+  .phone-pill.connected { color: var(--ok); border-color: var(--accent-border); box-shadow: 0 0 10px rgba(240,192,116,0.35); }
+  #settingsDialog {
+    background: var(--canvas-2);
+    color: var(--text);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-lg);
+  }
+  #settingsDialog::backdrop { background: rgba(8,6,3,0.6); }
+  #settingsDialog label { font-family: var(--font-mono); color: var(--text-dim); font-size: 0.85em; }
+  .settings-error { margin: 6px 0 0; color: var(--danger); font-family: var(--font-mono); font-size: 0.85em; }
   .osc-btn {
     background: #2a5a4a;
     border: 1px solid #3a7a5e;
