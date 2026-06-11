@@ -110,3 +110,16 @@ test('control frames (joined/roster) are NOT forwarded to handleMessage', async 
   await new Promise((r) => setTimeout(r, 0));
   assert.deepStrictEqual(osc, []);
 });
+
+test('kickAll broadcasts a bare kicked frame; safe no-op before connect', () => {
+  const sock = new FakeSocket();
+  const { core } = fakeDeps();
+  const c = new RelayHubClient(config, {}, { makeSocket: () => sock, core });
+  c.kickAll();                                  // no socket yet — must not throw, must not send
+  c.connect();
+  sock.emit('open');
+  c.kickAll();
+  // sent[0] is the join frame from 'open'; the kick must be the bare un-enveloped frame
+  assert.deepStrictEqual(sock.sent.at(-1), { type: 'kicked' });
+  assert.strictEqual(sock.sent.length, 2);      // exactly join + kicked (pre-connect call sent nothing)
+});

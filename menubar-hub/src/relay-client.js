@@ -87,6 +87,18 @@ class RelayHubClient {
     }
   }
 
+  /**
+   * Soft-kick every paired phone: broadcast a bare {type:'kicked'} frame. The
+   * relay forwards any non-'to-phone' hub frame to ALL phones in the room
+   * (legacy single-phone broadcast path), so the deployed relay needs no
+   * changes. Updated phones disconnect and stop auto-reconnecting; they can
+   * rejoin at any time with the same pairing code.
+   */
+  kickAll() {
+    if (!this.ws || this.stopped) return;
+    try { this.ws.send(JSON.stringify({ type: 'kicked' })); } catch { /* socket already dying */ }
+  }
+
   _scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
     const wait = this.backoff;
