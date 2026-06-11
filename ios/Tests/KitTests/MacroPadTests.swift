@@ -105,7 +105,14 @@ final class MacroPadTests: XCTestCase {
         pad.loadExecutor(slot: 2, number: 201)
         XCTAssertEqual(pad.slot(at: 2), .action(MacroAction.find("off")!))
         pad.loadExecutor(slot: 3, number: 201)   // empty slot
-        XCTAssertNil(pad.slot(at: 3))
+        XCTAssertNil(pad.slot(at: 3), "loadExecutor on an empty slot must stay a noop")
+    }
+
+    func test_assignExecutor_out_of_range_slot_is_safe_noop() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 9)
+        pad.assignExecutor(slot: -1)
+        XCTAssertTrue(pad.slots.allSatisfy { $0 == nil })
     }
 
     func test_executor_assignments_survive_reinit() {
