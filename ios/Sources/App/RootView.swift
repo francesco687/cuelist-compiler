@@ -120,7 +120,7 @@ struct RootView: View {
         case .recording:
             Button {
                 Task { await voice.stopAndProcess(project: store.project, defaults: store.defaults) }
-            } label: { Image(systemName: "stop.circle.fill").foregroundStyle(Theme.danger) }
+            } label: { Image(systemName: "stop.circle.fill").foregroundStyle(Theme.ok) }
         case .transcribing, .interpreting:
             ProgressView()
         case .preview:
