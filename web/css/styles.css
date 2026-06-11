@@ -789,13 +789,20 @@
   }
 
   #audioPanel {
-    background: #1d1d20;
-    border: 1px solid #333;
-    border-radius: 6px;
+    background: var(--surface-1);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
     padding: 10px 12px;
     margin-bottom: 14px;
+    position: relative;
   }
-  #audioPanel.empty { padding: 14px; text-align: center; color: #666; }
+  #audioPanel::before, #audioPanel::after {
+    content: ""; position: absolute; width: 11px; height: 11px; pointer-events: none;
+    border: 1.5px solid rgba(234,166,79,0.5);
+  }
+  #audioPanel::before { top: 5px; left: 5px; border-right: none; border-bottom: none; }
+  #audioPanel::after  { bottom: 5px; right: 5px; border-left: none; border-top: none; }
+  #audioPanel.empty { padding: 14px; text-align: center; color: var(--text-faint); }
   /* Reaper-style console row above the timeline */
   #audioControls.reaper-console {
     display: flex;
@@ -809,39 +816,44 @@
     align-items: center;
     gap: 4px;
     padding: 6px 10px;
-    background: #0a0e10;
-    border: 1px solid #1a2025;
-    border-radius: 4px;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-sm);
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,0.025),
       inset 0 0 0 1px #050709,
       0 1px 0 rgba(255,255,255,0.02);
     position: relative;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
   }
+  .console-meta { color: var(--text-faint); }
+  .console-sep { color: var(--accent-border); }
+  .console-box .ok, .ltc-status.locked { color: var(--ok); }
   .console-box .led-label {
-    font-family: ui-monospace, 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-size: 8px;
     letter-spacing: 0.18em;
-    color: #4a6055;
+    color: var(--text-faint);
     text-transform: uppercase;
     align-self: flex-start;
     position: absolute;
     top: 3px;
     left: 8px;
   }
-  /* SMPTE LED — Reaper-ish green-on-black tube look */
+  /* SMPTE LED — Amber HUD tube look */
   #audioControls .tc-reader {
     min-width: 175px;
     justify-content: center;
     padding: 14px 14px 6px;
   }
   #audioControls .tc-reader .led-main {
-    font-family: ui-monospace, 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-size: 24px;
     font-weight: 700;
-    color: #5fff8e;
-    letter-spacing: 1.5px;
-    text-shadow: 0 0 6px rgba(95, 255, 142, 0.55), 0 0 2px rgba(95, 255, 142, 0.9);
+    color: var(--ok);
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(240,192,116,0.55);
   }
   #audioControls .tc-ltc,
   #audioControls .tc-offset {
@@ -854,28 +866,31 @@
     font-size: 24px;
     letter-spacing: 1.5px;
   }
-  /* LTC LED: same green as the old SMPTE display */
+  /* LTC LED — amber family only (led-cyan retoned to amber) */
   #audioControls .led-main.led-cyan {
-    color: #5fff8e;
-    text-shadow: 0 0 6px rgba(95, 255, 142, 0.55), 0 0 2px rgba(95, 255, 142, 0.9);
+    color: var(--ok);
+    text-shadow: 0 0 10px rgba(240,192,116,0.55);
   }
   #audioControls .led-main.led-amber {
-    color: #ffb060;
-    text-shadow: 0 0 6px rgba(255, 176, 96, 0.55), 0 0 2px rgba(255, 176, 96, 0.9);
+    color: var(--accent-solid);
+    text-shadow: 0 0 10px rgba(234,166,79,0.55);
   }
-  /* LTC config panel — green-bordered window */
+  .led-main, .ltc-badge { font-family: var(--font-mono); }
+  .led-cyan { color: var(--ok); }
+  .led-amber { color: var(--accent-solid); }
+  /* LTC config panel — amber HUD window */
   #audioTcConfig {
     display: flex;
     gap: 14px;
     align-items: center;
     margin-bottom: 10px;
     padding: 14px 14px 10px;
-    background: linear-gradient(rgba(60, 180, 110, 0.04), rgba(40, 120, 70, 0.02));
-    border: 1px solid #2a6a3e;
-    border-radius: 5px;
+    background: linear-gradient(rgba(234,166,79,0.04), rgba(224,145,63,0.02));
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-sm);
     box-shadow:
-      inset 0 1px 0 rgba(95, 255, 142, 0.06),
-      0 0 0 1px rgba(95, 255, 142, 0.03);
+      inset 0 1px 0 rgba(234,166,79,0.06),
+      0 0 0 1px rgba(234,166,79,0.03);
     position: relative;
   }
   #audioTcConfig::before {
@@ -884,13 +899,13 @@
     top: -8px;
     left: 12px;
     padding: 0 8px;
-    font-family: ui-monospace, 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-size: 0.7em;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #5fff8e;
+    color: var(--ok);
     background: var(--canvas-2);
-    text-shadow: 0 0 4px rgba(95, 255, 142, 0.4);
+    text-shadow: 0 0 4px rgba(240,192,116,0.4);
   }
   #audioTcConfig label {
     display: inline-flex;
@@ -917,8 +932,8 @@
   }
   #audioTcConfig input:focus {
     outline: none;
-    border-color: #3a5a4a;
-    box-shadow: 0 0 0 1px rgba(95, 255, 142, 0.2);
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 1px rgba(234,166,79,0.25);
   }
   #audioTcConfig input.parse-error {
     border-color: #a85040;
@@ -949,9 +964,9 @@
     border: 1px solid #2a2a2e;
   }
   #audioTcConfig .ltc-badge.ok {
-    background: #0d2418;
-    color: #5fff8e;
-    border-color: #1a3a26;
+    background: rgba(240,192,116,0.08);
+    color: var(--ok);
+    border-color: var(--accent-border);
   }
   #audioTcConfig .ltc-badge.err {
     background: #2a1010;
@@ -981,40 +996,42 @@
     padding: 5px 8px;
     font-size: 14px;
     line-height: 1;
-    background: linear-gradient(#2a2e33, #1a1d22);
-    border: 1px solid #0a0c0f;
-    color: #c8d0d4;
-    border-radius: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--accent-border);
+    color: var(--ok);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
   }
   #audioControls .transport button:hover {
-    background: linear-gradient(#3a3e44, #25282d);
+    background: var(--surface-3);
     color: #fff;
   }
   #audioControls .transport button:active {
-    background: linear-gradient(#1a1d22, #0e1115);
+    background: var(--surface-1);
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
   }
   #audioControls .transport button.play {
     min-width: 42px;
-    background: linear-gradient(#2c5e3e, #1d4029);
-    border-color: #061508;
-    color: #fff;
+    background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+    border-color: var(--accent-border);
+    color: var(--capture-ink);
+    box-shadow: 0 0 16px rgba(234,166,79,0.6);
   }
   #audioControls .transport button.play:hover {
-    background: linear-gradient(#357055, #245232);
+    box-shadow: 0 0 22px rgba(234,166,79,0.75);
   }
   #audioControls .transport button.loop {
-    color: #d0a050;
+    color: var(--ok);
   }
   #audioControls .transport button.loop.active {
-    background: linear-gradient(#5e4a1a, #3a2c0c);
-    color: #fff5b5;
-    border-color: #1a1408;
+    background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+    color: var(--capture-ink);
+    border-color: var(--accent-border);
+    box-shadow: 0 0 12px rgba(234,166,79,0.45);
   }
   #audioControls .transport button.lock {
-    color: #c8d0d4;
+    color: var(--ok);
     font-size: 13px;
   }
   #audioControls .transport button.lock.on {
@@ -1037,14 +1054,14 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    background: linear-gradient(#3a5e7a, #2c4a62);
-    border-left: 1px solid #5b8dd6;
-    border-right: 1px solid #5b8dd6;
+    background: linear-gradient(rgba(234,166,79,0.18), rgba(224,145,63,0.10));
+    border-left: 1px solid var(--accent-border);
+    border-right: 1px solid var(--accent-border);
     cursor: grab;
     transition: background 80ms ease;
   }
   #viewportThumb:hover {
-    background: linear-gradient(#4a6e8a, #3c5a72);
+    background: linear-gradient(rgba(234,166,79,0.28), rgba(224,145,63,0.18));
   }
   #viewportThumb:active { cursor: grabbing; }
   #audioControls .console-sep {
@@ -1069,7 +1086,8 @@
   }
   #audioControls .filename {
     flex: 1;
-    color: #aaa;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
     font-size: 0.85em;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1099,9 +1117,9 @@
 
   #timeline {
     position: relative;
-    background: #131316;
-    border: 1px solid #2a2a2e;
-    border-radius: 4px;
+    background: rgba(0,0,0,0.32);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     overflow: hidden;
     user-select: none;
     cursor: pointer;
@@ -1110,8 +1128,8 @@
     display: block;
     width: 100%;
     height: 18px;
-    background: #131316;
-    border-bottom: 1px solid #2a2a2e;
+    background: rgba(0,0,0,0.32);
+    border-bottom: 1px solid var(--border);
   }
   #timeline .channel-wave canvas {
     display: block;
@@ -1121,17 +1139,20 @@
   #timeline .channel-wave {
     position: relative;
     height: 60px;
-    border-bottom: 1px solid #2a2a2e;
+    background: rgba(0,0,0,0.32);
+    border-bottom: 1px solid var(--border);
   }
   #timeline .channel-wave:last-child { border-bottom: none; }
   #timeline .channel-wave .chan-label {
     position: absolute;
     top: 2px;
     left: 4px;
+    font-family: var(--font-mono);
     font-size: 0.65em;
-    color: #555;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 1px;
     font-weight: 600;
-    letter-spacing: 0.5px;
     pointer-events: none;
     z-index: 3;
   }
@@ -1140,7 +1161,7 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: #f8f8f8;
+    background: #fff;
     pointer-events: none;
     z-index: 5;
     transform: translateX(-1px);
@@ -1157,12 +1178,14 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgba(220, 60, 60, 0.55);
+    background: var(--danger);
+    opacity: 0.6;
     pointer-events: auto;
     cursor: grab;
   }
   #timeline .marker:hover {
-    background: rgba(255, 80, 80, 1);
+    background: var(--danger);
+    opacity: 1;
     width: 2px;
   }
   #timeline .marker.selected {
@@ -1328,11 +1351,11 @@
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
-  background: #0a0e10;
-  border: 1px solid #2a6a3e;
-  border-radius: 5px;
+  background: var(--surface-1);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
   box-shadow:
-    inset 0 1px 0 rgba(95, 255, 142, 0.08),
+    inset 0 1px 0 rgba(234,166,79,0.08),
     0 4px 14px rgba(0, 0, 0, 0.55);
 }
 #timeline .tl-tc-popup::after {
@@ -1343,15 +1366,15 @@
   transform: translateX(-50%) rotate(45deg);
   width: 10px;
   height: 10px;
-  background: #0a0e10;
-  border-right: 1px solid #2a6a3e;
-  border-bottom: 1px solid #2a6a3e;
+  background: var(--surface-1);
+  border-right: 1px solid var(--accent-border);
+  border-bottom: 1px solid var(--accent-border);
 }
 #timeline .tl-tc-input {
   background: #050709;
-  border: 1px solid #1a2025;
-  color: #5fff8e;
-  font-family: ui-monospace, 'Consolas', monospace;
+  border: 1px solid var(--border);
+  color: var(--ok);
+  font-family: var(--font-mono);
   font-size: 1em;
   padding: 4px 8px;
   width: 110px;
@@ -1360,8 +1383,8 @@
   letter-spacing: 0.5px;
 }
 #timeline .tl-tc-input:focus {
-  border-color: #3a6a4e;
-  box-shadow: 0 0 0 1px rgba(95, 255, 142, 0.25);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 1px rgba(234,166,79,0.25);
 }
 #timeline .tl-tc-input.parse-error {
   border-color: #a85040;
@@ -1370,18 +1393,18 @@
 }
 #timeline .tl-tc-ok,
 #timeline .tl-tc-cancel {
-  background: #1a1d22;
-  border: 1px solid #0a0c0f;
-  color: #c8d0d4;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   padding: 3px 8px;
   font-size: 0.9em;
   cursor: pointer;
   border-radius: 3px;
 }
-#timeline .tl-tc-ok { color: #5fff8e; }
+#timeline .tl-tc-ok { color: var(--ok); }
 #timeline .tl-tc-cancel { color: #d09080; }
-#timeline .tl-tc-ok:hover { background: #25282d; }
-#timeline .tl-tc-cancel:hover { background: #25282d; }
+#timeline .tl-tc-ok:hover { background: var(--surface-3); }
+#timeline .tl-tc-cancel:hover { background: var(--surface-3); }
 
 /* Toast notification */
 #toast.toast {
