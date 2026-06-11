@@ -175,6 +175,6 @@ struct CueCardView: View {
         } message: { Text("Set the number for this cue.") }
         .padding(13)
         .cardSurface()
-        .overlay(CornerBrackets(length: 10, lineWidth: 1.5))
+        .overlay(CornerBrackets(color: Theme.accentSolid.opacity(0.35), length: 10, lineWidth: 1.5))
     }
 }

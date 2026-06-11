@@ -16,7 +16,7 @@ struct StepperField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(label).font(.system(size: 11)).foregroundStyle(Theme.textDim)
+            Text(label).font(Theme.mono(size: 11)).hudLabel().foregroundStyle(Theme.textDim)
             HStack(spacing: 0) {
                 Button { bump(-0.5) } label: {
                     Image(systemName: "minus").frame(width: 30, height: 30)
@@ -24,7 +24,7 @@ struct StepperField: View {
                 TextField(placeholder, text: $value)
                     .multilineTextAlignment(.center)
                     .keyboardType(.decimalPad)
-                    .font(.system(size: 13).monospacedDigit())
+                    .font(Theme.mono(size: 13))
                     .foregroundStyle(tint)
                     .frame(width: 46)
                 Button { bump(0.5) } label: {
