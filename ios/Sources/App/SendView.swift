@@ -29,7 +29,7 @@ struct SendView: View {
 
                     // Store mode
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Store mode").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textDim)
+                        Text("Store mode").font(Theme.mono(size: 11, weight: .medium)).hudLabel().foregroundStyle(Theme.textDim)
                         Picker("Store", selection: $store.project.storeMode) {
                             ForEach(StoreMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                         }
@@ -122,7 +122,7 @@ struct SendView: View {
         if let p = hub.progress {
             VStack(spacing: 6) {
                 ProgressView(value: Double(p.sent), total: Double(max(1, p.total))).tint(Theme.accentSolid)
-                Text("sending \(p.sent)/\(p.total)\u{2026}").font(.system(size: 12)).foregroundStyle(Theme.textDim)
+                Text("sending \(p.sent)/\(p.total)\u{2026}").font(Theme.mono(size: 12)).foregroundStyle(Theme.textDim)
             }
         } else if let result = hub.lastResult {
             switch result {
