@@ -83,10 +83,11 @@
     overflow-y: auto;
   }
   #sidebar h2 {
-    font-size: 0.8em;
-    color: #888;
+    font-size: 0.85em;
+    font-family: var(--font-mono);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.4px;
+    color: var(--text-faint);
     margin: 0 0 10px 0;
     padding: 0 4px;
   }
@@ -96,21 +97,22 @@
     align-items: center;
     gap: 4px;
     padding: 8px 10px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    color: #ccc;
-    border: 1px solid transparent;
+    background: var(--surface-1);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
     margin-bottom: 4px;
   }
-  .song-item:hover { background: #2a2a2e; }
+  .song-item:hover { background: var(--surface-2); color: var(--text); }
   .song-item.active {
-    background: #2c3e62;
-    border-color: #3d6ec6;
-    color: #fff;
+    background: var(--accent-tint);
+    border-color: var(--accent-border);
+    color: var(--text);
   }
   .song-item .song-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .song-item .song-seq { font-size: 0.75em; color: #888; flex-shrink: 0; }
-  .song-item.active .song-seq { color: #b8c8e0; }
+  .song-item .song-seq { font-size: 0.75em; font-family: var(--font-mono); color: var(--text-faint); flex-shrink: 0; }
+  .song-item.active .song-seq { color: var(--ok); }
   .song-item .song-remove {
     background: none;
     border: none;
@@ -121,17 +123,21 @@
     border-radius: 3px;
     flex-shrink: 0;
   }
-  .song-item .song-remove:hover { background: #c63d3d; color: #fff; }
+  .song-item .song-remove:hover { background: var(--danger); color: #fff; }
   #addSong {
     width: 100%;
     background: transparent;
-    border: 1px dashed #555;
-    color: #aaa;
+    border: 1px dashed var(--border-strong);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 1px;
     font-weight: 400;
     padding: 8px;
-    font-size: 0.9em;
+    font-size: 0.8em;
+    border-radius: var(--radius);
   }
-  #addSong:hover { border-color: #5b8dd6; color: #ddd; }
+  #addSong:hover { border-color: var(--accent-solid); color: var(--text); }
   @media (max-width: 720px) {
     .layout { grid-template-columns: 1fr; }
     #sidebar { position: static; max-height: none; }
@@ -139,35 +145,39 @@
 
   input, button, select { font: inherit; }
   input[type="text"], input[type="number"] {
-    background: #2a2a2e;
-    border: 1px solid #444;
-    color: #e8e8e8;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text);
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     outline: none;
     font-size: 0.9em;
   }
-  input[type="text"]:focus, input[type="number"]:focus { border-color: #5b8dd6; }
+  input[type="text"]:focus, input[type="number"]:focus {
+    border-color: var(--accent-solid);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-tint);
+  }
   button {
-    background: #3d6ec6;
-    border: none;
-    color: white;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
     padding: 6px 12px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: 500;
     font-size: 0.9em;
   }
-  button:hover { background: #4d80d6; }
+  button:hover { background: var(--surface-3); border-color: var(--accent-border); }
   button.danger { background: #c63d3d; }
   button.danger:hover { background: #d65555; }
   button.ghost {
     background: transparent;
-    border: 1px dashed #555;
-    color: #aaa;
+    border: 1px solid var(--accent-border);
+    color: var(--text-dim);
     font-weight: 400;
   }
-  button.ghost:hover { border-color: #888; color: #ddd; }
+  button.ghost:hover { color: var(--text); border-color: var(--accent-solid); }
 
   #header {
     display: flex;
@@ -176,9 +186,9 @@
     align-items: center;
     flex-wrap: wrap;
   }
-  #header label { color: #aaa; font-size: 0.9em; }
+  #header label { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-faint); font-size: 0.8em; }
   #songName { flex: 1; min-width: 200px; padding: 8px 12px; }
-  #sequence { width: 80px; padding: 8px 12px; }
+  #sequence { font-family: var(--font-mono); color: var(--ok); width: 80px; padding: 8px 12px; }
   #headerActions { display: flex; gap: 6px; margin-left: auto; }
 
   .cue-card {
@@ -397,12 +407,16 @@
     width: 100%;
     padding: 12px;
     background: transparent;
-    border: 2px dashed #444;
-    color: #888;
-    font-size: 1em;
+    border: 1px dashed var(--border-strong);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.8em;
+    border-radius: var(--radius);
     margin-bottom: 20px;
   }
-  #addCue:hover { border-color: #5b8dd6; color: #ddd; }
+  #addCue:hover { border-color: var(--accent-solid); color: var(--text); }
 
   #toolbar {
     display: flex;
