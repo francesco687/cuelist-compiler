@@ -21,7 +21,7 @@ public final class InMemoryAIKeyStore: AIKeyStore, @unchecked Sendable {
 /// Keychain-backed store. One generic-password item per provider.
 public final class KeychainAIKeyStore: AIKeyStore, @unchecked Sendable {
     private let service: String
-    public init(service: String = "com.blearred.cuelistcompiler.keys") { self.service = service }
+    public init(service: String = "com.blearred.saetta.keys") { self.service = service }
 
     public func key(for provider: AIProvider) -> String? {
         var q = baseQuery(provider)

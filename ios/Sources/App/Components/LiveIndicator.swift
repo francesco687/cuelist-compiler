@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Hub connection signal, monochrome amber by BRIGHTNESS (not hue):
 /// offline = dim hollow dot, connecting = mid amber, online = full bright glowing dot.

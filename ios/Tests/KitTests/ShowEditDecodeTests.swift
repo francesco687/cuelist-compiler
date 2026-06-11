@@ -1,5 +1,5 @@
 import XCTest
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 final class ShowEditDecodeTests: XCTestCase {
     private func decode(_ json: String) throws -> ToolInput {

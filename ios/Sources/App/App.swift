@@ -1,8 +1,8 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 @main
-struct CuelistCompilerApp: App {
+struct SaettaApp: App {
     @State private var store = ProjectStore()
     @State private var hub = HubClient(makeConnection: { url in
         URLSessionWebSocketConnection(url: url)

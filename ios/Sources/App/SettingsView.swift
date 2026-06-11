@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 struct SettingsView: View {
     @Environment(HubClient.self) private var hub

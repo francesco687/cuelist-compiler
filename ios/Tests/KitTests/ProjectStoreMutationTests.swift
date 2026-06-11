@@ -1,5 +1,5 @@
 import XCTest
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 @MainActor      // ProjectStore is @MainActor-isolated; the test class must match
 final class ProjectStoreMutationTests: XCTestCase {

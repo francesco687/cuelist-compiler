@@ -1,8 +1,8 @@
 import XCTest
-@testable import CuelistCompilerKit
+@testable import SaettaKit
 
 final class SmokeTests: XCTestCase {
     func testModuleLoads() {
-        XCTAssertEqual(CuelistCompilerKit.schemaVersion, 1)
+        XCTAssertEqual(SaettaKit.schemaVersion, 1)
     }
 }

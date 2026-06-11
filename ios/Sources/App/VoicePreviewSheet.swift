@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Renders a VoiceCaptureController.Pending: transcript + change summary + warnings,
 /// with Apply / Discard. Apply is disabled for clarification-only results.

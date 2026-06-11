@@ -24,9 +24,9 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Cuelist Compiler connects to your hub on the local network to send shows to your console.</string>
+	<string>Saetta connects to your hub on the local network to send shows to your console.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Cuelist Compiler records short voice commands to author cues.</string>
+	<string>Saetta records short voice commands to author cues.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

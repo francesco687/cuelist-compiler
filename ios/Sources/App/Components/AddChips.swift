@@ -1,5 +1,5 @@
 import SwiftUI
-import CuelistCompilerKit
+import SaettaKit
 
 /// Dashed "＋POOL" chips for pools that are not yet shown. Tapping one reveals it.
 struct AddChips: View {
