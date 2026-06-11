@@ -95,9 +95,10 @@ struct FixtureControlView: View {
         case .focus:
             faderRow([("Focus", "Focus")])
         case .color:
-            PresetRecallGrid(pool: .color, slots: 24) { recall(pool: .color, $0) }
+            faderRow([("Cyan", "Cyan"), ("Magenta", "Magenta"), ("Yellow", "Yellow")])
         case .gobo:
-            PresetRecallGrid(pool: .gobo, slots: 24) { recall(pool: .gobo, $0) }
+            faderRow([("Gobo 1", "Gobo1"), ("Rot 1", "Gobo1Pos"),
+                      ("Gobo 2", "Gobo2"), ("Rot 2", "Gobo2Pos")])
         }
     }
 
@@ -142,9 +143,6 @@ struct FixtureControlView: View {
             ? FixtureControlBuilder.intensityNudge(delta)
             : FixtureControlBuilder.attributeNudge(attribute!, delta)
         if let line { send(line, haptic: false) }
-    }
-    private func recall(pool: Pool, _ n: Int) {
-        send(FixtureControlBuilder.recallPreset(pool: pool, number: n))
     }
 
     /// Double-tap on a fader: ask to confirm before undoing its nudges. No-op
