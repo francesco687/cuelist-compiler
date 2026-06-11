@@ -104,7 +104,7 @@ struct FixtureControlView: View {
     /// Each item: (display label, attribute name or nil for bare-intensity).
     private func faderRow(_ items: [(String, String?)]) -> some View {
         VStack(spacing: 12) {
-            HStack(spacing: 18) {
+            HStack(spacing: 12) {
                 ForEach(items, id: \.0) { item in
                     let key = item.1 ?? "Dimmer"
                     JogFader(

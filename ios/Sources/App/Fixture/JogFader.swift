@@ -19,25 +19,28 @@ struct JogFader: View {
     @State private var tickCount = 0          // bumped per whole-unit step → detent haptic
 
     private var pointsPerUnit: CGFloat { fine ? 24 : 8 }
-    private let trackHeight: CGFloat = 170
-    private let gripHeight: CGFloat = 40
+    // Sized for fat-finger / thumb use: tall throw + a big grip. The track fills
+    // the available width (so a single fader is huge, 3-up stays ~100pt each).
+    private let trackHeight: CGFloat = 250
+    private let gripHeight: CGFloat = 64
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10).fill(Theme.surface2)
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.border, lineWidth: 0.5))
-                Image(systemName: "chevron.up").font(.caption).foregroundStyle(Theme.textFaint)
-                    .frame(maxHeight: .infinity, alignment: .top).padding(.top, 8)
-                Image(systemName: "chevron.down").font(.caption).foregroundStyle(Theme.textFaint)
-                    .frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 8)
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 14).fill(Theme.surface2)
+                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.border, lineWidth: 0.5))
+                Image(systemName: "chevron.up").font(.title3).foregroundStyle(Theme.textFaint)
+                    .frame(maxHeight: .infinity, alignment: .top).padding(.top, 10)
+                Image(systemName: "chevron.down").font(.title3).foregroundStyle(Theme.textFaint)
+                    .frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 10)
+                RoundedRectangle(cornerRadius: 11)
                     .fill(Theme.accentGradient)
                     .frame(height: gripHeight)
+                    .padding(.horizontal, 6)
                     .shadow(color: Theme.accentSolid.opacity(0.5), radius: 8)
                     .offset(y: gripOffset)
             }
-            .frame(width: 52, height: trackHeight)
+            .frame(maxWidth: .infinity, minHeight: trackHeight, maxHeight: trackHeight)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -67,8 +70,8 @@ struct JogFader: View {
                 TapGesture(count: 2).onEnded { onReset() }
             )
 
-            Text(label).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.textDim)
-            Text(valueText).font(.system(size: 14, weight: .bold).monospacedDigit())
+            Text(label).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textDim)
+            Text(valueText).font(.system(size: 18, weight: .bold).monospacedDigit())
                 .foregroundStyle(Theme.text)
         }
         // Light "detent" tick as the value steps — picker-wheel feel, handles
