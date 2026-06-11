@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// The Live tab's four-slot macro pad. Holds the operator's assigned actions app-wide,
-/// persisted to UserDefaults like the hub host/port. Pure state — never touches the
-/// network; firing is the view's job via HubClient.
+/// The Live tab's four-slot macro pad. Holds the operator's assigned actions and
+/// executor toggles app-wide, persisted to UserDefaults like the hub host/port.
+/// Pure state — never touches the network; firing is the view's job via HubClient.
 @MainActor
 @Observable
 public final class MacroPad {
@@ -26,10 +26,33 @@ public final class MacroPad {
         }
     }
 
-    /// The action currently in `slot`, or nil if empty / out of range / unknown id.
+    /// The decoded value in `slot`, or nil if empty / out of range / undecodable.
+    public func slot(at slot: Int) -> MacroSlot? {
+        guard slots.indices.contains(slot), let raw = slots[slot] else { return nil }
+        return MacroSlot(rawValue: raw)
+    }
+
+    /// The action currently in `slot`, or nil if empty / not an action.
     public func action(at slot: Int) -> MacroAction? {
-        guard slots.indices.contains(slot), let id = slots[slot] else { return nil }
-        return MacroAction.find(id)
+        if case .action(let action)? = self.slot(at: slot) { return action }
+        return nil
+    }
+
+    /// Make a slot an executor button with no target yet (step 1 of the double
+    /// assign). Out-of-range slots are ignored.
+    public func assignExecutor(slot: Int) {
+        guard slots.indices.contains(slot) else { return }
+        slots[slot] = MacroSlot.executor(number: nil).rawValue
+        persist()
+    }
+
+    /// Point an executor slot at a numbered executor (step 2). No-op unless the
+    /// slot currently holds an executor and the number is in range.
+    public func loadExecutor(slot: Int, number: Int) {
+        guard case .executor? = self.slot(at: slot),
+              MacroSlot.executorRange.contains(number) else { return }
+        slots[slot] = MacroSlot.executor(number: number).rawValue
+        persist()
     }
 
     /// Assign an action to a slot. Out-of-range slots are ignored.
