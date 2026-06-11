@@ -11,7 +11,7 @@ struct DefaultsView: View {
             Form {
                 Section("Default fade / delay") {
                     Text("Used at send when a preset's own fade/delay is blank. Shown as placeholders in the cue editor.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(Theme.textFaint)
                     ForEach(Pool.allCases, id: \.self) { pool in
                         HStack {
                             Text(pool.rawValue.capitalized).frame(width: 90, alignment: .leading)
