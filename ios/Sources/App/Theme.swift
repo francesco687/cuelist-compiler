@@ -43,10 +43,16 @@ enum Theme {
     static let warn = Color(hex: "#d49a4a")!   // mid amber — delay numerics / connecting
     static let danger = Color(hex: "#ff6b6b")! // RED — destructive delete (kept as the affordance)
 
-    // Radii.
-    static let radius: CGFloat = 11
-    static let radiusSmall: CGFloat = 7
-    static let radiusLarge: CGFloat = 16          // pill CTAs (bottom cluster, delete bar)
+    // Radii — tightened for the HUD look. Circular elements (CueBadge) are unaffected.
+    static let radius: CGFloat = 7
+    static let radiusSmall: CGFloat = 4
+    static let radiusLarge: CGFloat = 11          // pill CTAs (bottom cluster, delete bar)
+
+    /// HUD monospace face — real SF Mono, for every numeric readout and HUD label.
+    /// (The app previously used only `.monospacedDigit()` on a proportional face.)
+    static func mono(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
+    }
 
     /// Full-screen amber aurora canvas. Radial blooms over a near-black base.
     static var canvas: some View {
@@ -83,6 +89,11 @@ extension View {
     func accentGlow(_ strength: Double = 0.5) -> some View {
         self.shadow(color: Theme.accentSolid.opacity(strength), radius: 14, y: 3)
             .shadow(color: Theme.accentEnd.opacity(strength * 0.6), radius: 30, y: 0)
+    }
+
+    /// HUD section/control label: uppercase + letter-spacing. Pairs with `Theme.mono`.
+    func hudLabel() -> some View {
+        self.textCase(.uppercase).tracking(1.2)
     }
 }
 
