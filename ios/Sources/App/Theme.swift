@@ -105,6 +105,7 @@ struct AmberCTAStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "arrowtriangle.right.fill").font(.system(size: 9, weight: .bold))
+                .accessibilityHidden(true)
             configuration.label
         }
         .font(.system(size: 13, weight: .semibold))
