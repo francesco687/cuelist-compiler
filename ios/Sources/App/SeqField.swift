@@ -10,11 +10,11 @@ struct SeqField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("Seq").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.text)
+            Text("Seq").font(Theme.mono(size: 13, weight: .semibold)).hudLabel().foregroundStyle(Theme.text)
             TextField("1", text: $text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
-                .font(.system(size: 18, weight: .bold).monospacedDigit())
+                .font(Theme.mono(size: 18, weight: .bold))
                 .foregroundStyle(Theme.text)
                 .frame(width: 70)
                 .padding(.vertical, 9)
