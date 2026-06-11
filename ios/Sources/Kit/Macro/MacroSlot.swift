@@ -5,13 +5,13 @@ import Foundation
 /// current page. Encodes to/from the single `String` per slot that `MacroPad`
 /// persists — an `"exec:"` prefix marks executor slots; anything else is an
 /// action id, so pads saved by older builds load unchanged.
-public enum MacroSlot: Equatable, Sendable {
+public enum MacroSlot: RawRepresentable, Equatable, Sendable {
     case action(MacroAction)
     /// `number == nil` — assigned but not yet loaded; renders as pending, never fires.
     case executor(number: Int?)
 
     /// Executor numbers the load sheet and the decoder accept.
-    public static let executorRange = 1...9999
+    public static let executorRange: ClosedRange<Int> = 1...9999
 
     private static let execPrefix = "exec:"
 
@@ -47,6 +47,7 @@ public enum MacroSlot: Equatable, Sendable {
     public var command: String? {
         switch self {
         case .action(let action): action.command
+        // grandMA3 syntax: "Toggle Executor <n>" — n on the desk's current page.
         case .executor(let number): number.map { "Toggle Executor \($0)" }
         }
     }
