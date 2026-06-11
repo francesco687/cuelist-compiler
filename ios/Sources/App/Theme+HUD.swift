@@ -8,6 +8,7 @@ struct TickGrid: View {
     var body: some View {
         GeometryReader { geo in
             Path { p in
+                guard spacing > 0 else { return }
                 var y = spacing
                 while y < geo.size.height {
                     p.move(to: CGPoint(x: 0, y: y))
