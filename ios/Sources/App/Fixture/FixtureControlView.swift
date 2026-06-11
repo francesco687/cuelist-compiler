@@ -43,6 +43,11 @@ struct FixtureControlView: View {
     // red "touched" indicator on the category bar (mirrors grandMA3's red programmer
     // values). Sticky until Clear / new selection; a per-fader reset un-marks its key.
     @State private var touched: Set<String> = []
+    // Selections edited since the last Clear, in edit order — so the programmer
+    // remembers per-fixture edits across selection changes (edit 101, select 202,
+    // edit it → both persist) and a store can cover several fixtures. Cleared only
+    // by Clear. All per-attribute state above is keyed by `selection + attribute`.
+    @State private var selectionOrder: [String] = []
 
     var body: some View {
         NavigationStack {
@@ -66,15 +71,17 @@ struct FixtureControlView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .sensoryFeedback(.impact(weight: .light), trigger: fireCount)
             .sheet(isPresented: $showKeypad) {
-                SelectionKeypadSheet { cmd in selection = cmd; resetAccumulators(); send(cmd) }
+                // New selection does NOT clear the programmer — prior fixtures'
+                // edits persist (only Clear wipes them), so a store can cover several.
+                SelectionKeypadSheet { cmd in selection = cmd; send(cmd) }
             }
             .sheet(isPresented: $showStoreCue) {
                 StoreCueSheet(sequence: store.activeSong.sequence, cue: 1, mode: store.project.storeMode,
-                              selection: selection, values: programmerSnapshot) { send($0) }
+                              groups: programmerSnapshot) { send($0) }
             }
             .sheet(isPresented: $showUpdatePreset) {
                 UpdatePresetSheet(mode: store.project.storeMode,
-                                  selection: selection, values: programmerSnapshot) { send($0) }
+                                  groups: programmerSnapshot) { send($0) }
             }
             .alert("Reset \(pendingReset?.label ?? "")?",
                    isPresented: Binding(get: { pendingReset != nil },
@@ -110,26 +117,33 @@ struct FixtureControlView: View {
         }
     }
 
-    /// True if any of the category's attributes have gone into the programmer.
+    /// Composite key: per-attribute state is scoped to the fixture selection it was
+    /// edited under, so edits to different fixtures don't collide or overwrite.
+    private func ck(_ attribute: String, in sel: String) -> String { sel + "\u{1}" + attribute }
+
+    /// True if any of the CURRENT selection's attributes are in the programmer.
     private func isTouched(_ c: Category) -> Bool {
-        items(c).contains { touched.contains($0.1 ?? "Dimmer") }
+        items(c).contains { touched.contains(ck($0.1 ?? "Dimmer", in: selection)) }
     }
 
-    /// Every attribute that's gone into the programmer this session, with its
-    /// running (relative) offset — feeds the "what will be stored" preview.
-    /// Ordered by category then attribute; de-duplicated across categories.
-    private var programmerSnapshot: [StoredValue] {
-        var seen = Set<String>(); var out: [StoredValue] = []
-        for c in Category.allCases {
-            for item in items(c) {
-                let key = item.1 ?? "Dimmer"
-                if touched.contains(key), !seen.contains(key) {
-                    seen.insert(key)
-                    out.append(StoredValue(label: item.0, value: offsetSigned(offsets[key] ?? 0)))
+    /// The full programmer: every edited selection (in edit order) with its touched
+    /// attributes and running (relative) offsets — feeds the "what will be stored"
+    /// preview. Selections with nothing left touched are dropped.
+    private var programmerSnapshot: [StoreGroup] {
+        selectionOrder.compactMap { sel in
+            var seen = Set<String>(); var vals: [StoredValue] = []
+            for c in Category.allCases {
+                for item in items(c) {
+                    let attr = item.1 ?? "Dimmer"
+                    let key = ck(attr, in: sel)
+                    if touched.contains(key), !seen.contains(attr) {
+                        seen.insert(attr)
+                        vals.append(StoredValue(label: item.0, value: offsetSigned(offsets[key] ?? 0)))
+                    }
                 }
             }
+            return vals.isEmpty ? nil : StoreGroup(selection: sel, values: vals)
         }
-        return out
     }
 
     /// One full-height fader per item in a single row + the Coarse/Fine picker.
@@ -179,16 +193,19 @@ struct FixtureControlView: View {
     // MARK: intent → command
 
     private func nudge(key: String, attribute: String?, delta: Int) {
-        let acc = accumulator(key)
+        let cKey = ck(key, in: selection)
+        let acc = accumulator(cKey)
         let emit = acc.accept(delta: delta, atMs: nowMs())
-        offsets[key] = acc.offset                 // live display update, identity stable
-        if !touched.contains(key) { touched.insert(key) }   // mark red on the category bar
+        offsets[cKey] = acc.offset                // live display update, identity stable
+        if !touched.contains(cKey) { touched.insert(cKey) }   // mark red on the category bar
+        if !selection.isEmpty, !selectionOrder.contains(selection) { selectionOrder.append(selection) }
         if let emit { sendNudge(attribute: attribute, delta: emit) }
     }
     private func flush(key: String, attribute: String?) {
-        let acc = accumulator(key)
+        let cKey = ck(key, in: selection)
+        let acc = accumulator(cKey)
         if let emit = acc.flush(atMs: nowMs()) { sendNudge(attribute: attribute, delta: emit) }
-        offsets[key] = acc.offset
+        offsets[cKey] = acc.offset
     }
     private func sendNudge(attribute: String?, delta: Int) {
         let line = attribute == nil
@@ -200,17 +217,18 @@ struct FixtureControlView: View {
     /// Double-tap on a fader: ask to confirm before undoing its nudges. No-op
     /// when there's nothing to undo (offset already zero).
     private func requestReset(key: String, attribute: String?, label: String) {
-        let offset = offsets[key] ?? 0
+        let offset = offsets[ck(key, in: selection)] ?? 0
         guard offset != 0 else { return }
         pendingReset = PendingReset(key: key, attribute: attribute, label: label, offset: offset)
     }
     /// Confirmed reset: send the inverse nudge so the desk returns to this
     /// session's baseline, then zero the local accumulator + display.
     private func resetFader(_ pr: PendingReset) {
+        let cKey = ck(pr.key, in: selection)
         sendNudge(attribute: pr.attribute, delta: -pr.offset)
-        accumulators[pr.key] = nil
-        offsets[pr.key] = 0
-        touched.remove(pr.key)   // back to baseline → no longer red
+        accumulators[cKey] = nil
+        offsets[cKey] = 0
+        touched.remove(cKey)   // back to baseline → no longer red
         fireCount += 1   // confirm haptic (sendNudge fires silently)
     }
 
@@ -218,9 +236,12 @@ struct FixtureControlView: View {
         if let a = accumulators[key] { return a }
         let a = NudgeAccumulator(); accumulators[key] = a; return a
     }
-    private func offsetText(_ key: String) -> String { offsetSigned(offsets[key] ?? 0) }
+    private func offsetText(_ key: String) -> String { offsetSigned(offsets[ck(key, in: selection)] ?? 0) }
     private func offsetSigned(_ o: Int) -> String { o > 0 ? "+\(o)" : "\(o)" }
-    private func resetAccumulators() { accumulators.removeAll(); offsets.removeAll(); touched.removeAll() }
+    /// Clear (ClearAll) drops the whole programmer — every selection's edits.
+    private func resetAccumulators() {
+        accumulators.removeAll(); offsets.removeAll(); touched.removeAll(); selectionOrder.removeAll()
+    }
     private func nowMs() -> Int { Int(ProcessInfo.processInfo.systemUptime * 1000) }
 
     private func send(_ line: String, haptic: Bool = true) {
@@ -290,7 +311,7 @@ struct FixtureControlView: View {
     }
 
     private var clearButton: some View {
-        Button { send(FixtureControlBuilder.clear); resetAccumulators() } label: {
+        Button { send(FixtureControlBuilder.clear); resetAccumulators(); selection = "" } label: {
             Text("Clear").font(.system(size: 15, weight: .semibold))
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
                 .background(Theme.surface3, in: RoundedRectangle(cornerRadius: Theme.radius))

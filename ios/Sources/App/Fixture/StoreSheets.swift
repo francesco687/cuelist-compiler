@@ -9,6 +9,14 @@ struct StoredValue: Identifiable {
     var id: String { label }
 }
 
+/// One fixture selection and everything edited on it — the programmer accumulates
+/// these across selections until Clear, so a store can cover several fixtures.
+struct StoreGroup: Identifiable {
+    let selection: String
+    let values: [StoredValue]
+    var id: String { selection }
+}
+
 /// Store the desk's current programmer into a cue. Sequence prefilled from the
 /// active song. Shows the exact command before firing.
 struct StoreCueSheet: View {
@@ -16,8 +24,7 @@ struct StoreCueSheet: View {
     @State var sequence: Int
     @State var cue: Int
     @State var mode: StoreMode
-    var selection: String = ""
-    var values: [StoredValue] = []
+    var groups: [StoreGroup] = []
     let onStore: (String) -> Void
 
     var body: some View {
@@ -26,8 +33,7 @@ struct StoreCueSheet: View {
             command: FixtureControlBuilder.storeCue(sequence: sequence, cue: cue, mode: mode),
             mode: $mode,
             actionTitle: "Store",
-            selection: selection,
-            values: values,
+            groups: groups,
             onConfirm: { onStore(FixtureControlBuilder.storeCue(sequence: sequence, cue: cue, mode: mode)); dismiss() },
             onCancel: { dismiss() }
         ) {
@@ -56,8 +62,7 @@ struct UpdatePresetSheet: View {
     @State var pool: Pool = .color
     @State var number: Int = 1
     @State var mode: StoreMode
-    var selection: String = ""
-    var values: [StoredValue] = []
+    var groups: [StoreGroup] = []
     let onUpdate: (String) -> Void
 
     var body: some View {
@@ -66,8 +71,7 @@ struct UpdatePresetSheet: View {
             command: FixtureControlBuilder.updatePreset(pool: pool, number: number, mode: mode),
             mode: $mode,
             actionTitle: "Update",
-            selection: selection,
-            values: values,
+            groups: groups,
             onConfirm: { onUpdate(FixtureControlBuilder.updatePreset(pool: pool, number: number, mode: mode)); dismiss() },
             onCancel: { dismiss() }
         ) {
@@ -98,8 +102,7 @@ private struct StoreSheetScaffold<Fields: View>: View {
     let command: String
     @Binding var mode: StoreMode
     let actionTitle: String
-    var selection: String = ""
-    var values: [StoredValue] = []
+    var groups: [StoreGroup] = []
     let onConfirm: () -> Void
     let onCancel: () -> Void
     @ViewBuilder let fields: () -> Fields
@@ -113,7 +116,7 @@ private struct StoreSheetScaffold<Fields: View>: View {
                     Picker("Mode", selection: $mode) {
                         ForEach(StoreMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                     }.pickerStyle(.segmented)
-                    StorePreview(selection: selection, values: values)
+                    StorePreview(groups: groups)
                     Text(command).font(.system(size: 13).monospacedDigit())
                         .foregroundStyle(Theme.textFaint)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,13 +137,12 @@ private struct StoreSheetScaffold<Fields: View>: View {
     }
 }
 
-/// "What will be stored": the selection + every programmer attribute and its
-/// running offset, laid out as a clean two-column list. Values are RED to mirror
-/// grandMA3's programmer convention, and shown as RELATIVE session changes
-/// (the app has no desk read-back, so it reports what *you* changed, not absolutes).
+/// "What will be stored": every fixture selection edited since the last Clear,
+/// each with its attributes and running offsets. Laid out grouped-by-fixture,
+/// values in RED (grandMA3's programmer convention). Offsets are RELATIVE session
+/// changes — the app has no desk read-back, so it reports what *you* changed.
 private struct StorePreview: View {
-    let selection: String
-    let values: [StoredValue]
+    let groups: [StoreGroup]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -151,37 +153,37 @@ private struct StorePreview: View {
                 Text("relative").font(.system(size: 10, weight: .medium)).foregroundStyle(Theme.textFaint)
             }
             .padding(.bottom, 8)
+            Divider().overlay(Theme.border).padding(.bottom, 8)
 
-            HStack(alignment: .firstTextBaseline) {
-                Text("Fixtures").font(.system(size: 13)).foregroundStyle(Theme.textFaint)
-                Spacer()
-                Text(selection.isEmpty ? "—" : selection)
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.text)
-                    .lineLimit(1).truncationMode(.head)
-            }
-
-            Divider().overlay(Theme.border).padding(.vertical, 8)
-
-            if values.isEmpty {
-                Label("Nothing changed this session — the programmer is empty.",
+            if groups.isEmpty {
+                Label("Nothing changed yet — the programmer is empty.",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 12)).foregroundStyle(Theme.warn)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 ScrollView {
-                    VStack(spacing: 7) {
-                        ForEach(values) { v in
-                            HStack {
-                                Text(v.label).font(.system(size: 14)).foregroundStyle(Theme.text)
-                                Spacer()
-                                Text(v.value)
-                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(Theme.danger)   // red = programmer values (MA convention)
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(groups) { g in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(g.selection)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(Theme.accentSolid)
+                                    .lineLimit(1).truncationMode(.head)
+                                ForEach(g.values) { v in
+                                    HStack {
+                                        Text(v.label).font(.system(size: 14)).foregroundStyle(Theme.text)
+                                        Spacer()
+                                        Text(v.value)
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Theme.danger)
+                                    }
+                                }
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxHeight: 190)
+                .frame(maxHeight: 220)
             }
         }
         .padding(12)
