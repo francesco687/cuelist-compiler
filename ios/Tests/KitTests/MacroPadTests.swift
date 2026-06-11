@@ -66,4 +66,64 @@ final class MacroPadTests: XCTestCase {
         XCTAssertNil(pad.action(at: 0), "unknown id must surface as an empty (nil) slot")
         XCTAssertEqual(pad.slots[0], "ghost_action", "raw id must be preserved, not auto-cleared")
     }
+
+    // MARK: Executor slots
+
+    func test_assignExecutor_sets_unloaded_executor() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0)
+        XCTAssertEqual(pad.slot(at: 0), .executor(number: nil))
+        XCTAssertNil(pad.action(at: 0), "an executor slot is not an action")
+    }
+
+    func test_loadExecutor_targets_number() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 1)
+        pad.loadExecutor(slot: 1, number: 201)
+        XCTAssertEqual(pad.slot(at: 1), .executor(number: 201))
+    }
+
+    func test_loadExecutor_retargets_loaded_slot() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0)
+        pad.loadExecutor(slot: 0, number: 201)
+        pad.loadExecutor(slot: 0, number: 7)
+        XCTAssertEqual(pad.slot(at: 0), .executor(number: 7))
+    }
+
+    func test_loadExecutor_rejects_out_of_range_number() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0)
+        pad.loadExecutor(slot: 0, number: 0)
+        pad.loadExecutor(slot: 0, number: 10000)
+        XCTAssertEqual(pad.slot(at: 0), .executor(number: nil))
+    }
+
+    func test_loadExecutor_on_non_executor_slot_is_noop() {
+        let pad = freshPad()
+        pad.assign(slot: 2, action: MacroAction.find("off")!)
+        pad.loadExecutor(slot: 2, number: 201)
+        XCTAssertEqual(pad.slot(at: 2), .action(MacroAction.find("off")!))
+        pad.loadExecutor(slot: 3, number: 201)   // empty slot
+        XCTAssertNil(pad.slot(at: 3))
+    }
+
+    func test_executor_assignments_survive_reinit() {
+        let suite = "macropad.exec.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        let p1 = MacroPad(defaults: d)
+        p1.assignExecutor(slot: 0)
+        p1.loadExecutor(slot: 0, number: 7)
+        p1.assignExecutor(slot: 2)
+        let p2 = MacroPad(defaults: d)
+        XCTAssertEqual(p2.slot(at: 0), .executor(number: 7))
+        XCTAssertEqual(p2.slot(at: 2), .executor(number: nil))
+        XCTAssertNil(p2.slot(at: 1))
+    }
+
+    func test_slot_at_decodes_actions_too() {
+        let pad = freshPad()
+        pad.assign(slot: 0, action: MacroAction.find("pause")!)
+        XCTAssertEqual(pad.slot(at: 0), .action(MacroAction.find("pause")!))
+    }
 }
