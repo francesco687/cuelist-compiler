@@ -73,9 +73,9 @@
     align-items: start;
   }
   #sidebar {
-    background: #232327;
-    border: 1px solid #333;
-    border-radius: 6px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     padding: 8px;
     position: sticky;
     top: 8px;
@@ -1329,4 +1329,17 @@
 }
 #toast.toast.success { background: #1e4a2a; border-color: #2a6a3e; color: #d8f0e2; }
 #toast.toast.error   { background: #4a1f1f; border-color: #6a2a2a; color: #f0d8d8; }
+
+/* ---- HUD ornament primitives ---------------------------------------- */
+/* Glass surface used by panels/cards. */
+.hud-surface {
+  background: var(--surface-2);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+/* amber glow utility for hero elements */
+.hud-glow { box-shadow: 0 0 14px rgba(234,166,79,0.5), 0 0 30px rgba(224,145,63,0.3); }
+/* HUD label: uppercase mono, tracked */
+.hud-label { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.4px; }
 #toast.toast.info    { background: #2a2a2e; border-color: #444;    color: #e0e0e0; }
