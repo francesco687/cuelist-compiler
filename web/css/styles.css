@@ -292,8 +292,8 @@
   #colorPopover {
     position: absolute;
     z-index: 200;
-    background: #1e1e22;
-    border: 1px solid #444;
+    background: var(--canvas-2);
+    border: 1px solid var(--accent-border);
     border-radius: 6px;
     padding: 8px;
     box-shadow: 0 8px 20px rgba(0,0,0,0.55);
@@ -1115,9 +1115,9 @@
     cursor: pointer;
   }
   .channel-toggle.active {
-    background: #2c5e3e;
-    border-color: #3da668;
-    color: #fff;
+    background: var(--accent-tint);
+    border-color: var(--accent-solid);
+    color: var(--ok);
   }
   .channel-toggle.muted {
     background: #2a2a2e;
@@ -1283,11 +1283,11 @@
   #settingsDialog label { font-family: var(--font-mono); color: var(--text-dim); font-size: 0.85em; }
   .settings-error { margin: 6px 0 0; color: var(--danger); font-family: var(--font-mono); font-size: 0.85em; }
   .osc-btn {
-    background: #2a5a4a;
-    border: 1px solid #3a7a5e;
-    color: #d8f0e2;
+    background: var(--surface-2);
+    border: 1px solid var(--accent-border);
+    color: var(--ok);
   }
-  .osc-btn:hover:not(:disabled) { background: #357055; }
+  .osc-btn:hover:not(:disabled) { background: var(--surface-3); }
   .osc-btn:disabled { background: #2a2a2e; color: #666; border-color: #3a3a3a; cursor: not-allowed; }
 
 .cue-tc {
@@ -1452,7 +1452,7 @@
   opacity: 1;
   transform: translateY(0);
 }
-#toast.toast.success { background: #1e4a2a; border-color: #2a6a3e; color: #d8f0e2; }
+#toast.toast.success { background: rgba(122,79,30,0.5); border-color: var(--accent-solid); color: var(--ok); }
 #toast.toast.error   { background: #4a1f1f; border-color: #6a2a2a; color: #f0d8d8; }
 
 /* ---- HUD ornament primitives ---------------------------------------- */
