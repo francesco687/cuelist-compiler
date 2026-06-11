@@ -97,32 +97,54 @@ struct FixtureControlView: View {
         case .color:
             faderRow([("Cyan", "Cyan"), ("Magenta", "Magenta"), ("Yellow", "Yellow")])
         case .gobo:
-            faderRow([("Gobo 1", "Gobo1"), ("Rot 1", "Gobo1Pos"),
+            goboGrid([("Gobo 1", "Gobo1"), ("Rot 1", "Gobo1Pos"),
                       ("Gobo 2", "Gobo2"), ("Rot 2", "Gobo2Pos")])
         }
     }
 
-    /// Each item: (display label, attribute name or nil for bare-intensity).
+    /// One full-height fader per item in a single row + the Coarse/Fine picker.
     private func faderRow(_ items: [(String, String?)]) -> some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                ForEach(items, id: \.0) { item in
-                    let key = item.1 ?? "Dimmer"
-                    JogFader(
-                        label: item.0,
-                        valueText: offsetText(key),
-                        fine: fine,
-                        onNudge: { nudge(key: key, attribute: item.1, delta: $0) },
-                        onEnd: { flush(key: key, attribute: item.1) },
-                        onReset: { requestReset(key: key, attribute: item.1, label: item.0) }
-                    )
-                }
+                ForEach(items, id: \.0) { fader($0) }
             }
-            Picker("", selection: $fine) {
-                Text("Coarse").tag(false); Text("Fine").tag(true)
-            }.pickerStyle(.segmented).frame(maxWidth: 200)
+            coarseFinePicker
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Four gobo faders in a 2×2 grid (shorter than the single-row faders so two
+    /// rows fit) + the shared Coarse/Fine picker.
+    private func goboGrid(_ items: [(String, String?)]) -> some View {
+        VStack(spacing: 12) {
+            ForEach(Array(stride(from: 0, to: items.count, by: 2)), id: \.self) { i in
+                HStack(spacing: 12) {
+                    ForEach(items[i..<min(i + 2, items.count)], id: \.0) { fader($0, height: 150) }
+                }
+            }
+            coarseFinePicker
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// One jog fader wired to the nudge/flush/reset handlers for `item`.
+    @ViewBuilder private func fader(_ item: (String, String?), height: CGFloat = 250) -> some View {
+        let key = item.1 ?? "Dimmer"
+        JogFader(
+            label: item.0,
+            valueText: offsetText(key),
+            fine: fine,
+            height: height,
+            onNudge: { nudge(key: key, attribute: item.1, delta: $0) },
+            onEnd: { flush(key: key, attribute: item.1) },
+            onReset: { requestReset(key: key, attribute: item.1, label: item.0) }
+        )
+    }
+
+    private var coarseFinePicker: some View {
+        Picker("", selection: $fine) {
+            Text("Coarse").tag(false); Text("Fine").tag(true)
+        }.pickerStyle(.segmented).frame(maxWidth: 200)
     }
 
     // MARK: intent → command

@@ -9,6 +9,7 @@ struct JogFader: View {
     let label: String
     let valueText: String          // running session offset, e.g. "+12"
     let fine: Bool
+    var height: CGFloat = 250      // track height — shorter for grid (2×2) layouts
     let onNudge: (Int) -> Void     // incremental delta during drag
     let onEnd: () -> Void          // drag ended → flush
     let onReset: () -> Void        // double-tap → request reset (parent confirms)
@@ -21,8 +22,9 @@ struct JogFader: View {
     private var pointsPerUnit: CGFloat { fine ? 24 : 8 }
     // Sized for fat-finger / thumb use: tall throw + a big grip. The track fills
     // the available width (so a single fader is huge, 3-up stays ~100pt each).
-    private let trackHeight: CGFloat = 250
-    private let gripHeight: CGFloat = 64
+    // `height` is caller-controlled so grid (2×2) layouts can use shorter faders.
+    private var trackHeight: CGFloat { height }
+    private var gripHeight: CGFloat { min(64, height * 0.34) }
 
     var body: some View {
         VStack(spacing: 8) {
