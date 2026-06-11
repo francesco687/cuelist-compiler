@@ -103,16 +103,19 @@ extension View {
 struct AmberCTAStyle: ButtonStyle {
     var dim = false
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Theme.aquaInk)
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background {
-                if dim { Theme.accentEnd.opacity(0.85) } else { Theme.accentGradient }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: Theme.radius))
-            .shadow(color: Theme.accentSolid.opacity(dim ? 0.2 : 0.4), radius: dim ? 5 : 8, y: 2)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
+        HStack(spacing: 6) {
+            Image(systemName: "arrowtriangle.right.fill").font(.system(size: 9, weight: .bold))
+            configuration.label
+        }
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(Theme.aquaInk)
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background {
+            if dim { Theme.accentEnd.opacity(0.85) } else { Theme.accentGradient }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radius))
+        .shadow(color: Theme.accentSolid.opacity(dim ? 0.18 : 0.32), radius: dim ? 4 : 6, y: 1)
+        .scaleEffect(configuration.isPressed ? 0.97 : 1)
+        .opacity(configuration.isPressed ? 0.85 : 1)
     }
 }
