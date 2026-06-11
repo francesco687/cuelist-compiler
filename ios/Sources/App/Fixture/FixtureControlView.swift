@@ -130,7 +130,7 @@ struct FixtureControlView: View {
         VStack(spacing: 12) {
             ForEach(Array(stride(from: 0, to: items.count, by: 2)), id: \.self) { i in
                 HStack(spacing: 12) {
-                    ForEach(items[i..<min(i + 2, items.count)], id: \.0) { fader($0, height: 150) }
+                    ForEach(items[i..<min(i + 2, items.count)], id: \.0) { fader($0) }
                 }
             }
             coarseFinePicker
@@ -139,13 +139,12 @@ struct FixtureControlView: View {
     }
 
     /// One jog fader wired to the nudge/flush/reset handlers for `item`.
-    @ViewBuilder private func fader(_ item: (String, String?), height: CGFloat = 250) -> some View {
+    @ViewBuilder private func fader(_ item: (String, String?)) -> some View {
         let key = item.1 ?? "Dimmer"
         JogFader(
             label: item.0,
             valueText: offsetText(key),
             fine: fine,
-            height: height,
             onNudge: { nudge(key: key, attribute: item.1, delta: $0) },
             onEnd: { flush(key: key, attribute: item.1) },
             onReset: { requestReset(key: key, attribute: item.1, label: item.0) }
