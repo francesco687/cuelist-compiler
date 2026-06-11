@@ -116,11 +116,13 @@ private struct MacroButton: View {
         case .action(let action):
             VStack(spacing: 6) {
                 Image(systemName: action.symbol).font(.system(size: 26, weight: .bold))
+                    .accessibilityHidden(true)
                 Text(action.title).font(.system(size: 17, weight: .heavy))
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.accentSolid.gradient, in: RoundedRectangle(cornerRadius: Theme.radius))
+            .accessibilityLabel("\(action.title), macro")
         case .executor(let number?):
             VStack(spacing: 2) {
                 Text("\(number)").font(Theme.mono(size: 26, weight: .heavy))
@@ -129,6 +131,7 @@ private struct MacroButton: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.accentSolid.gradient, in: RoundedRectangle(cornerRadius: Theme.radius))
+            .accessibilityLabel("Executor \(number), toggle")
         case .executor(nil):
             VStack(spacing: 2) {
                 Text("\u{2014}").font(Theme.mono(size: 26, weight: .heavy))
@@ -141,6 +144,7 @@ private struct MacroButton: View {
                 RoundedRectangle(cornerRadius: Theme.radius)
                     .strokeBorder(Theme.borderStrong, style: StrokeStyle(lineWidth: 1.5, dash: [5]))
             )
+            .accessibilityLabel("Executor pending, tap to load")
         case nil:
             VStack(spacing: 6) {
                 Image(systemName: "plus").font(.system(size: 22, weight: .semibold))
@@ -167,7 +171,7 @@ private struct MacroPickerSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
+                Section("Executor") {
                     Button { onPickExecutor() } label: {
                         HStack(spacing: 14) {
                             Image(systemName: "switch.2")
@@ -181,7 +185,7 @@ private struct MacroPickerSheet: View {
                     }
                     .listRowBackground(Theme.surface1)
                 }
-                Section {
+                Section("Actions") {
                     ForEach(MacroAction.library) { action in
                         Button { onPick(action) } label: {
                             HStack(spacing: 14) {
@@ -200,7 +204,7 @@ private struct MacroPickerSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Assign action")
+            .navigationTitle("Assign")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
