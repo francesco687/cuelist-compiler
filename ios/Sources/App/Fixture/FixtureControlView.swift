@@ -39,6 +39,10 @@ struct FixtureControlView: View {
     // updates the fader's valueText in place without changing its identity
     // (changing .id mid-drag would destroy the JogFader's gesture state).
     @State private var offsets: [String: Int] = [:]
+    // Attribute keys that have gone into the programmer this selection. Drives the
+    // red "touched" indicator on the category bar (mirrors grandMA3's red programmer
+    // values). Sticky until Clear / new selection; a per-fader reset un-marks its key.
+    @State private var touched: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -85,21 +89,28 @@ struct FixtureControlView: View {
     // MARK: control area per category
 
     @ViewBuilder private var controlArea: some View {
-        switch category {
-        case .intensity:
-            faderRow([("Dimmer", nil)])
-        case .position:
-            faderRow([("Pan", "Pan"), ("Tilt", "Tilt")])
-        case .beam:
-            faderRow([("Zoom", "Zoom"), ("Focus", "Focus"), ("Iris", "Iris")])
-        case .focus:
-            faderRow([("Focus", "Focus")])
-        case .color:
-            faderRow([("Cyan", "Cyan"), ("Magenta", "Magenta"), ("Yellow", "Yellow")])
-        case .gobo:
-            goboGrid([("Gobo 1", "Gobo1"), ("Rot 1", "Gobo1Pos"),
-                      ("Gobo 2", "Gobo2"), ("Rot 2", "Gobo2Pos")])
+        if category == .gobo { goboGrid(items(.gobo)) }
+        else { faderRow(items(category)) }
+    }
+
+    /// Single source of truth for each category's faders: (display label,
+    /// attribute name or nil for bare-intensity). Used by the layouts AND by the
+    /// category bar's "touched" check, so the two can't drift.
+    private func items(_ c: Category) -> [(String, String?)] {
+        switch c {
+        case .intensity: return [("Dimmer", nil)]
+        case .position:  return [("Pan", "Pan"), ("Tilt", "Tilt")]
+        case .beam:      return [("Zoom", "Zoom"), ("Focus", "Focus"), ("Iris", "Iris")]
+        case .focus:     return [("Focus", "Focus")]
+        case .color:     return [("Cyan", "Cyan"), ("Magenta", "Magenta"), ("Yellow", "Yellow")]
+        case .gobo:      return [("Gobo 1", "Gobo1"), ("Rot 1", "Gobo1Pos"),
+                                 ("Gobo 2", "Gobo2"), ("Rot 2", "Gobo2Pos")]
         }
+    }
+
+    /// True if any of the category's attributes have gone into the programmer.
+    private func isTouched(_ c: Category) -> Bool {
+        items(c).contains { touched.contains($0.1 ?? "Dimmer") }
     }
 
     /// One full-height fader per item in a single row + the Coarse/Fine picker.
@@ -153,6 +164,7 @@ struct FixtureControlView: View {
         let acc = accumulator(key)
         let emit = acc.accept(delta: delta, atMs: nowMs())
         offsets[key] = acc.offset                 // live display update, identity stable
+        if !touched.contains(key) { touched.insert(key) }   // mark red on the category bar
         if let emit { sendNudge(attribute: attribute, delta: emit) }
     }
     private func flush(key: String, attribute: String?) {
@@ -180,6 +192,7 @@ struct FixtureControlView: View {
         sendNudge(attribute: pr.attribute, delta: -pr.offset)
         accumulators[pr.key] = nil
         offsets[pr.key] = 0
+        touched.remove(pr.key)   // back to baseline → no longer red
         fireCount += 1   // confirm haptic (sendNudge fires silently)
     }
 
@@ -189,7 +202,7 @@ struct FixtureControlView: View {
     }
     private func offsetText(_ key: String) -> String { offsetSigned(offsets[key] ?? 0) }
     private func offsetSigned(_ o: Int) -> String { o > 0 ? "+\(o)" : "\(o)" }
-    private func resetAccumulators() { accumulators.removeAll(); offsets.removeAll() }
+    private func resetAccumulators() { accumulators.removeAll(); offsets.removeAll(); touched.removeAll() }
     private func nowMs() -> Int { Int(ProcessInfo.processInfo.systemUptime * 1000) }
 
     private func send(_ line: String, haptic: Bool = true) {
@@ -228,10 +241,34 @@ struct FixtureControlView: View {
         }.buttonStyle(.plain)
     }
 
+    /// Custom segmented bar so each segment can colour independently: a category
+    /// with values in the programmer turns RED (grandMA3's programmer convention);
+    /// the selected one gets the amber pill. Standard SwiftUI segmented pickers
+    /// can't tint individual segments, hence the hand-rolled control.
     private var categoryPicker: some View {
-        Picker("", selection: $category) {
-            ForEach(Category.allCases) { Text($0.rawValue).tag($0) }
-        }.pickerStyle(.segmented)
+        HStack(spacing: 3) {
+            ForEach(Category.allCases) { cat in
+                let selected = cat == category
+                Button { category = cat } label: {
+                    Text(cat.rawValue)
+                        .font(.system(size: 12.5, weight: selected ? .semibold : .medium))
+                        .foregroundStyle(isTouched(cat) ? Theme.danger
+                                         : (selected ? Theme.text : Theme.textDim))
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                        .frame(maxWidth: .infinity).padding(.vertical, 7)
+                        .background {
+                            if selected {
+                                RoundedRectangle(cornerRadius: 7).fill(Theme.accentTint)
+                                    .overlay(RoundedRectangle(cornerRadius: 7)
+                                        .strokeBorder(Theme.accentBorder, lineWidth: 1))
+                            }
+                        }
+                        .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 9))
     }
 
     private var clearButton: some View {
