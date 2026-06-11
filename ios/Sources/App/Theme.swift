@@ -85,3 +85,23 @@ extension View {
             .shadow(color: Theme.accentEnd.opacity(strength * 0.6), radius: 30, y: 0)
     }
 }
+
+/// "Commit to MA" call-to-action: bright amber surface with DARK warm ink.
+/// Dark ink (not white) is the legible choice on the light amber gradient.
+/// `dim` lowers priority with a flatter, darker amber while staying in-family.
+struct AmberCTAStyle: ButtonStyle {
+    var dim = false
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Theme.aquaInk)
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background {
+                if dim { Theme.accentEnd.opacity(0.85) } else { Theme.accentGradient }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radius))
+            .shadow(color: Theme.accentSolid.opacity(dim ? 0.2 : 0.4), radius: dim ? 5 : 8, y: 2)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+    }
+}

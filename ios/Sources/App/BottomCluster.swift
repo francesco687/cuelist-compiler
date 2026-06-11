@@ -1,7 +1,7 @@
 import SwiftUI
 import SaettaKit
 
-/// Pinned bottom trio on the Author tab: Add Cue (violet) · Note (aqua) · Talk (aqua).
+/// Pinned bottom trio on the Author tab: Add Cue (amber, dark ink) · Note · Talk (pale amber).
 struct BottomCluster: View {
     let onAddCue: () -> Void
     let onNote: () -> Void
@@ -9,7 +9,7 @@ struct BottomCluster: View {
     var body: some View {
         HStack(spacing: 8) {
             Button(action: onAddCue) {
-                clusterLabel("Add Cue", ink: .white)
+                clusterLabel("Add Cue", ink: Theme.aquaInk)
                     .background(Theme.accentGradient, in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
                     .shadow(color: Theme.accentSolid.opacity(0.4), radius: 12, y: 3)
             }

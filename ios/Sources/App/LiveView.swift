@@ -64,8 +64,7 @@ struct LiveView: View {
                     .background(Theme.surface1, in: RoundedRectangle(cornerRadius: Theme.radius))
 
                 Button("Send") { sendMessage() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.accentSolid)
+                    .buttonStyle(AmberCTAStyle())
                     .disabled(!canSend)
             }
             if didSend {

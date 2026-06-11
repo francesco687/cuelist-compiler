@@ -86,11 +86,11 @@ struct SendView: View {
                 .foregroundStyle(Theme.text)
             Spacer()
             Button("Current", action: currentAction)
-                .buttonStyle(.borderedProminent)
-                .tint(primary ? Theme.accentSolid : Theme.accentSolid.opacity(0.55))
+                .buttonStyle(AmberCTAStyle(dim: !primary))
                 .accessibilityLabel("\(title) – current song")
             Button("All Songs", action: allAction)
                 .buttonStyle(.bordered)
+                .tint(Theme.accentSolid)
                 .accessibilityLabel("\(title) – all songs")
         }
         .padding(.vertical, 10).padding(.horizontal, 12)
@@ -110,8 +110,7 @@ struct SendView: View {
                     store.clearTcSelection()
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accentSolid)
+            .buttonStyle(AmberCTAStyle())
             .disabled(!canSendTimecode)
             .accessibilityLabel("Send timecode – \(tickedCount) ticked cues")
         }
