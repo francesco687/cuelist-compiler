@@ -27,8 +27,8 @@ struct SendBarView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
                         .background(Theme.accentGradient, in: RoundedRectangle(cornerRadius: Theme.radius))
-                        .foregroundStyle(.white)
-                        .shadow(color: Theme.accentSolid.opacity(0.4), radius: 12, y: 3)
+                        .foregroundStyle(Color(hex: "#0c0c14")!)
+                        .accentGlow(0.55)
                 }
                 Button {
                     hub.send(project: store.project, defaults: store.defaults, selection: .all)
@@ -48,7 +48,8 @@ struct SendBarView: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
         .background(.ultraThinMaterial)
-        .overlay(Rectangle().frame(height: 0.5).foregroundStyle(Theme.border), alignment: .top)
+        .background(Theme.accentTint)
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.accentBorder), alignment: .top)
     }
 
     @ViewBuilder private var resultRow: some View {
@@ -64,7 +65,7 @@ struct SendBarView: View {
                     .font(.system(size: 12)).foregroundStyle(Theme.ok)
             case let .failed(msg):
                 Label(msg, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 12)).foregroundStyle(Theme.danger)
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textDim)
             }
         }
     }
