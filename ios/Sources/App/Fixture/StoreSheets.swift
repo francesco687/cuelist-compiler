@@ -172,7 +172,7 @@ private struct StorePreview: View {
                                     .lineLimit(1).truncationMode(.head)
                                 ForEach(g.values) { v in
                                     HStack {
-                                        Text(v.label).font(.system(size: 14)).foregroundStyle(Theme.text)
+                                        Text(v.label).font(Theme.mono(size: 13)).hudLabel().foregroundStyle(Theme.text)
                                         Spacer()
                                         Text(v.value)
                                             .font(Theme.mono(size: 13, weight: .semibold))
