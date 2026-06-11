@@ -69,10 +69,12 @@ struct FixtureControlView: View {
                 SelectionKeypadSheet { cmd in selection = cmd; resetAccumulators(); send(cmd) }
             }
             .sheet(isPresented: $showStoreCue) {
-                StoreCueSheet(sequence: store.activeSong.sequence, cue: 1, mode: store.project.storeMode) { send($0) }
+                StoreCueSheet(sequence: store.activeSong.sequence, cue: 1, mode: store.project.storeMode,
+                              selection: selection, values: programmerSnapshot) { send($0) }
             }
             .sheet(isPresented: $showUpdatePreset) {
-                UpdatePresetSheet(mode: store.project.storeMode) { send($0) }
+                UpdatePresetSheet(mode: store.project.storeMode,
+                                  selection: selection, values: programmerSnapshot) { send($0) }
             }
             .alert("Reset \(pendingReset?.label ?? "")?",
                    isPresented: Binding(get: { pendingReset != nil },
@@ -111,6 +113,23 @@ struct FixtureControlView: View {
     /// True if any of the category's attributes have gone into the programmer.
     private func isTouched(_ c: Category) -> Bool {
         items(c).contains { touched.contains($0.1 ?? "Dimmer") }
+    }
+
+    /// Every attribute that's gone into the programmer this session, with its
+    /// running (relative) offset — feeds the "what will be stored" preview.
+    /// Ordered by category then attribute; de-duplicated across categories.
+    private var programmerSnapshot: [StoredValue] {
+        var seen = Set<String>(); var out: [StoredValue] = []
+        for c in Category.allCases {
+            for item in items(c) {
+                let key = item.1 ?? "Dimmer"
+                if touched.contains(key), !seen.contains(key) {
+                    seen.insert(key)
+                    out.append(StoredValue(label: item.0, value: offsetSigned(offsets[key] ?? 0)))
+                }
+            }
+        }
+        return out
     }
 
     /// One full-height fader per item in a single row + the Coarse/Fine picker.
