@@ -244,6 +244,39 @@ final class HubClientTests: XCTestCase {
         XCTAssertEqual(scheduled.count, 0)     // user asked to stop; don't reconnect
     }
 
+    // MARK: - Task 3: kicked frame
+
+    func testKickedFrameDecodes() throws {
+        XCTAssertEqual(try IncomingMessage.decode(#"{"type":"kicked"}"#), .kicked)
+    }
+
+    func testKickedStopsReconnectClearsRosterAndExplains() {
+        var conns: [MockHubConnection] = []
+        var scheduled: [() -> Void] = []
+        let d = UserDefaults(suiteName: "cc-test-\(UUID().uuidString)")!
+        let client = HubClient(defaults: d,
+                               makeConnection: { _ in let m = MockHubConnection(); conns.append(m); return m },
+                               scheduleAfter: { _, work in scheduled.append(work) })
+        client.mode = .relay; client.relayURL = "wss://x"; client.pairingCode = "code1234"
+        client.connect()
+        conns[0].emit(.opened)
+        conns[0].emit(.text(#"{"type":"roster","hub":true,"phones":[{"cid":"p1","name":"Matteo"}]}"#))
+        XCTAssertEqual(client.state, .online)
+        XCTAssertEqual(client.roster.count, 1)
+
+        conns[0].emit(.text(#"{"type":"kicked"}"#))
+        XCTAssertEqual(client.state, .error("disconnected by hub"))
+        XCTAssertEqual(client.roster, [])
+
+        conns[0].emit(.closed(nil))             // the socket close that follows the teardown
+        XCTAssertEqual(scheduled.count, 0)      // kicked: NO auto-reconnect
+        XCTAssertEqual(client.state, .error("disconnected by hub"))  // late close must not clobber the reason
+
+        client.connect()                        // manual rejoin with the same code works
+        XCTAssertEqual(conns.count, 2)
+        XCTAssertEqual(client.state, .connecting)
+    }
+
     func testBackoffDoublesAndCapsThenResetsOnHub() {
         // Backoff math: wait = backoff; backoff = min(backoff*2, 15)
         // Sequence: 1, 2, 4, 8, 15(=min(16,15)), 15(=min(30,15)) → [1,2,4,8,15,15]

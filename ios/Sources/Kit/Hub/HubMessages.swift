@@ -70,6 +70,7 @@ public enum IncomingMessage: Equatable, Sendable {
     case roster(hub: Bool, phones: [Operator])       // relay: who's connected (+ hub presence)
     case peer(connected: Bool)                       // relay: the other side connected/dropped
     case joinError(message: String)                  // relay: join rejected (bad/taken code, relay full)
+    case kicked                                      // hub kicked everyone; do not auto-reconnect
     case other                                        // pong / sent / unknown — ignored by the client
 
     private struct Envelope: Decodable {
@@ -97,6 +98,7 @@ public enum IncomingMessage: Equatable, Sendable {
         case "roster":     return .roster(hub: e.hub ?? false, phones: e.phones ?? [])
         case "peer":       return .peer(connected: e.connected ?? false)
         case "join-error": return .joinError(message: e.message ?? "pairing rejected")
+        case "kicked":     return .kicked
         default:           return .other
         }
     }

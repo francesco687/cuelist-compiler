@@ -270,6 +270,9 @@ public final class HubClient {
         case let .joinError(message):
             stopped = true
             state = .error(message)                // surface the relay's reason (bad/taken code, full)
+        case .kicked:
+            disconnect()                            // full teardown + stops the reconnect loop
+            state = .error("disconnected by hub")   // explain why, instead of plain offline
         case .other:
             break
         }
