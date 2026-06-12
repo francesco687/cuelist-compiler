@@ -20,6 +20,7 @@ function songToLuaEntry(song) {
   const songName = (song.name || '(untitled)').trim().replace(/"/g, '\\"');
   lines.push(`  {name="${songName}", seq=${seq}, cues={`);
   song.cues.forEach(cue => {
+    if (cue.includeStore === false) return;
     const actions = cue.actions
       .filter(a => a.group && a.group.trim())
       .map(a => {
@@ -114,6 +115,7 @@ function buildCmdLines(songs) {
   songs.forEach(song => {
     const seq = parseInt(song.sequence) || 1;
     (song.cues || []).forEach(cue => {
+      if (cue.includeStore === false) return;
       out.push('ClearAll');
       const actions = (cue.actions || []).filter(a => a.group && a.group.trim());
       actions.forEach(a => {
@@ -168,6 +170,7 @@ function buildTcCmdLines(songs) {
   (songs || []).forEach(song => {
     const seq = parseInt(song.sequence) || 1;
     const validCues = (song.cues || [])
+      .filter(c => c.includeTc !== false)
       .filter(c => isValidSmpte(c.position))
       .slice()
       .sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));
@@ -232,6 +235,7 @@ function buildTcLua(songs, headerTitle) {
   const validSongs = (songs || []).map(song => {
     const seq = parseInt(song.sequence) || 1;
     const cues = (song.cues || [])
+      .filter(c => c.includeTc !== false)
       .filter(c => isValidSmpte(c.position))
       .slice()
       .sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));

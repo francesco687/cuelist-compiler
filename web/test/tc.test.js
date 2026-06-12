@@ -179,3 +179,41 @@ test('regression: SONG_1.json matches SONG_1.tc.cmdlines.txt golden', () => {
   const actual = compile.buildTcCmdLines(songs).join('\n');
   assert.strictEqual(actual, expected);
 });
+
+test('buildTcCmdLines: skips cues with includeTc=false', () => {
+  const compile = loadCompile();
+  const song = { sequence: 1, name: 'S', cues: [
+    { n: 1, name: 'A', position: '00:00:01:00', includeTc: true },
+    { n: 2, name: 'B', position: '00:00:02:00', includeTc: false },
+    { n: 3, name: 'C', position: '00:00:03:00', includeTc: true },
+  ]};
+  const out = compile.buildTcCmdLines([song]);
+  assert.strictEqual(out.length, 1);
+  assert.ok(out[0].includes('{{1,16777216},{3,50331648}}'),
+    'expected only cues 1 and 3 in the events table');
+  assert.ok(!out[0].includes('33554432'),
+    'cue 2 rawtime must not be present');
+});
+
+test('buildTcLua: skips cues with includeTc=false from SONGS table', () => {
+  const compile = loadCompile();
+  const song = { sequence: 1, name: 'S', cues: [
+    { n: 1, name: 'A', position: '00:00:01:00', includeTc: false },
+    { n: 2, name: 'B', position: '00:00:02:00', includeTc: true },
+  ]};
+  const lua = compile.buildTcLua([song], 'Song: S');
+  assert.ok(lua.includes('cues={{2,33554432}}'),
+    'expected only cue 2 in SONGS cues');
+  assert.ok(!lua.includes('{1,16777216}'),
+    'cue 1 rawtime must not appear');
+});
+
+test('buildTcCmdLines: includeStore=false does NOT filter TC path', () => {
+  const compile = loadCompile();
+  const song = { sequence: 1, name: 'S', cues: [
+    { n: 1, name: 'A', position: '00:00:01:00', includeStore: false, includeTc: true },
+  ]};
+  const out = compile.buildTcCmdLines([song]);
+  assert.strictEqual(out.length, 1);
+  assert.ok(out[0].includes('{{1,16777216}}'));
+});
