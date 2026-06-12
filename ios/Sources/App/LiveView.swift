@@ -37,6 +37,9 @@ struct LiveView: View {
                         .opacity(isLocked ? 0.3 : 1)
                         .allowsHitTesting(!isLocked)
 
+                        // Sheets (compose / picker) can't coexist with the lock:
+                        // a presented sheet blocks background interaction, so the
+                        // lock bar is unreachable until the sheet is dismissed.
                         if isLocked {
                             LockOverlay {
                                 withAnimation(.easeOut(duration: 0.2)) { isLocked = false }
@@ -51,6 +54,8 @@ struct LiveView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .sensoryFeedback(.impact(weight: .medium), trigger: fireCount)
+            // Deliberately fires on BOTH transitions: lock confirm on the bar tap,
+            // unlock confirm when the 1s hold completes.
             .sensoryFeedback(.impact(weight: .heavy), trigger: isLocked)
             .sheet(isPresented: $showCompose) {
                 MessageComposeSheet(onSend: sendMessage)
@@ -122,6 +127,7 @@ struct LiveView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Lock controls")
+        .accessibilityHidden(isLocked)          // overlay owns unlock; hide the dimmed bar
     }
 
     private var connectionRow: some View {
@@ -232,6 +238,7 @@ private struct LockOverlay: View {
                 withAnimation(.easeOut(duration: 0.2)) { holdProgress = 0 }
             }
         }
+        .accessibilityElement(children: .ignore)  // one element, not ring/icon/caption
         .accessibilityLabel("Locked. Hold to unlock")
         .accessibilityAction { onUnlock() }     // VoiceOver can't sustain a hold
     }
