@@ -3,9 +3,11 @@ import SaettaKit
 
 /// The Live tab's 2×2 macro pad. Each cell holds an assignable value that fires on
 /// the desk through the hub's `cmd` passthrough: a parameter-free action (runs on
-/// the desk-selected executor) or an executor toggle (Toggle Executor <n>, current
-/// page). Tap empty → picker; tap assigned → fire; tap an unloaded executor → load
-/// sheet; long-press assigned → load/reassign/clear.
+/// the desk-selected executor) or an executor button — toggle / on fire on tap,
+/// flash is momentary (Flash on touch-down, FlashOff on touch-up or cancel) —
+/// targeting an executor by number (current page) or by desk name. Tap empty →
+/// picker; tap assigned → fire; tap an unloaded executor → load sheet; long-press
+/// assigned → load/reassign/clear.
 struct MacroPadView: View {
     @Environment(MacroPad.self) private var pad
     @Environment(HubClient.self) private var hub
@@ -14,6 +16,9 @@ struct MacroPadView: View {
     private struct SlotTarget: Identifiable { let id: Int }   // id == slot index
     @State private var picker: SlotTarget?
     @State private var execLoad: SlotTarget?
+    /// Slots whose flash press actually sent — gates the matching FlashOff so a
+    /// release never fires without its press, and at most once per press.
+    @State private var flashPressed: Set<Int> = []
 
     private let columns = [GridItem(.flexible(), spacing: 10),
                            GridItem(.flexible(), spacing: 10)]
@@ -25,6 +30,8 @@ struct MacroPadView: View {
                     slot: pad.slot(at: slot),
                     isOnline: hub.state.isOnline,
                     onTap: { handleTap(slot) },
+                    onFlashPress: { handleFlashPress(slot) },
+                    onFlashRelease: { handleFlashRelease(slot) },
                     onLoadExecutor: { execLoad = SlotTarget(id: slot) },
                     onReassign: { picker = SlotTarget(id: slot) },
                     onClear: { pad.clear(slot: slot) }
@@ -37,16 +44,16 @@ struct MacroPadView: View {
                     pad.assign(slot: target.id, action: action)
                     picker = nil
                 },
-                onPickExecutor: {
-                    pad.assignExecutor(slot: target.id)
+                onPickExecutor: { function in
+                    pad.assignExecutor(slot: target.id, function: function)
                     picker = nil
                 }
             )
             .presentationDetents([.medium, .large])
         }
         .sheet(item: $execLoad) { target in
-            ExecutorLoadSheet(onLoad: { number in
-                pad.loadExecutor(slot: target.id, number: number)
+            ExecutorLoadSheet(onLoad: { execTarget in
+                pad.loadExecutor(slot: target.id, target: execTarget)
                 execLoad = nil
             })
             .presentationDetents([.height(240)])
@@ -57,7 +64,7 @@ struct MacroPadView: View {
         switch pad.slot(at: slot) {
         case nil:
             picker = SlotTarget(id: slot)              // empty slot — assign even offline
-        case .executor(number: nil):
+        case .executor(_, nil):
             execLoad = SlotTarget(id: slot)            // step 2 of the double assign
         case let value?:
             guard hub.state.isOnline, let command = value.command else { return }
@@ -65,21 +72,47 @@ struct MacroPadView: View {
             onFire()
         }
     }
+
+    /// Touch-down on a loaded flash cell: engage flash, remember the press.
+    private func handleFlashPress(_ slot: Int) {
+        guard hub.state.isOnline, let command = pad.slot(at: slot)?.command else { return }
+        hub.sendCommand(command)
+        flashPressed.insert(slot)
+        onFire()
+    }
+
+    /// Touch-up or gesture cancel on a flash cell: release — only if this press
+    /// engaged it, so the desk is never left flashed and never gets an orphan
+    /// FlashOff.
+    private func handleFlashRelease(_ slot: Int) {
+        guard flashPressed.remove(slot) != nil,
+              let release = pad.slot(at: slot)?.releaseCommand else { return }
+        hub.sendCommand(release)
+    }
 }
 
 /// One macro-pad cell, rendered per slot value:
-/// action → tinted symbol + title; loaded executor → big number over EXEC caption;
-/// unloaded executor → pending "EXEC —"; empty → dashed Assign placeholder.
+/// action → tinted symbol + title; loaded executor → big target over its function
+/// caption (TOGGLE / FLASH / ON); unloaded executor → pending "—"; empty →
+/// dashed Assign placeholder.
 private struct MacroButton: View {
     let slot: MacroSlot?
     let isOnline: Bool
     let onTap: () -> Void
+    let onFlashPress: () -> Void
+    let onFlashRelease: () -> Void
     let onLoadExecutor: () -> Void
     let onReassign: () -> Void
     let onClear: () -> Void
 
     private var isExecutor: Bool {
         if case .executor = slot { return true }
+        return false
+    }
+
+    /// Loaded flash cells fire on press/release, not tap.
+    private var isMomentary: Bool {
+        if case .executor(function: .flash, target: .some) = slot { return true }
         return false
     }
 
@@ -101,14 +134,27 @@ private struct MacroButton: View {
         }
     }
 
-    private var button: some View {
-        Button(action: onTap) {
-            content
-                .frame(maxWidth: .infinity)
-                .frame(height: 76)
+    @ViewBuilder private var button: some View {
+        if isMomentary {
+            // Momentary flash: the Button supplies pressed state; the style relays
+            // touch-down/up — SwiftUI clears isPressed on cancellation too (e.g.
+            // the context-menu long-press taking over), so FlashOff always follows.
+            Button(action: {}) {
+                content
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 76)
+            }
+            .buttonStyle(PressReportingScaleStyle(onPress: onFlashPress, onRelease: onFlashRelease))
+            .opacity(canFire && !isOnline ? 0.4 : 1)
+        } else {
+            Button(action: onTap) {
+                content
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 76)
+            }
+            .buttonStyle(PressScaleStyle())
+            .opacity(canFire && !isOnline ? 0.4 : 1)
         }
-        .buttonStyle(PressScaleStyle())
-        .opacity(canFire && !isOnline ? 0.4 : 1)
     }
 
     @ViewBuilder private var content: some View {
@@ -123,19 +169,19 @@ private struct MacroButton: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.accentSolid.gradient, in: RoundedRectangle(cornerRadius: Theme.radius))
             .accessibilityLabel("\(action.title), macro")
-        case .executor(let number?):
+        case .executor(let function, let target?):
             VStack(spacing: 2) {
-                Text("\(number)").font(Theme.mono(size: 26, weight: .heavy))
-                Text("EXEC").font(.system(size: 11, weight: .semibold)).opacity(0.8)
+                targetText(target)
+                Text(function.caption).font(.system(size: 11, weight: .semibold)).opacity(0.8)
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.accentSolid.gradient, in: RoundedRectangle(cornerRadius: Theme.radius))
-            .accessibilityLabel("Executor \(number), toggle")
-        case .executor(nil):
+            .accessibilityLabel("Executor \(target.display), \(function.rawValue)")
+        case .executor(let function, nil):
             VStack(spacing: 2) {
                 Text("\u{2014}").font(Theme.mono(size: 26, weight: .heavy))
-                Text("EXEC").font(.system(size: 11, weight: .semibold))
+                Text(function.caption).font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(Theme.textFaint)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -159,31 +205,69 @@ private struct MacroButton: View {
             )
         }
     }
+
+    /// Numbers keep the big mono treatment; names shrink to fit one line.
+    @ViewBuilder private func targetText(_ target: ExecutorTarget) -> some View {
+        switch target {
+        case .number(let n):
+            Text("\(n)").font(Theme.mono(size: 26, weight: .heavy))
+        case .name(let name):
+            Text(name)
+                .font(.system(size: 17, weight: .heavy))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .padding(.horizontal, 6)
+        }
+    }
 }
 
-/// Lists the executor option then the curated macro library; one tap assigns and
-/// dismisses.
+/// PressScaleStyle that also reports touch-down / touch-up, for momentary cells.
+struct PressReportingScaleStyle: ButtonStyle {
+    let onPress: () -> Void
+    let onRelease: () -> Void
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.snappy(duration: 0.12), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                pressed ? onPress() : onRelease()
+            }
+    }
+}
+
+/// Lists the three executor functions then the curated macro library; one tap
+/// assigns and dismisses.
 private struct MacroPickerSheet: View {
     let onPick: (MacroAction) -> Void
-    let onPickExecutor: () -> Void
+    let onPickExecutor: (ExecutorFunction) -> Void
     @Environment(\.dismiss) private var dismiss
+
+    private static let executorRows: [(function: ExecutorFunction, title: String, symbol: String)] = [
+        (.toggle, "Executor (toggle)", "switch.2"),
+        (.flash, "Executor (flash)", "bolt.fill"),
+        (.on, "Executor (on)", "power"),
+    ]
 
     var body: some View {
         NavigationStack {
             List {
                 Section("Executor") {
-                    Button { onPickExecutor() } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "switch.2")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(Theme.accentSolid)
-                                .frame(width: 26)
-                            Text("Executor (toggle)").foregroundStyle(Theme.text)
-                            Spacer()
+                    ForEach(Self.executorRows, id: \.function) { row in
+                        Button { onPickExecutor(row.function) } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: row.symbol)
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(Theme.accentSolid)
+                                    .frame(width: 26)
+                                Text(row.title).foregroundStyle(Theme.text)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
                         }
-                        .contentShape(Rectangle())
+                        .listRowBackground(Theme.surface1)
                     }
-                    .listRowBackground(Theme.surface1)
                 }
                 Section("Actions") {
                     ForEach(MacroAction.library) { action in
@@ -215,33 +299,35 @@ private struct MacroPickerSheet: View {
     }
 }
 
-/// Number-pad sheet that points an executor slot at a desk executor (1–9999,
-/// current page). Load is disabled until the input is a valid number.
+/// One smart field that points an executor slot at a desk executor: all-digits
+/// input is a number (1–9999, current page), anything else is the executor's
+/// desk name. Validation is `MacroSlot.validatedTarget` — the same rule the pad
+/// applies on store — so Load can never accept what the pad would refuse.
 private struct ExecutorLoadSheet: View {
-    let onLoad: (Int) -> Void
+    let onLoad: (ExecutorTarget) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @FocusState private var focused: Bool
 
-    private var number: Int? {
-        guard let n = Int(text), MacroSlot.executorRange.contains(n) else { return nil }
-        return n
+    private var target: ExecutorTarget? {
+        MacroSlot.validatedTarget(fromRaw: text)
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
-                TextField("Executor number", text: $text)
-                    .keyboardType(.numberPad)
+                TextField("Number or name", text: $text)
+                    .keyboardType(.default)
+                    .autocorrectionDisabled()
                     .focused($focused)
                     .font(Theme.mono(size: 24, weight: .heavy))
                     .multilineTextAlignment(.center)
                     .padding(.vertical, 12).padding(.horizontal, 14)
                     .hudPanel()
 
-                Button("Load") { if let n = number { onLoad(n) } }
+                Button("Load") { if let t = target { onLoad(t) } }
                     .buttonStyle(AmberCTAStyle())
-                    .disabled(number == nil)
+                    .disabled(target == nil)
             }
             .padding(20)
             .frame(maxHeight: .infinity, alignment: .top)

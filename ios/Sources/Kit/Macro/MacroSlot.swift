@@ -78,8 +78,10 @@ public enum MacroSlot: RawRepresentable, Equatable, Sendable {
     /// anything that would decode to nil — a single source of truth shared by
     /// the decoder and `MacroPad.loadExecutor`, so a persisted target always
     /// round-trips. An empty string returns nil; callers own the
-    /// unloaded-slot distinction.
-    internal static func validatedTarget(fromRaw raw: String) -> ExecutorTarget? {
+    /// unloaded-slot distinction. The Live tab's executor load sheet uses it to
+    /// validate input, so the UI's accept/reject can never disagree with what
+    /// the pad persists.
+    public static func validatedTarget(fromRaw raw: String) -> ExecutorTarget? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         if trimmed.allSatisfy({ $0.isASCII && $0.isNumber }) {
