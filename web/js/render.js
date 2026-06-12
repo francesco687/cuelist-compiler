@@ -133,6 +133,7 @@ function render() {
   }
 
   song.cues.sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));
+  container.appendChild(renderBulkToggleBar(song));
   song.cues.forEach((cue, ci) => container.appendChild(renderCue(song, cue, ci)));
 
   if (audioBuffer) renderMarkers();
@@ -176,6 +177,31 @@ function renderSidebar() {
     });
     list.appendChild(li);
   });
+}
+
+function renderBulkToggleBar(song) {
+  const bar = document.createElement('div');
+  bar.className = 'cue-bulk-toolbar';
+  const allStore = song.cues.every(c => c.includeStore !== false);
+  const allTc = song.cues.every(c => c.includeTc !== false);
+  bar.innerHTML = `
+    <span class="cue-bulk-label">Toggle all:</span>
+    <button class="cue-include-chip cue-bulk-store ${allStore ? 'on' : 'off'}" title="Toggle STORE on every cue in this song">STORE</button>
+    <button class="cue-include-chip cue-bulk-tc ${allTc ? 'on' : 'off'}" title="Toggle TC on every cue in this song">TC</button>
+  `;
+  bar.querySelector('.cue-bulk-store').addEventListener('click', () => {
+    const newVal = !allStore;
+    song.cues.forEach(c => { c.includeStore = newVal; });
+    saveState();
+    render();
+  });
+  bar.querySelector('.cue-bulk-tc').addEventListener('click', () => {
+    const newVal = !allTc;
+    song.cues.forEach(c => { c.includeTc = newVal; });
+    saveState();
+    render();
+  });
+  return bar;
 }
 
 function cueSummary(cue) {

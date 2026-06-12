@@ -1474,6 +1474,26 @@
   border-color: var(--accent-solid);
 }
 
+/* Bulk-toggle bar above the cue list — master STORE / TC chips that
+   flip every cue in the active song. */
+.cue-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.cue-bulk-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
 /* Toast notification */
 #toast.toast {
   position: fixed;
