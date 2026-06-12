@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// The Live tab's four-slot macro pad. Holds the operator's assigned actions and
-/// executor toggles app-wide, persisted to UserDefaults like the hub host/port.
+/// executor buttons app-wide, persisted to UserDefaults like the hub host/port.
 /// Pure state — never touches the network; firing is the view's job via HubClient.
 @MainActor
 @Observable
@@ -39,19 +39,20 @@ public final class MacroPad {
     }
 
     /// Make a slot an executor button with no target yet (step 1 of the double
-    /// assign). Out-of-range slots are ignored.
-    public func assignExecutor(slot: Int) {
+    /// assign), remembering which function it performs. Out-of-range slots are
+    /// ignored.
+    public func assignExecutor(slot: Int, function: ExecutorFunction) {
         guard slots.indices.contains(slot) else { return }
-        slots[slot] = MacroSlot.executor(number: nil).rawValue
+        slots[slot] = MacroSlot.executor(function: function, target: nil).rawValue
         persist()
     }
 
-    /// Point an executor slot at a numbered executor (step 2). No-op unless the
-    /// slot currently holds an executor and the number is in range.
-    public func loadExecutor(slot: Int, number: Int) {
-        guard case .executor? = self.slot(at: slot),
-              MacroSlot.executorRange.contains(number) else { return }
-        slots[slot] = MacroSlot.executor(number: number).rawValue
+    /// Point an executor slot at a target (step 2), keeping the slot's function.
+    /// No-op unless the slot currently holds an executor and the target is valid.
+    public func loadExecutor(slot: Int, target: ExecutorTarget) {
+        guard case .executor(let function, _)? = self.slot(at: slot) else { return }
+        if case .number(let n) = target, !MacroSlot.executorRange.contains(n) { return }
+        slots[slot] = MacroSlot.executor(function: function, target: target).rawValue
         persist()
     }
 
