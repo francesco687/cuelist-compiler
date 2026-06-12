@@ -42,6 +42,8 @@ enum Theme {
     static let ok = Color(hex: "#f0c074")!     // bright amber — live / success
     static let warn = Color(hex: "#d49a4a")!   // mid amber — delay numerics / connecting
     static let danger = Color(hex: "#ff6b6b")! // RED — destructive delete (kept as the affordance)
+    static let execActive = Color(hex: "#4cd964")!   // green — executor believed active (Live pad stripe)
+    static let execInactive = Color(hex: "#ff6b6b")! // red — executor believed inactive (danger's hue, distinct semantic)
 
     // Radii — tightened for the HUD look. Circular elements (CueBadge) are unaffected.
     static let radius: CGFloat = 7

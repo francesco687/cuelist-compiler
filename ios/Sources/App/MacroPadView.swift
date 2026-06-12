@@ -36,6 +36,7 @@ struct MacroPadView: View {
                 MacroButton(
                     slot: pad.slot(at: slot),
                     isOnline: hub.state.isOnline,
+                    isActive: believedActive(slot),
                     onTap: { handleTap(slot) },
                     onFlashPress: { handleFlashPress(slot) },
                     onFlashRelease: { handleFlashRelease(slot) },
@@ -80,6 +81,7 @@ struct MacroPadView: View {
         case let value?:
             guard hub.state.isOnline, let command = value.command else { return }
             hub.sendCommand(command)
+            pad.recordFire(slot: slot)
             onFire()
         }
     }
@@ -93,6 +95,7 @@ struct MacroPadView: View {
               let release = pad.slot(at: slot)?.releaseCommand else { return }
         hub.sendCommand(command)
         flashPressed[slot] = release
+        pad.recordFlashPress(slot: slot)
         onFire()
     }
 
@@ -101,6 +104,7 @@ struct MacroPadView: View {
     private func handleFlashRelease(_ slot: Int) {
         guard let release = flashPressed.removeValue(forKey: slot) else { return }
         hub.sendCommand(release)
+        pad.recordFlashRelease(slot: slot)
     }
 
     /// Send FlashOff for every currently-held flash and clear the dictionary.
@@ -109,6 +113,13 @@ struct MacroPadView: View {
     private func flushFlashReleases() {
         for release in flashPressed.values { hub.sendCommand(release) }
         flashPressed.removeAll()
+        pad.recordFlashFlush()
+    }
+
+    /// Belief for the stripe: only loaded executor slots have one.
+    private func believedActive(_ slot: Int) -> Bool {
+        guard case .executor(_, let target?)? = pad.slot(at: slot) else { return false }
+        return pad.isActive(target)
     }
 }
 
@@ -119,6 +130,7 @@ struct MacroPadView: View {
 private struct MacroButton: View {
     let slot: MacroSlot?
     let isOnline: Bool
+    let isActive: Bool
     let onTap: () -> Void
     let onFlashPress: () -> Void
     let onFlashRelease: () -> Void
@@ -207,7 +219,16 @@ private struct MacroButton: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.accentSolid.gradient, in: RoundedRectangle(cornerRadius: Theme.radius))
-            .accessibilityLabel("Executor \(target.display), \(function.rawValue)")
+            .overlay(alignment: .leading) {
+                // Belief stripe: what Saetta thinks it set, not desk truth.
+                Capsule()
+                    .fill(isActive ? Theme.execActive : Theme.execInactive)
+                    .frame(width: 4)
+                    .padding(.vertical, 10)
+                    .padding(.leading, 6)
+                    .animation(.easeInOut(duration: 0.15), value: isActive)
+            }
+            .accessibilityLabel("Executor \(target.display), \(function.rawValue), \(isActive ? "active" : "inactive")")
         case .executor(let function, nil):
             VStack(spacing: 2) {
                 Text("\u{2014}").font(Theme.mono(size: 26, weight: .heavy))
