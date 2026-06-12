@@ -7,8 +7,10 @@ import Observation
 @MainActor
 @Observable
 public final class MacroPad {
-    /// Fixed number of assignable buttons.
-    public static let slotCount = 4
+    /// Fixed number of assignable buttons. Bumped 4 → 8 when the Live tab's fixed
+    /// transport was removed; the init pads shorter saved arrays so assignments
+    /// made at the old count survive the upgrade.
+    public static let slotCount = 8
 
     /// One optional action id per slot. `nil` == empty (placeholder) slot.
     public private(set) var slots: [String?]
@@ -30,9 +32,13 @@ public final class MacroPad {
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        // Stored as a fixed-length [String]; "" marks an empty slot (plist can't hold nil).
-        if let saved = defaults.array(forKey: Self.key) as? [String], saved.count == Self.slotCount {
+        // Stored as a fixed-length [String]; "" marks an empty slot (plist can't
+        // hold nil). Arrays saved by an older, smaller-count build are padded with
+        // empty slots — existing assignments keep their indices. A LONGER array
+        // can only come from corruption or a future build; rejected to all-empty.
+        if let saved = defaults.array(forKey: Self.key) as? [String], saved.count <= Self.slotCount {
             self.slots = saved.map { $0.isEmpty ? nil : $0 }
+                + Array(repeating: nil, count: Self.slotCount - saved.count)
         } else {
             self.slots = Array(repeating: nil, count: Self.slotCount)
         }
