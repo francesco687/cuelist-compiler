@@ -1362,6 +1362,15 @@
 }
 #timeline .trim-handle:hover::after { opacity: 1; }
 
+/* Left trim handle uses the same .trim-handle base styles, but mirrors the
+   accent bar to the right edge of the 8px hit zone so it points "into" the
+   waveform (kept audio is to the right of the handle). */
+#timeline .trim-handle-start {
+  border-right: none;
+  border-left: 2px solid #f8f8f8;
+  transform: translateX(-4px);   /* same hit-zone centering as the right handle */
+}
+
 /* Inline TC popup on timeline click — edit + seek to exact SMPTE */
 #timeline .tl-tc-popup {
   position: absolute;

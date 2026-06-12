@@ -659,6 +659,7 @@ function renderAudioPanel() {
       `}
       <div class="markers" id="markers"></div>
       <div class="playhead" id="playhead" style="left:0px"></div>
+      <div class="trim-handle trim-handle-start" id="trimStartHandle" title="Audio start — drag to cut the head"></div>
       <div class="trim-handle" id="trimEndHandle" title="Audio end — drag to cut the tail"></div>
     </div>
     <div id="viewportBar" title="Visible portion of the track. Drag to pan; wheel + Ctrl over timeline to zoom.">
@@ -806,6 +807,18 @@ function renderAudioPanel() {
     endHandle.addEventListener('dblclick', () => {
       const song = activeSong();
       if (song && song.audioTrim) { song.audioTrim.endS = null; redrawAudioBody(); saveState(); }
+    });
+  }
+  const startHandle = document.getElementById('trimStartHandle');
+  if (startHandle) {
+    startHandle.addEventListener('mousedown', startStartHandleDrag);
+    startHandle.addEventListener('dblclick', () => {
+      const song = activeSong();
+      if (song && song.audioTrim) {
+        song.audioTrim.startS = 0;
+        redrawAudioBody();
+        saveState();
+      }
     });
   }
   panel.querySelectorAll('.audio-body').forEach(body => {
@@ -1215,6 +1228,7 @@ function redrawAudioBody() {
     if (wr) drawWaveform(wr, audioBuffer.getChannelData(1), dur, trim);
   }
   positionEndHandle();
+  positionStartHandle();
   updatePlayhead();
 }
 
@@ -1235,6 +1249,26 @@ function positionEndHandle() {
   }
   handle.style.display = '';
   const pct = (audioEndSong - vp.offsetS) / vp.visibleDur;
+  handle.style.left = (pct * 100) + '%';
+}
+
+function positionStartHandle() {
+  const song = activeSong();
+  if (!song || !audioBuffer) return;
+  const trim = song.audioTrim || { startS: 0, endS: null };
+  const dur = audioBuffer.duration;
+  const handle = document.getElementById('trimStartHandle');
+  if (!handle) return;
+  const vp = viewportOf(song, dur);
+  // Audio's first sample (fileT=0) maps to songT = -startS.
+  const audioStartSong = -trim.startS;
+  // Hide if outside the current viewport.
+  if (audioStartSong < vp.offsetS || audioStartSong > vp.offsetS + vp.visibleDur) {
+    handle.style.display = 'none';
+    return;
+  }
+  handle.style.display = '';
+  const pct = (audioStartSong - vp.offsetS) / vp.visibleDur;
   handle.style.left = (pct * 100) + '%';
 }
 
@@ -1336,6 +1370,52 @@ function onEndHandleDragEnd() {
   saveState();
 }
 
+function startStartHandleDrag(evt) {
+  if (!audioBuffer) return;
+  const song = activeSong();
+  if (song && song.audioLocked) return;       // 🔒 track is locked
+  const tl = document.getElementById('timeline');
+  if (!tl) return;
+  evt.preventDefault();
+  evt.stopPropagation();
+  trimDragState = {
+    kind: 'start',
+    timelineRect: tl.getBoundingClientRect(),
+    durationS: audioBuffer.duration
+  };
+  document.body.style.cursor = 'ew-resize';
+  window.addEventListener('mousemove', onStartHandleDragMove);
+  window.addEventListener('mouseup', onStartHandleDragEnd);
+}
+
+function onStartHandleDragMove(evt) {
+  if (!trimDragState || trimDragState.kind !== 'start') return;
+  const song = activeSong();
+  if (!song) return;
+  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
+  const { timelineRect, durationS } = trimDragState;
+  const vp = viewportOf(song, durationS);
+  let pxX = evt.clientX - timelineRect.left;
+  pxX = Math.max(0, Math.min(timelineRect.width, pxX));
+  const songT = vp.offsetS + (pxX / timelineRect.width) * vp.visibleDur;
+  // Inverse of positionStartHandle: songT = -startS  →  startS = -songT.
+  // Clamp aligned with body-drag (allows negative startS) and end-handle minimum gap.
+  const endSEffective = song.audioTrim.endS != null ? song.audioTrim.endS : durationS;
+  const minStartS = -(durationS - 0.5);
+  const maxStartS = endSEffective - 0.5;
+  song.audioTrim.startS = Math.max(minStartS, Math.min(maxStartS, -songT));
+  redrawAudioBody();
+}
+
+function onStartHandleDragEnd() {
+  if (!trimDragState || trimDragState.kind !== 'start') return;
+  trimDragState = null;
+  document.body.style.cursor = '';
+  window.removeEventListener('mousemove', onStartHandleDragMove);
+  window.removeEventListener('mouseup', onStartHandleDragEnd);
+  saveState();
+}
+
 function resetAudioTrim() {
   const song = activeSong();
   if (!song) return;
@@ -1355,7 +1435,8 @@ window.CC.audio = {
   updateCurrentMarker, renderMarkers, captureCurrentPlayheadAsSmpte, dropMarkerAtPlayhead,
   selectMarker, deselectAllMarkers, deleteSelectedMarker, getSelectedMarkerCueN,
   // audio-mobile trim model
-  redrawAudioBody, positionEndHandle, startAudioBodyDrag, startEndHandleDrag, resetAudioTrim,
+  redrawAudioBody, positionEndHandle, positionStartHandle,
+  startAudioBodyDrag, startEndHandleDrag, startStartHandleDrag, resetAudioTrim,
   // pure helpers (test surface)
   fileToSongTime, songToFileTime, clampSeek, shouldAutoPause, pickTickInterval,
   findPrevMarker, findNextMarker
