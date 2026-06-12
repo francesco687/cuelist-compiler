@@ -12,7 +12,7 @@ struct MacroPadView: View {
     @Environment(MacroPad.self) private var pad
     @Environment(HubClient.self) private var hub
     @Environment(\.scenePhase) private var scenePhase
-    let onFire: () -> Void                     // haptic trigger, shared with transport
+    let onFire: () -> Void                     // haptic trigger, shared with message send
     /// Live-tab output lock. The pad only OBSERVES it — when the lock engages,
     /// held flashes are flushed so the desk is never left flashed behind a lock.
     /// Hit-disabling while locked is the parent's job (`allowsHitTesting`).

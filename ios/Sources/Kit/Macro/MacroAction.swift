@@ -3,7 +3,7 @@ import Foundation
 /// A parameter-free grandMA3 command-line action that fires on the desk-selected
 /// executor. Assignable to a slot on the Live tab's macro pad. `command` is the literal
 /// command-line string sent through the hub's `cmd` passthrough — the same channel the
-/// transport buttons and console-message use.
+/// console-message uses.
 public struct MacroAction: Identifiable, Equatable, Sendable {
     /// Stable key persisted to UserDefaults. Never reuse an id for a different action.
     public let id: String
