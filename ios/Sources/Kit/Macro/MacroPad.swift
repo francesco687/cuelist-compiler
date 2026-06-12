@@ -23,7 +23,7 @@ public final class MacroPad {
     /// Targets captured at flash press, keyed by slot — mirrors the view's
     /// `flashPressed` release-command capture, so a mid-hold retarget or clear
     /// still releases the belief that was actually engaged.
-    private var heldFlash: [Int: ExecutorTarget] = [:]
+    @ObservationIgnored private var heldFlash: [Int: ExecutorTarget] = [:]
 
     @ObservationIgnored private let defaults: UserDefaults
     private static let key = "macroPadSlots"
