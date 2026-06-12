@@ -122,4 +122,32 @@ final class MacroSlotTests: XCTestCase {
         XCTAssertEqual(slot.command, "Go+")
         XCTAssertNil(slot.releaseCommand)
     }
+
+    // MARK: Security / bad-command perimeter
+
+    func test_rejects_names_with_quotes_or_control_characters() {
+        XCTAssertNil(MacroSlot(rawValue: "exec:flash:A\""))
+        XCTAssertNil(MacroSlot(rawValue: "exec:toggle:Bli\"nders"))
+        XCTAssertNil(MacroSlot(rawValue: "exec:on:Line\nBreak"))
+        XCTAssertNil(MacroSlot(rawValue: "exec:toggle:Tab\tName"))
+        XCTAssertNil(MacroSlot(rawValue: "exec:toggle:\n"))
+    }
+
+    func test_non_ascii_numerics_decode_as_names() {
+        XCTAssertEqual(MacroSlot(rawValue: "exec:toggle:Ⅻ"),
+                       .executor(function: .toggle, target: .name("Ⅻ")))
+        XCTAssertEqual(MacroSlot(rawValue: "exec:on:٢٠١"),
+                       .executor(function: .on, target: .name("٢٠١")))
+    }
+
+    func test_fail_safe_perimeter() {
+        XCTAssertNil(MacroSlot(rawValue: "exec:toggle"))     // no second colon, non-digit legacy body
+        XCTAssertNil(MacroSlot(rawValue: "exec::201"))       // empty function
+        XCTAssertNil(MacroSlot(rawValue: "exec:TOGGLE:201")) // case-sensitive functions
+        XCTAssertNil(MacroSlot(rawValue: "exec:toggle:99999999999999999999")) // Int overflow
+        // Legacy/new asymmetry: "-" is invalid in legacy bodies but a fine name char.
+        XCTAssertNil(MacroSlot(rawValue: "exec:-3"))
+        XCTAssertEqual(MacroSlot(rawValue: "exec:toggle:-3"),
+                       .executor(function: .toggle, target: .name("-3")))
+    }
 }

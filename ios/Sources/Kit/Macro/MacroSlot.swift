@@ -20,9 +20,13 @@ public enum ExecutorFunction: String, CaseIterable, Sendable {
 
 /// What an executor macro button targets: an executor number on the desk's
 /// current page, or an executor by its desk label.
+///
+/// - Note: The codec (`MacroSlot.init?(rawValue:)`) and `MacroPad.loadExecutor`
+///   are the sanctioned producers — direct `.name`/`.number` construction
+///   bypasses validation (quote/control-char checks, range enforcement).
 public enum ExecutorTarget: Equatable, Sendable {
     case number(Int)      // 1...9999, current page
-    case name(String)     // non-empty, trimmed
+    case name(String)     // non-empty, trimmed, no quotes or control chars
 
     /// The form persisted inside the slot string (no quoting).
     var encoded: String {
@@ -83,21 +87,27 @@ public enum MacroSlot: RawRepresentable, Equatable, Sendable {
             function = parsed
             targetRaw = body[body.index(after: colon)...]
         } else {
-            // Legacy form only ever held digits (or nothing) and meant toggle.
-            guard body.isEmpty || body.allSatisfy(\.isNumber) else { return nil }
+            // Legacy form only ever held ASCII digits (or nothing) and meant toggle.
+            guard body.isEmpty || body.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
             function = .toggle
             targetRaw = body
         }
         if targetRaw.isEmpty {
             self = .executor(function: function, target: nil)
-        } else if targetRaw.allSatisfy(\.isNumber) {
-            // All-digits is always a number — an executor *named* "201" resolves
+        } else if targetRaw.allSatisfy({ $0.isASCII && $0.isNumber }) {
+            // All ASCII-digits is always a number — an executor *named* "201" resolves
             // to executor 201, which addresses the same object on MA3.
+            // Non-ASCII numeric characters (e.g. "Ⅻ", "٢٠١") fall through to the
+            // name branch so they decode as valid names rather than nil.
             guard let n = Int(targetRaw), Self.executorRange.contains(n) else { return nil }
             self = .executor(function: function, target: .number(n))
         } else {
-            let name = targetRaw.trimmingCharacters(in: .whitespaces)
+            let name = targetRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Reject empty-after-trim, double-quotes (would close MA3's quoted arg),
+            // and any remaining control characters (would corrupt OSC transport).
             guard !name.isEmpty else { return nil }
+            guard !name.contains("\"") else { return nil }
+            guard !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
             self = .executor(function: function, target: .name(name))
         }
     }
