@@ -299,4 +299,73 @@ final class MacroPadTests: XCTestCase {
         XCTAssertTrue(p2.activeExecutors.isEmpty)             // slots persist, belief doesn't
         XCTAssertNotNil(p2.slot(at: 0))
     }
+
+    // MARK: - Executor active belief (flash press/release)
+
+    func test_flash_press_marks_active_release_clears() {
+        let pad = padWithExecutor(function: .flash, target: .number(7))
+        pad.recordFlashPress(slot: 0)
+        XCTAssertTrue(pad.isActive(.number(7)))
+        pad.recordFlashRelease(slot: 0)
+        XCTAssertFalse(pad.isActive(.number(7)))
+    }
+
+    func test_flash_release_without_press_is_noop() {
+        let pad = padWithExecutor(function: .flash, target: .number(7))
+        pad.recordFlashRelease(slot: 0)
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
+    }
+
+    func test_flash_press_noops_unless_loaded_flash() {
+        let pad = freshPad()
+        pad.assign(slot: 0, action: MacroAction.find("off")!)
+        pad.assignExecutor(slot: 1, function: .toggle)
+        pad.loadExecutor(slot: 1, target: .number(5))         // loaded, but toggle
+        pad.assignExecutor(slot: 2, function: .flash)          // flash, not loaded
+        pad.recordFlashPress(slot: 0)
+        pad.recordFlashPress(slot: 1)
+        pad.recordFlashPress(slot: 2)
+        pad.recordFlashPress(slot: 9)
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
+    }
+
+    func test_flash_midhold_retarget_still_releases_captured_target() {
+        let pad = padWithExecutor(function: .flash, target: .number(7))
+        pad.recordFlashPress(slot: 0)
+        pad.loadExecutor(slot: 0, target: .name("Blinders"))   // retarget mid-hold
+        pad.recordFlashRelease(slot: 0)
+        XCTAssertTrue(pad.activeExecutors.isEmpty)             // 7 released, Blinders never engaged
+    }
+
+    func test_flash_midhold_clear_still_releases_captured_target() {
+        let pad = padWithExecutor(function: .flash, target: .number(7))
+        pad.recordFlashPress(slot: 0)
+        pad.clear(slot: 0)
+        pad.recordFlashRelease(slot: 0)
+        XCTAssertFalse(pad.isActive(.number(7)))
+    }
+
+    func test_flash_flush_releases_all_held() {
+        let pad = padWithExecutor(slot: 0, function: .flash, target: .number(7))
+        pad.assignExecutor(slot: 1, function: .flash)
+        pad.loadExecutor(slot: 1, target: .name("Blinders"))
+        pad.recordFlashPress(slot: 0)
+        pad.recordFlashPress(slot: 1)
+        pad.recordFlashFlush()
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
+        pad.recordFlashRelease(slot: 0)                        // already flushed — no-op
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
+    }
+
+    func test_flash_release_does_not_unlatch_other_holds_of_same_target() {
+        // Two flash slots on the SAME target: releasing one releases the shared
+        // belief (accepted approximation — belief is a set, not a counter).
+        let pad = padWithExecutor(slot: 0, function: .flash, target: .number(7))
+        pad.assignExecutor(slot: 1, function: .flash)
+        pad.loadExecutor(slot: 1, target: .number(7))
+        pad.recordFlashPress(slot: 0)
+        pad.recordFlashPress(slot: 1)
+        pad.recordFlashRelease(slot: 0)
+        XCTAssertFalse(pad.isActive(.number(7)))
+    }
 }
