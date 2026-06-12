@@ -55,8 +55,11 @@ test('newCue: fresh cue has includeStore=true and includeTc=true', () => {
   const st = loadStateModule();
   // newCue() reads activeSong() globally — stub the necessary globals
   global.state = { songs: [{ id: 'x', cues: [] }], activeSongId: 'x' };
-  const cue = st.newCue();
-  assert.strictEqual(cue.includeStore, true);
-  assert.strictEqual(cue.includeTc, true);
-  delete global.state;
+  try {
+    const cue = st.newCue();
+    assert.strictEqual(cue.includeStore, true);
+    assert.strictEqual(cue.includeTc, true);
+  } finally {
+    delete global.state;
+  }
 });
