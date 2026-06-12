@@ -117,21 +117,81 @@ function pickTickInterval(duration) {
   return { interval: 300, major: 1800 };                          // > 1 h: 5 min / 30 min
 }
 
-// Adaptive ruler label.
-//   visible ≤ 2s   →  "12.5s"  (sub-second precision)
-//   visible ≤ 1h   →  "MM:SS"
-//   visible > 1h or t ≥ 1h →  "HH:MM:SS"
-function formatRulerLabel(t, totalDuration) {
+// Ruler label format. Default 'auto' picks density-appropriate format from the
+// visible zoom; the user can also lock to a specific resolution via the ruler
+// right-click menu — 'hh', 'hh-mm', 'hh-mm-ss', or 'hh-mm-ss-ff' (FPS frames).
+const RULER_FORMATS = ['auto', 'hh', 'hh-mm', 'hh-mm-ss', 'hh-mm-ss-ff'];
+
+function formatRulerLabel(t, totalDuration, format) {
+  const fmt = RULER_FORMATS.indexOf(format) >= 0 ? format : 'auto';
   const ts = Math.max(0, t);
+  const pad = n => String(n).padStart(2, '0');
+  const tsecFloor = Math.floor(ts);
+  const hh = Math.floor(tsecFloor / 3600);
+  const mm = Math.floor((tsecFloor % 3600) / 60);
+  const ss = tsecFloor % 60;
+  const fps = (typeof FPS === 'number' && FPS > 0) ? FPS : 25;
+  const ff = Math.floor((ts - tsecFloor) * fps);
+
+  if (fmt === 'hh')          return pad(hh);
+  if (fmt === 'hh-mm')       return pad(hh) + ':' + pad(mm);
+  if (fmt === 'hh-mm-ss')    return pad(hh) + ':' + pad(mm) + ':' + pad(ss);
+  if (fmt === 'hh-mm-ss-ff') return pad(hh) + ':' + pad(mm) + ':' + pad(ss) + ':' + pad(ff);
+
+  // auto — zoom-adaptive (unchanged behavior, now rounds to nearest second).
   if (totalDuration <= 2) return ts.toFixed(1) + 's';
-  const tsec = Math.round(ts);
-  const hh = Math.floor(tsec / 3600);
-  const mm = Math.floor((tsec % 3600) / 60);
-  const ss = tsec % 60;
-  if (totalDuration > 3600 || hh > 0) {
-    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
-  }
-  return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  const tsecRound = Math.round(ts);
+  const ah = Math.floor(tsecRound / 3600);
+  const am = Math.floor((tsecRound % 3600) / 60);
+  const as = tsecRound % 60;
+  if (totalDuration > 3600 || ah > 0) return pad(ah) + ':' + pad(am) + ':' + pad(as);
+  return pad(am) + ':' + pad(as);
+}
+
+function showRulerFormatMenu(x, y) {
+  const existing = document.querySelector('.ruler-format-menu');
+  if (existing) existing.remove();
+  const menu = document.createElement('div');
+  menu.className = 'ruler-format-menu';
+  const current = (state && state.rulerFormat) || 'auto';
+  const opts = [
+    { v: 'auto',         label: 'Auto (zoom-adaptive)' },
+    { v: 'hh',           label: 'HH' },
+    { v: 'hh-mm',        label: 'HH:MM' },
+    { v: 'hh-mm-ss',     label: 'HH:MM:SS' },
+    { v: 'hh-mm-ss-ff',  label: 'HH:MM:SS:FF' }
+  ];
+  menu.innerHTML = opts.map(o =>
+    `<div class="ruler-format-opt ${current === o.v ? 'on' : ''}" data-val="${o.v}">${o.label}</div>`
+  ).join('');
+  // Position; defer right/bottom-edge clamp until after we know the menu's size.
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  document.body.appendChild(menu);
+  const mr = menu.getBoundingClientRect();
+  if (mr.right > window.innerWidth)  menu.style.left = Math.max(0, window.innerWidth  - mr.width  - 4) + 'px';
+  if (mr.bottom > window.innerHeight) menu.style.top  = Math.max(0, window.innerHeight - mr.height - 4) + 'px';
+
+  menu.querySelectorAll('.ruler-format-opt').forEach(el => {
+    el.addEventListener('click', () => {
+      if (state) state.rulerFormat = el.dataset.val;
+      saveState();
+      menu.remove();
+      redrawAudioBody();
+    });
+  });
+
+  const off = (e) => {
+    if (!menu.contains(e.target)) {
+      menu.remove();
+      document.removeEventListener('mousedown', off, true);
+      window.removeEventListener('blur', off, true);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('mousedown', off, true);
+    window.addEventListener('blur', off, true);
+  }, 0);
 }
 
 function findPrevMarker(songTime, cues) {
@@ -573,7 +633,7 @@ function drawRuler(canvas, duration, trim) {
     ctx.stroke();
     if (isMajor) {
       ctx.fillStyle = labelColour;
-      const label = formatRulerLabel(t, vp.visibleDur);
+      const label = formatRulerLabel(t, vp.visibleDur, state && state.rulerFormat);
       const labelW = ctx.measureText(label).width;
       if (x + 3 + labelW <= w) ctx.fillText(label, x + 3, h - 3);
     }
@@ -865,6 +925,15 @@ function renderAudioPanel() {
     // Open an inline TC popup pre-filled with the song-time at click point.
     showTimelineTcPopup(x, songT, dur, trim);
   });
+
+  // Right-click on the ruler → pick a format override (auto / HH / HH:MM / HH:MM:SS / HH:MM:SS:FF).
+  const rulerEl = document.getElementById('ruler');
+  if (rulerEl) {
+    rulerEl.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      showRulerFormatMenu(e.clientX, e.clientY);
+    });
+  }
 
   // Draw waveforms once panel is in DOM (with proper width)
   requestAnimationFrame(() => {

@@ -16,7 +16,7 @@ function newSong() {
 
 function newProject() {
   const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null, headS: 0 }, audioLocked: false, viewportZoom: 1, viewportOffsetS: 0, ltcChannel: 'auto', tcOffset: '' };
-  return { songs: [song], activeSongId: song.id, storeMode: 'Overwrite' };
+  return { songs: [song], activeSongId: song.id, storeMode: 'Overwrite', rulerFormat: 'auto' };
 }
 
 function activeSong() {
@@ -151,6 +151,8 @@ function migrateState(s) {
     s.activeSongId = s.songs[0].id;
   }
   if (s.storeMode !== 'Merge') s.storeMode = 'Overwrite';
+  const validRulerFmts = ['auto', 'hh', 'hh-mm', 'hh-mm-ss', 'hh-mm-ss-ff'];
+  if (validRulerFmts.indexOf(s.rulerFormat) < 0) s.rulerFormat = 'auto';
   return s;
 }
 

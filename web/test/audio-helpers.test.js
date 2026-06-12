@@ -71,6 +71,37 @@ test('formatRulerLabel: promotes to HH:MM:SS when total > 1h or t >= 1h', () => 
   assert.strictEqual(formatRulerLabel(3661,  300),  '01:01:01');
 });
 
+test('formatRulerLabel: explicit HH format trims to hours only', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  assert.strictEqual(formatRulerLabel(7265, 60, 'hh'), '02');  // 2h 1m 5s -> 02
+  assert.strictEqual(formatRulerLabel(0,    60, 'hh'), '00');
+});
+
+test('formatRulerLabel: explicit HH:MM format', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  assert.strictEqual(formatRulerLabel(7265, 60, 'hh-mm'), '02:01');
+  assert.strictEqual(formatRulerLabel(125,  60, 'hh-mm'), '00:02');
+});
+
+test('formatRulerLabel: explicit HH:MM:SS format ignores zoom and shows full triplet', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  assert.strictEqual(formatRulerLabel(65,    60, 'hh-mm-ss'), '00:01:05');
+  assert.strictEqual(formatRulerLabel(3725,  60, 'hh-mm-ss'), '01:02:05');
+});
+
+test('formatRulerLabel: explicit HH:MM:SS:FF format adds frames at 25fps', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  // 5.4 s @ 25 fps -> 0.4 s = 10 frames
+  assert.strictEqual(formatRulerLabel(5.4, 60, 'hh-mm-ss-ff'), '00:00:05:10');
+  // 65 s exactly -> 00 frames
+  assert.strictEqual(formatRulerLabel(65,  60, 'hh-mm-ss-ff'), '00:01:05:00');
+});
+
+test('formatRulerLabel: unknown format falls back to auto', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  assert.strictEqual(formatRulerLabel(65, 120, 'bogus'), '01:05');
+});
+
 test('clampSeek: inside window passes through', () => {
   const { clampSeek } = loadAudioHelpers();
   // Lower bound is headS (head trim), not startS (audio-mobile shift).

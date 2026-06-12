@@ -1494,6 +1494,40 @@
   color: var(--text-faint);
 }
 
+/* Ruler right-click format menu — Amber-HUD floating dropdown.
+   Shown when the operator right-clicks the timeline ruler to lock the label
+   resolution (auto, HH, HH:MM, HH:MM:SS, HH:MM:SS:FF). */
+.ruler-format-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 200px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  user-select: none;
+}
+.ruler-format-opt {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  color: var(--text-dim);
+}
+.ruler-format-opt:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.ruler-format-opt.on {
+  color: var(--accent-solid);
+}
+.ruler-format-opt.on::before {
+  content: '› ';
+}
+
 /* Toast notification */
 #toast.toast {
   position: fixed;
