@@ -11,14 +11,21 @@ import SaettaKit
 struct MacroPadView: View {
     @Environment(MacroPad.self) private var pad
     @Environment(HubClient.self) private var hub
+    @Environment(\.scenePhase) private var scenePhase
     let onFire: () -> Void                     // haptic trigger, shared with transport
 
     private struct SlotTarget: Identifiable { let id: Int }   // id == slot index
     @State private var picker: SlotTarget?
     @State private var execLoad: SlotTarget?
-    /// Slots whose flash press actually sent — gates the matching FlashOff so a
-    /// release never fires without its press, and at most once per press.
-    @State private var flashPressed: Set<Int> = []
+    /// Slot → releaseCommand captured at touch-down. Populated only when the Flash
+    /// command was actually sent, so the matching FlashOff is gated (at most once per
+    /// press, never orphaned). The command string is captured at press time, not
+    /// re-read at release, so FlashOff always targets the executor the Flash was sent
+    /// to even if the slot is cleared or retargeted mid-press. The dictionary is
+    /// flushed on view disappear and on scene backgrounding so the desk is never left
+    /// in a flashed state by a navigation or app-lifecycle transition (transport loss
+    /// is a known limitation surfaced at desk acceptance).
+    @State private var flashPressed: [Int: String] = [:]
 
     private let columns = [GridItem(.flexible(), spacing: 10),
                            GridItem(.flexible(), spacing: 10)]
@@ -37,6 +44,10 @@ struct MacroPadView: View {
                     onClear: { pad.clear(slot: slot) }
                 )
             }
+        }
+        .onDisappear { flushFlashReleases() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { flushFlashReleases() }
         }
         .sheet(item: $picker) { target in
             MacroPickerSheet(
@@ -73,21 +84,31 @@ struct MacroPadView: View {
         }
     }
 
-    /// Touch-down on a loaded flash cell: engage flash, remember the press.
+    /// Touch-down on a loaded flash cell: engage flash and capture the release
+    /// command now so FlashOff always targets the same executor even if the slot
+    /// is cleared or retargeted before touch-up.
     private func handleFlashPress(_ slot: Int) {
-        guard hub.state.isOnline, let command = pad.slot(at: slot)?.command else { return }
+        guard hub.state.isOnline,
+              let command = pad.slot(at: slot)?.command,
+              let release = pad.slot(at: slot)?.releaseCommand else { return }
         hub.sendCommand(command)
-        flashPressed.insert(slot)
+        flashPressed[slot] = release
         onFire()
     }
 
-    /// Touch-up or gesture cancel on a flash cell: release — only if this press
-    /// engaged it, so the desk is never left flashed and never gets an orphan
-    /// FlashOff.
+    /// Touch-up or gesture cancel on a flash cell: send the release command that
+    /// was captured at press time — only if this press actually engaged the flash.
     private func handleFlashRelease(_ slot: Int) {
-        guard flashPressed.remove(slot) != nil,
-              let release = pad.slot(at: slot)?.releaseCommand else { return }
+        guard let release = flashPressed.removeValue(forKey: slot) else { return }
         hub.sendCommand(release)
+    }
+
+    /// Send FlashOff for every currently-held flash and clear the dictionary.
+    /// Called on view disappear and scene backgrounding so the desk is never left
+    /// in a flashed state by a navigation or lifecycle transition.
+    private func flushFlashReleases() {
+        for release in flashPressed.values { hub.sendCommand(release) }
+        flashPressed.removeAll()
     }
 }
 
@@ -138,13 +159,22 @@ private struct MacroButton: View {
         if isMomentary {
             // Momentary flash: the Button supplies pressed state; the style relays
             // touch-down/up — SwiftUI clears isPressed on cancellation too (e.g.
-            // the context-menu long-press taking over), so FlashOff always follows.
+            // the context-menu long-press taking over). View-level flush covers
+            // teardown/backgrounding; transport loss is a known limitation surfaced
+            // at desk acceptance.
             Button(action: {}) {
                 content
                     .frame(maxWidth: .infinity)
                     .frame(height: 76)
             }
             .buttonStyle(PressReportingScaleStyle(onPress: onFlashPress, onRelease: onFlashRelease))
+            .accessibilityAction {
+                onFlashPress()
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    onFlashRelease()
+                }
+            }
             .opacity(canFire && !isOnline ? 0.4 : 1)
         } else {
             Button(action: onTap) {
@@ -319,6 +349,7 @@ private struct ExecutorLoadSheet: View {
                 TextField("Number or name", text: $text)
                     .keyboardType(.default)
                     .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
                     .focused($focused)
                     .font(Theme.mono(size: 24, weight: .heavy))
                     .multilineTextAlignment(.center)
