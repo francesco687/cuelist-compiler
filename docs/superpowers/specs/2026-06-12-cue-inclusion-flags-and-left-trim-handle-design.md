@@ -35,9 +35,13 @@ are unchanged.
   `<div class="trim-handle" id="trimStartHandle" title="Audio start — drag to cut the head"></div>`.
 - New drag handler `onTrimStartDragDown/Move/Up` mirroring the existing
   end-handle handlers in `web/js/audio.js`.
-- Drag updates only `song.audioTrim.startS`. Clamp: `[0, endS − MIN_TRIM_DUR]`
-  where `MIN_TRIM_DUR` matches the existing minimum used by the right
-  handle (no new constant invented).
+- Drag updates only `song.audioTrim.startS`. Clamp is aligned with the
+  existing audio-mobile model used by body-drag and the end handle —
+  startS may go negative (audio shifted behind the timeline zero):
+  `startS ∈ [-(durationS - 0.5), endSEffective - 0.5]` where
+  `endSEffective = audioTrim.endS != null ? audioTrim.endS : durationS`.
+  The `0.5` minimum gap matches the end handle's `leftBound = startS + 0.5`
+  rule already in `audio.js:1325`.
 - Body-drag stays as-is — both control paths coexist. Click priority is
   resolved the same way as on the right: a `mousedown` whose target carries
   the `trim-handle` class wins over body-drag (`audio.js` already short-
