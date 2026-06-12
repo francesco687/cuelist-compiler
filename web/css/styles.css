@@ -1427,6 +1427,44 @@
 #timeline .tl-tc-ok:hover { background: var(--surface-3); }
 #timeline .tl-tc-cancel:hover { background: var(--surface-3); }
 
+/* Cue include chips — STORE and TC toggles in the cue card header.
+   Amber HUD vocabulary: solid amber fill when on, outline + dim text when off. */
+.cue-include-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  height: 24px;
+  margin: 0 2px;
+  font-family: var(--hud-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 80ms ease, color 80ms ease, border-color 80ms ease;
+  flex-shrink: 0;
+}
+.cue-include-chip.on {
+  background: var(--hud-amber, #f5a623);
+  color: #1a1208;
+  border: 1px solid var(--hud-amber, #f5a623);
+}
+.cue-include-chip.on:hover {
+  background: var(--hud-amber-hi, #ffb73a);
+  border-color: var(--hud-amber-hi, #ffb73a);
+}
+.cue-include-chip.off {
+  background: transparent;
+  color: var(--hud-dim, #7a7468);
+  border: 1px solid var(--hud-dim, #7a7468);
+}
+.cue-include-chip.off:hover {
+  color: var(--hud-amber, #f5a623);
+  border-color: var(--hud-amber, #f5a623);
+}
+
 /* Toast notification */
 #toast.toast {
   position: fixed;

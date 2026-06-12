@@ -203,6 +203,8 @@ function renderCue(song, cue, ci) {
     <input type="number" step="0.1" class="cue-num" value="${escapeHtml(cue.n)}" title="Cue number">
     <input type="text" class="${tcCls}" placeholder="HH:MM:SS:FF" value="${tcVal}" title="Timecode (25fps SMPTE) — empty = excluded from TC export">
     <button class="icon-btn cue-tc-capture" title="Capture from audio playhead">🎯</button>
+    <button class="cue-include-chip cue-include-store ${cue.includeStore !== false ? 'on' : 'off'}" title="Include this cue's preset Store in Send / Export .lua">STORE</button>
+    <button class="cue-include-chip cue-include-tc ${cue.includeTc !== false ? 'on' : 'off'}" title="Include this cue's TC event in Send TC / Export TC .lua">TC</button>
     <input type="text" class="cue-name" placeholder="Cue name (Intro, Verse, Chorus...)" value="${escapeHtml(cue.name)}">
     ${cue.collapsed ? `<span class="cue-summary">${escapeHtml(cueSummary(cue))}</span>` : ''}
     <button class="icon-btn danger" title="Remove cue">&times;</button>
@@ -235,6 +237,18 @@ function renderCue(song, cue, ci) {
     const captured = captureCurrentPlayheadAsSmpte();
     if (!captured) { alert('Load audio first.'); return; }
     cue.position = captured;
+    saveState();
+    render();
+  });
+  hdr.querySelector('.cue-include-store').addEventListener('click', e => {
+    e.stopPropagation();
+    cue.includeStore = cue.includeStore === false;  // toggle: false→true, anything else→false
+    saveState();
+    render();
+  });
+  hdr.querySelector('.cue-include-tc').addEventListener('click', e => {
+    e.stopPropagation();
+    cue.includeTc = cue.includeTc === false;
     saveState();
     render();
   });
