@@ -167,6 +167,31 @@ Test command: `cd web && node --test test/tc.test.js test/compile.test.js`
   on desktop load (which the migration already does), so a strip-on-iOS
   round-trip degrades to "all included" — the safe default.
 
+## TC emission becomes selective
+
+**Discovered during smoke testing after Task 6 verification.**
+
+The original TC implementation wiped ALL events on the target Track before
+recreating them for the cues in the send list. This was destructive: clicking
+"Send TC current" with only cue 5 checked would silently delete the desk's
+existing TC events for every other cue in the song.
+
+The fix (implemented in Task 7) replaces the wipe-all approach with a
+selective overwrite:
+
+1. Build a `sendNos` set from the cue numbers in the send list.
+2. Reuse the first existing `CmdSubTrack` on the Track (to avoid accumulating
+   orphan TimeRanges across repeated sends). Only `Acquire` a fresh one if the
+   Track has no events yet.
+3. Walk all TimeRanges / CmdSubTracks: delete only events whose
+   `cuedestination.no` is in `sendNos`. Events for cues not in the send list
+   are never touched.
+4. Write fresh events for each cue in the send list.
+
+This applies to both paths: live OSC (`buildTcCmdLines`) and offline plugin
+(`buildTcLua`). The `validCues` filter from Task 2 (`includeTc=false` skip)
+is unchanged — filtering still happens before the algorithm runs.
+
 ## Out of scope
 
 - Bulk toggle (e.g. "uncheck all TC for this song"). Frank can re-request
