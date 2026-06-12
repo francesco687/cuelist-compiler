@@ -123,6 +123,15 @@ final class MacroSlotTests: XCTestCase {
         XCTAssertNil(slot.releaseCommand)
     }
 
+    // MARK: Padded digit targets
+
+    func test_padded_digit_targets_validate_as_numbers() {
+        XCTAssertEqual(MacroSlot(rawValue: "exec:toggle: 201 "),
+                       .executor(function: .toggle, target: .number(201)))
+        XCTAssertNil(MacroSlot(rawValue: "exec:flash: 0 "))
+        XCTAssertNil(MacroSlot(rawValue: "exec:on: 10000 "))
+    }
+
     // MARK: Security / bad-command perimeter
 
     func test_rejects_names_with_quotes_or_control_characters() {

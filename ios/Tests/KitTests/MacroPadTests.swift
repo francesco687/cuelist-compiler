@@ -188,6 +188,15 @@ final class MacroPadTests: XCTestCase {
         XCTAssertEqual(pad.slot(at: 0), .executor(function: .flash, target: nil))
     }
 
+    func test_loadExecutor_rejects_padded_out_of_range_digit_names() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0, function: .flash)
+        pad.loadExecutor(slot: 0, target: .name(" 0 "))
+        pad.loadExecutor(slot: 0, target: .name(" 10000 "))
+        pad.loadExecutor(slot: 0, target: .name(" 99999999999999999999 "))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .flash, target: nil))
+    }
+
     func test_loadExecutor_retargets_legacy_slot_preserving_toggle() {
         let suite = "macropad.legacyupgrade.\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!

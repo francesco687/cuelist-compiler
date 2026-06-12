@@ -70,26 +70,26 @@ public enum MacroSlot: RawRepresentable, Equatable, Sendable {
 
     private static let execPrefix = "exec:"
 
-    /// Classify and validate a raw target string the way the codec does: if the
-    /// raw string is entirely ASCII digits (untrimmed), it is treated as a number
-    /// and must fall in `executorRange`; anything else is treated as a name,
-    /// trimmed of whitespace, and refused if it contains quotes, control characters,
-    /// or is empty after trimming. Returns nil for anything that would decode to
-    /// nil — a single source of truth shared by the decoder and
-    /// `MacroPad.loadExecutor`, so a persisted target always round-trips.
-    /// An empty string returns nil; callers own the unloaded-slot distinction.
+    /// Classify and validate a raw target string the way the codec does: trim
+    /// whitespace first, then classify on the trimmed result. If the trimmed
+    /// string is entirely ASCII digits, it is treated as a number and must fall
+    /// in `executorRange`; anything else is treated as a name and refused if it
+    /// contains quotes, control characters, or is empty. Returns nil for
+    /// anything that would decode to nil — a single source of truth shared by
+    /// the decoder and `MacroPad.loadExecutor`, so a persisted target always
+    /// round-trips. An empty string returns nil; callers own the
+    /// unloaded-slot distinction.
     internal static func validatedTarget(fromRaw raw: String) -> ExecutorTarget? {
-        guard !raw.isEmpty else { return nil }
-        if raw.allSatisfy({ $0.isASCII && $0.isNumber }) {
-            // All ASCII-digits (untrimmed) — same branch as the decoder.
-            guard let n = Int(raw), executorRange.contains(n) else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.allSatisfy({ $0.isASCII && $0.isNumber }) {
+            // Trimmed value is all ASCII digits — classify as a number.
+            guard let n = Int(trimmed), executorRange.contains(n) else { return nil }
             return .number(n)
         } else {
-            let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !name.isEmpty else { return nil }
-            guard !name.contains("\"") else { return nil }
-            guard !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
-            return .name(name)
+            guard !trimmed.contains("\"") else { return nil }
+            guard !trimmed.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
+            return .name(trimmed)
         }
     }
 
