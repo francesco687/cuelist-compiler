@@ -206,4 +206,97 @@ final class MacroPadTests: XCTestCase {
         XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: .name("Blinders")))
         XCTAssertEqual(pad.slots[0], "exec:toggle:Blinders", "persisted form upgrades in place")
     }
+
+    // MARK: - Executor active belief (tap: toggle / on)
+
+    /// Build a pad with a loaded executor in `slot` — the test-side analog of the
+    /// double assign (assign function, then load target).
+    private func padWithExecutor(slot: Int = 0, function: ExecutorFunction,
+                                 target: ExecutorTarget) -> MacroPad {
+        let pad = freshPad()
+        pad.assignExecutor(slot: slot, function: function)
+        pad.loadExecutor(slot: slot, target: target)
+        return pad
+    }
+
+    func test_belief_starts_empty() {
+        XCTAssertTrue(freshPad().activeExecutors.isEmpty)
+    }
+
+    func test_toggle_fire_flips_belief_on_then_off() {
+        let pad = padWithExecutor(function: .toggle, target: .number(201))
+        pad.recordFire(slot: 0)
+        XCTAssertTrue(pad.isActive(.number(201)))
+        pad.recordFire(slot: 0)
+        XCTAssertFalse(pad.isActive(.number(201)))
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
+    }
+
+    func test_on_fire_latches_and_repeat_keeps_it() {
+        let pad = padWithExecutor(function: .on, target: .name("Blinders"))
+        pad.recordFire(slot: 0)
+        pad.recordFire(slot: 0)
+        XCTAssertTrue(pad.isActive(.name("Blinders")))
+    }
+
+    func test_toggle_flips_belief_latched_by_on_for_same_target() {
+        let pad = padWithExecutor(slot: 0, function: .on, target: .number(201))
+        pad.assignExecutor(slot: 1, function: .toggle)
+        pad.loadExecutor(slot: 1, target: .number(201))
+        pad.recordFire(slot: 0)                      // on → latched
+        pad.recordFire(slot: 1)                      // toggle same target → off
+        XCTAssertFalse(pad.isActive(.number(201)))
+    }
+
+    func test_shared_target_is_one_belief_entry() {
+        let pad = padWithExecutor(slot: 0, function: .toggle, target: .number(201))
+        pad.assignExecutor(slot: 1, function: .toggle)
+        pad.loadExecutor(slot: 1, target: .number(201))
+        pad.recordFire(slot: 0)
+        XCTAssertEqual(pad.activeExecutors, [.number(201)])
+        pad.recordFire(slot: 1)                      // other slot, same target → flips off
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
+    }
+
+    func test_name_and_number_do_not_alias() {
+        let pad = padWithExecutor(slot: 0, function: .toggle, target: .number(201))
+        pad.assignExecutor(slot: 1, function: .toggle)
+        pad.loadExecutor(slot: 1, target: .name("Exec 201"))
+        pad.recordFire(slot: 0)
+        XCTAssertTrue(pad.isActive(.number(201)))
+        XCTAssertFalse(pad.isActive(.name("Exec 201")))
+    }
+
+    func test_recordFire_noops_for_action_unloaded_flash_empty_and_out_of_range() {
+        let pad = freshPad()
+        pad.assign(slot: 0, action: MacroAction.find("off")!)
+        pad.assignExecutor(slot: 1, function: .toggle)        // assigned, not loaded
+        pad.assignExecutor(slot: 2, function: .flash)
+        pad.loadExecutor(slot: 2, target: .number(7))         // flash is press-driven, not tap
+        pad.recordFire(slot: 0)
+        pad.recordFire(slot: 1)
+        pad.recordFire(slot: 2)
+        pad.recordFire(slot: 3)                               // empty
+        pad.recordFire(slot: 9)                               // out of range
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
+    }
+
+    func test_clear_slot_leaves_belief_untouched() {
+        let pad = padWithExecutor(function: .toggle, target: .number(201))
+        pad.recordFire(slot: 0)
+        pad.clear(slot: 0)
+        XCTAssertTrue(pad.isActive(.number(201)))
+    }
+
+    func test_belief_is_not_persisted() {
+        let suite = "macropad.belief.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        let p1 = MacroPad(defaults: d)
+        p1.assignExecutor(slot: 0, function: .toggle)
+        p1.loadExecutor(slot: 0, target: .number(201))
+        p1.recordFire(slot: 0)
+        let p2 = MacroPad(defaults: d)
+        XCTAssertTrue(p2.activeExecutors.isEmpty)             // slots persist, belief doesn't
+        XCTAssertNotNil(p2.slot(at: 0))
+    }
 }

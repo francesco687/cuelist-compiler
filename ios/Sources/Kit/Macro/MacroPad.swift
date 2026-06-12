@@ -13,6 +13,13 @@ public final class MacroPad {
     /// One optional action id per slot. `nil` == empty (placeholder) slot.
     public private(set) var slots: [String?]
 
+    /// Believed-active executor targets — the phone's session-scoped belief about
+    /// what it set, never desk truth (the transport is one-way; see the
+    /// exec-active-indicator design spec for the accepted limitations). Keyed
+    /// per-target so every slot pointing at the same target shares one belief.
+    /// Deliberately not persisted: belief resets to unknown on every launch.
+    public private(set) var activeExecutors: Set<ExecutorTarget> = []
+
     @ObservationIgnored private let defaults: UserDefaults
     private static let key = "macroPadSlots"
 
@@ -68,6 +75,29 @@ public final class MacroPad {
         }
         slots[slot] = MacroSlot.executor(function: function, target: validated).rawValue
         persist()
+    }
+
+    /// Whether `target` is believed active.
+    public func isActive(_ target: ExecutorTarget) -> Bool {
+        activeExecutors.contains(target)
+    }
+
+    /// Record a successful tap-fire on `slot` — the view calls this only after the
+    /// command was actually sent (online + loaded). Toggle flips belief; On latches
+    /// it (a toggle slot on the same target can flip it back, matching the desk).
+    /// Actions, unloaded executors, flash (press-driven), empty and out-of-range
+    /// slots are no-ops.
+    public func recordFire(slot: Int) {
+        guard case .executor(let function, let target?)? = self.slot(at: slot) else { return }
+        switch function {
+        case .toggle:
+            if activeExecutors.contains(target) { activeExecutors.remove(target) }
+            else { activeExecutors.insert(target) }
+        case .on:
+            activeExecutors.insert(target)
+        case .flash:
+            break
+        }
     }
 
     /// Assign an action to a slot. Out-of-range slots are ignored.

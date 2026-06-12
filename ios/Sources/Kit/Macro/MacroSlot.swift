@@ -24,7 +24,7 @@ public enum ExecutorFunction: String, CaseIterable, Sendable {
 /// - Note: The codec (`MacroSlot.init?(rawValue:)`) and `MacroPad.loadExecutor`
 ///   are the sanctioned producers — direct `.name`/`.number` construction
 ///   bypasses validation (quote/control-char checks, range enforcement).
-public enum ExecutorTarget: Equatable, Sendable {
+public enum ExecutorTarget: Equatable, Hashable, Sendable {
     case number(Int)      // 1...9999, current page
     case name(String)     // non-empty, trimmed, no quotes or control chars
 
