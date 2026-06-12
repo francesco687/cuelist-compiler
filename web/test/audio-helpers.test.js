@@ -25,22 +25,50 @@ function loadAudioHelpers() {
   return sandbox.window.CC.audio;
 }
 
-test('pickTickInterval: <=30s -> 1s ticks, major every 5s', () => {
+test('pickTickInterval: sub-second buckets when zoomed in tight', () => {
+  const { pickTickInterval } = loadAudioHelpers();
+  assert.deepEqual(pickTickInterval(2),   { interval: 0.1,  major: 0.5 });
+  assert.deepEqual(pickTickInterval(5),   { interval: 0.25, major: 1   });
+  assert.deepEqual(pickTickInterval(10),  { interval: 0.5,  major: 2   });
+});
+
+test('pickTickInterval: 10–30s window keeps 1s ticks for SMPTE familiarity', () => {
   const { pickTickInterval } = loadAudioHelpers();
   assert.deepEqual(pickTickInterval(15),  { interval: 1, major: 5 });
   assert.deepEqual(pickTickInterval(30),  { interval: 1, major: 5 });
 });
 
-test('pickTickInterval: <=2min -> 5s ticks, major every 30s', () => {
+test('pickTickInterval: minute-scale buckets between 30s and 10min', () => {
   const { pickTickInterval } = loadAudioHelpers();
-  assert.deepEqual(pickTickInterval(31),  { interval: 5, major: 30 });
-  assert.deepEqual(pickTickInterval(120), { interval: 5, major: 30 });
+  assert.deepEqual(pickTickInterval(31),  { interval: 2,  major: 10  });
+  assert.deepEqual(pickTickInterval(120), { interval: 5,  major: 30  });
+  assert.deepEqual(pickTickInterval(300), { interval: 10, major: 60  });
+  assert.deepEqual(pickTickInterval(600), { interval: 30, major: 120 });
 });
 
-test('pickTickInterval: >2min -> 10s ticks, major every 60s', () => {
+test('pickTickInterval: hour-scale buckets beyond 10min', () => {
   const { pickTickInterval } = loadAudioHelpers();
-  assert.deepEqual(pickTickInterval(121), { interval: 10, major: 60 });
-  assert.deepEqual(pickTickInterval(600), { interval: 10, major: 60 });
+  assert.deepEqual(pickTickInterval(1800), { interval: 60,  major: 300  });
+  assert.deepEqual(pickTickInterval(3600), { interval: 120, major: 600  });
+  assert.deepEqual(pickTickInterval(7200), { interval: 300, major: 1800 });
+});
+
+test('formatRulerLabel: sub-second precision when zoomed under 2s', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  assert.strictEqual(formatRulerLabel(1.5, 2),  '1.5s');
+  assert.strictEqual(formatRulerLabel(0.3, 1),  '0.3s');
+});
+
+test('formatRulerLabel: MM:SS for the common minute scale', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  assert.strictEqual(formatRulerLabel(65, 120),  '01:05');
+  assert.strictEqual(formatRulerLabel(0,  120),  '00:00');
+});
+
+test('formatRulerLabel: promotes to HH:MM:SS when total > 1h or t >= 1h', () => {
+  const { formatRulerLabel } = loadAudioHelpers();
+  assert.strictEqual(formatRulerLabel(65,    7200), '00:01:05');
+  assert.strictEqual(formatRulerLabel(3661,  300),  '01:01:01');
 });
 
 test('clampSeek: inside window passes through', () => {

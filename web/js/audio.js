@@ -100,24 +100,38 @@ function shouldAutoPause(currentTime, trim, alreadyPaused) {
   return currentTime >= trim.endS;
 }
 
+// Tick density buckets keyed by the CURRENTLY-VISIBLE duration (after zoom).
+// Each bucket picks a minor `interval` and a `major` multiple. As the operator
+// zooms in, ticks become sub-second; as they zoom out, ticks become minute/hour.
 function pickTickInterval(duration) {
-  if (duration <= 30)  return { interval: 1,  major: 5  };
-  if (duration <= 120) return { interval: 5,  major: 30 };
-  return { interval: 10, major: 60 };
+  if (duration <= 2)    return { interval: 0.1,  major: 0.5  };  // sub-second detail
+  if (duration <= 5)    return { interval: 0.25, major: 1    };
+  if (duration <= 10)   return { interval: 0.5,  major: 2    };
+  if (duration <= 30)   return { interval: 1,    major: 5    };
+  if (duration <= 60)   return { interval: 2,    major: 10   };
+  if (duration <= 120)  return { interval: 5,    major: 30   };
+  if (duration <= 300)  return { interval: 10,   major: 60   };
+  if (duration <= 600)  return { interval: 30,   major: 120  };
+  if (duration <= 1800) return { interval: 60,   major: 300  };  // 30 min: 1 min / 5 min
+  if (duration <= 3600) return { interval: 120,  major: 600  };  // 1 h: 2 min / 10 min
+  return { interval: 300, major: 1800 };                          // > 1 h: 5 min / 30 min
 }
 
-// Adaptive SMPTE-style ruler label. Major ticks are on whole-second boundaries,
-// so FF is always 00 — but we still show it for format consistency with the
-// cue editor and the LTC / OFFSET TC LEDs.
+// Adaptive ruler label.
+//   visible ≤ 2s   →  "12.5s"  (sub-second precision)
+//   visible ≤ 1h   →  "MM:SS"
+//   visible > 1h or t ≥ 1h →  "HH:MM:SS"
 function formatRulerLabel(t, totalDuration) {
-  const ts = Math.max(0, Math.round(t));
-  const hh = Math.floor(ts / 3600);
-  const mm = Math.floor((ts % 3600) / 60);
-  const ss = ts % 60;
-  if (totalDuration > 3600) {
+  const ts = Math.max(0, t);
+  if (totalDuration <= 2) return ts.toFixed(1) + 's';
+  const tsec = Math.round(ts);
+  const hh = Math.floor(tsec / 3600);
+  const mm = Math.floor((tsec % 3600) / 60);
+  const ss = tsec % 60;
+  if (totalDuration > 3600 || hh > 0) {
     return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
   }
-  return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}:00`;
+  return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
 function findPrevMarker(songTime, cues) {
@@ -546,7 +560,9 @@ function drawRuler(canvas, duration, trim) {
     if (t < 0 || t > duration) continue;
     const x = Math.round(((t - vp.offsetS) / vp.visibleDur) * w) + 0.5;
     if (x < 0 || x > w) continue;
-    const isMajor = (Math.round(t) % major) === 0;
+    // major can be sub-integer (e.g. 0.5) when sub-second ticks are active,
+    // so compare t/major to the nearest integer with a float-safe epsilon.
+    const isMajor = Math.abs((t / major) - Math.round(t / major)) < 1e-6;
     const inWindow = t >= startS && t <= endS;
     const tickColour = inWindow ? '#888' : '#333';
     const labelColour = inWindow ? '#aaa' : '#444';
@@ -1447,5 +1463,5 @@ window.CC.audio = {
   startAudioBodyDrag, startEndHandleDrag, startStartHandleDrag, resetAudioTrim,
   // pure helpers (test surface)
   fileToSongTime, songToFileTime, clampSeek, shouldAutoPause, pickTickInterval,
-  findPrevMarker, findNextMarker
+  formatRulerLabel, findPrevMarker, findNextMarker
 };
