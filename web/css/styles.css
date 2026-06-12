@@ -1436,7 +1436,7 @@
   padding: 0 8px;
   height: 24px;
   margin: 0 2px;
-  font-family: var(--hud-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -1447,22 +1447,22 @@
   flex-shrink: 0;
 }
 .cue-include-chip.on {
-  background: var(--hud-amber, #f5a623);
-  color: #1a1208;
-  border: 1px solid var(--hud-amber, #f5a623);
+  background: var(--accent-solid);
+  color: var(--capture-ink, #2a1d07);
+  border: 1px solid var(--accent-solid);
 }
 .cue-include-chip.on:hover {
-  background: var(--hud-amber-hi, #ffb73a);
-  border-color: var(--hud-amber-hi, #ffb73a);
+  background: var(--accent-start);
+  border-color: var(--accent-start);
 }
 .cue-include-chip.off {
   background: transparent;
-  color: var(--hud-dim, #7a7468);
-  border: 1px solid var(--hud-dim, #7a7468);
+  color: var(--text-faint);
+  border: 1px solid var(--text-faint);
 }
 .cue-include-chip.off:hover {
-  color: var(--hud-amber, #f5a623);
-  border-color: var(--hud-amber, #f5a623);
+  color: var(--accent-solid);
+  border-color: var(--accent-solid);
 }
 
 /* Toast notification */
