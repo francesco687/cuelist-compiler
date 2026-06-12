@@ -10,13 +10,13 @@ function newSong() {
     sequence: maxSeq > 0 ? maxSeq + 1 : 1,
     cues: [],
     audioFileName: '',
-    audioTrim: { startS: 0, endS: null }
+    audioTrim: { startS: 0, endS: null, headS: 0 }
   };
 }
 
 function newProject() {
-  const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null }, audioLocked: false, viewportZoom: 1, viewportOffsetS: 0, ltcChannel: 'auto', tcOffset: '' };
-  return { songs: [song], activeSongId: song.id, storeMode: 'Overwrite' };
+  const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null, headS: 0 }, audioLocked: false, viewportZoom: 1, viewportOffsetS: 0, ltcChannel: 'auto', tcOffset: '' };
+  return { songs: [song], activeSongId: song.id, storeMode: 'Overwrite', rulerFormat: 'auto' };
 }
 
 function activeSong() {
@@ -33,7 +33,9 @@ function newCue() {
     actions: [newAction()],
     fade: '',
     delay: '',
-    collapsed: false
+    collapsed: false,
+    includeStore: true,
+    includeTc: true
   };
 }
 
@@ -46,7 +48,9 @@ function appendCueWithTcAndResort(song, tc) {
     actions: [newAction()],
     fade: '',
     delay: '',
-    collapsed: false
+    collapsed: false,
+    includeStore: true,
+    includeTc: true
   });
   resortAndRenumber(song);
 }
@@ -94,6 +98,8 @@ function migrateCues(cues) {
   (cues || []).forEach(cue => {
     if (typeof cue.collapsed !== 'boolean') cue.collapsed = false;
     if (cue.position == null) cue.position = '';
+    if (typeof cue.includeStore !== 'boolean') cue.includeStore = true;
+    if (typeof cue.includeTc !== 'boolean') cue.includeTc = true;
     migrateActions(cue.actions);
   });
 }
@@ -127,21 +133,26 @@ function migrateState(s) {
     if (typeof song.ltcChannel !== 'string' || !['auto','L','R'].includes(song.ltcChannel)) song.ltcChannel = 'auto';
     if (typeof song.tcOffset !== 'string') song.tcOffset = '';
     if (!song.audioTrim || typeof song.audioTrim !== 'object') {
-      song.audioTrim = { startS: 0, endS: null };
+      song.audioTrim = { startS: 0, endS: null, headS: 0 };
     } else {
-      if (typeof song.audioTrim.startS !== 'number' || song.audioTrim.startS < 0) song.audioTrim.startS = 0;
+      // startS may go negative under the audio-mobile shift model — no `< 0` floor here.
+      if (typeof song.audioTrim.startS !== 'number') song.audioTrim.startS = 0;
       if (song.audioTrim.endS != null && typeof song.audioTrim.endS !== 'number') song.audioTrim.endS = null;
+      // headS is the file-time of the kept-start (head trim). Default 0 for old projects.
+      if (typeof song.audioTrim.headS !== 'number' || song.audioTrim.headS < 0) song.audioTrim.headS = 0;
     }
     migrateCues(song.cues);
   });
   if (s.songs.length === 0) {
-    const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null }, audioLocked: false, viewportZoom: 1, viewportOffsetS: 0, ltcChannel: 'auto', tcOffset: '' };
+    const song = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null, headS: 0 }, audioLocked: false, viewportZoom: 1, viewportOffsetS: 0, ltcChannel: 'auto', tcOffset: '' };
     s.songs.push(song);
   }
   if (!s.songs.find(x => x.id === s.activeSongId)) {
     s.activeSongId = s.songs[0].id;
   }
   if (s.storeMode !== 'Merge') s.storeMode = 'Overwrite';
+  const validRulerFmts = ['auto', 'hh', 'hh-mm', 'hh-mm-ss', 'hh-mm-ss-ff'];
+  if (validRulerFmts.indexOf(s.rulerFormat) < 0) s.rulerFormat = 'auto';
   return s;
 }
 
@@ -513,7 +524,9 @@ function importCsv(file) {
           fade: '',
           delay: '',
           collapsed: true,
-          position
+          position,
+          includeStore: true,
+          includeTc: true
         });
       }
 
@@ -537,7 +550,7 @@ function importCsv(file) {
           cues,
           audioFileName: '',
           audioFilePath: '',
-          audioTrim: { startS: 0, endS: null },
+          audioTrim: { startS: 0, endS: null, headS: 0 },
           audioLocked: false,
           viewportZoom: 1,
           viewportOffsetS: 0,
@@ -551,7 +564,7 @@ function importCsv(file) {
       });
 
       if (state.songs.length === 0) {
-        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null }, audioLocked: false, viewportZoom: 1, viewportOffsetS: 0, ltcChannel: 'auto', tcOffset: '' };
+        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null, headS: 0 }, audioLocked: false, viewportZoom: 1, viewportOffsetS: 0, ltcChannel: 'auto', tcOffset: '' };
         state.songs.push(ns);
         state.activeSongId = ns.id;
       } else if (lastId) {

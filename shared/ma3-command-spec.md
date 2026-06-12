@@ -30,6 +30,21 @@ A show is stored with one flag, chosen by the user:
 
 Every `Store` also carries `/NoConfirmation`.
 
+## Cue inclusion filters
+
+Cues carry two optional boolean flags in the project JSON:
+
+- `includeStore` — when `false`, the cue is omitted from the Store path
+  (no `ClearAll`, no `Group`, no `At Preset`, no `Store`, no `Set ... Fade/Delay/Note`).
+- `includeTc` — when `false`, the cue is omitted from the Timecode show path
+  (no Event is appended on the TimeRange's CmdSubTrack).
+
+Missing flags are treated as `true` (the desktop-side migration fills them
+in). The two filters are independent and combine with AND: a cue with
+`includeStore=false` and `includeTc=true` still produces a TC event but no
+Store. The MA3-side syntax is unchanged — only the set of participating
+cues changes.
+
 ## Per-cue sequence
 
 For each song (in show order), for each cue (sorted ascending by cue number):
@@ -128,14 +143,24 @@ The Lua code performs (in order):
 2. **Locate** TrackGroup `Children()[1]` and Track `tg[2]` (not `tg[1]` — that index
    is an internal pseudo-track whose events visually attach to the TG header row in
    the Timecode editor instead of the user's Sequence-targeted Track). Bail if either missing.
-3. **Clear existing events** (overwrite): for every TimeRange on the Track, for
-   every CmdSubTrack in it, delete its Event children via reverse iteration +
-   `sb:Delete(i)`. Do **not** delete the TimeRanges themselves — see Delete notes.
-4. **Acquire** a TimeRange and a `CmdSubTrack` inside it.
-5. **For each cue** with valid `position`, ascending by `cue.n`:
-   - `:Acquire()` a new Event under the CmdSubTrack.
+3. **Build send set**: `sendNos[c[1]] = true` for each cue in the send list (O(1)
+   lookup table keyed by cue number).
+4. **Reuse existing CmdSubTrack**: walk `tr:Children()` to find the first existing
+   `CmdSubTrack`. Only `Acquire()` a fresh TimeRange + CmdSubTrack if the Track has
+   no existing events at all. Prevents orphan TimeRanges accumulating across repeated sends.
+5. **Selective delete**: for every TimeRange → CmdSubTrack → Event on the Track,
+   delete (via reverse iteration + `sb:Delete(i)`) only events whose
+   `cuedestination.no` is in `sendNos`. Events for cues **not** in the send list are
+   never touched. Do **not** delete the TimeRanges themselves — see Delete notes.
+6. **Write events**: for each cue in the send list:
+   - `:Acquire()` a new Event under the reused (or freshly created) CmdSubTrack.
    - `Set('rawtime', round(seconds * 16777216))`.
    - `cue = GetObject('Sequence <N> Cue <cue.n>')`; if truthy, `Set('cuedestination', cue)`.
+
+> **Semantic note**: the former wipe-all approach (clearing every event on the Track
+> before rebuilding) was replaced with this selective overwrite after smoke testing
+> showed it was destructive — a partial send (operator selects only some cues) would
+> silently delete existing TC events for cues not in the send list.
 
 `<seconds>` = SMPTE→seconds at 25 fps: `(HH * 3600) + (MM * 60) + SS + (FF / 25)`.
 

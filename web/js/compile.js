@@ -20,6 +20,7 @@ function songToLuaEntry(song) {
   const songName = (song.name || '(untitled)').trim().replace(/"/g, '\\"');
   lines.push(`  {name="${songName}", seq=${seq}, cues={`);
   song.cues.forEach(cue => {
+    if (cue.includeStore === false) return;
     const actions = cue.actions
       .filter(a => a.group && a.group.trim())
       .map(a => {
@@ -114,6 +115,7 @@ function buildCmdLines(songs) {
   songs.forEach(song => {
     const seq = parseInt(song.sequence) || 1;
     (song.cues || []).forEach(cue => {
+      if (cue.includeStore === false) return;
       out.push('ClearAll');
       const actions = (cue.actions || []).filter(a => a.group && a.group.trim());
       actions.forEach(a => {
@@ -156,7 +158,15 @@ function buildCmdLines(songs) {
 // have `rawtime` (1 s = 16777216 internal units) and `cuedestination` (Cue handle).
 // Pre-conditions (operator manual on MA3): Sequence N exists with cues, Timecode
 // pool N exists, TrackGroup with at least one Track targeting Sequence N exists.
-// Overwrite-only: wipes all existing TimeRanges on the target Track, then rebuilds.
+// Selective overwrite: for each cue in the send list, delete its existing event
+// (matched by cuedestination.no) if present, then write a fresh one. Events for
+// cues NOT in the send list are never touched. The former wipe-all approach was
+// replaced after smoke testing showed it destroyed events for cues the operator
+// had intentionally excluded from a partial send.
+//
+// MA3 stores cue numbers in `.no` as integers scaled ×1000 (verified live on
+// onPC 2026-06-12): displayed cue 1 → no=1000, cue 0.1 → no=100, cue 1.5 → no=1500.
+// Build sendNos keyed by the scaled value so the lookup against `d.no` matches.
 const TC_RAW_PER_SEC = 16777216;
 
 function tcRawtime(positionSmpte) {
@@ -168,6 +178,7 @@ function buildTcCmdLines(songs) {
   (songs || []).forEach(song => {
     const seq = parseInt(song.sequence) || 1;
     const validCues = (song.cues || [])
+      .filter(c => c.includeTc !== false)
       .filter(c => isValidSmpte(c.position))
       .slice()
       .sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));
@@ -182,12 +193,9 @@ function buildTcCmdLines(songs) {
     // Timecode editor; storing events there visually attaches them to the TG, not to
     // the Sequence-targeted Track the operator created. Source: MA forum thread 68641.
     //
-    // Overwrite by clearing EVENTS, not TimeRanges. Two API facts proven on a real
-    // desk (2026-06-06): TimeRanges are structural and refuse deletion ("deletion of
-    // the child object is prohibited"), and Delete is `parent:Delete(1-basedIndex)` —
-    // a no-arg `child:Delete()` errors with "Wrong parameter #2". So we walk every
-    // TimeRange's CmdSubTrack(s) and delete their event children, then write fresh
-    // events into a CmdSubTrack. Events are user content and ARE deletable.
+    // Selective overwrite: build sendNos set → reuse existing CmdSubTrack (or Acquire
+    // fresh only if Track is empty) → delete events whose cuedestination.no is in the
+    // send set → write fresh events for each sent cue. Events for other cues untouched.
     const lua = [
       `local s=DataPool().sequences[${seq}]`,
       `local t=DataPool().timecodes[${seq}]`,
@@ -196,10 +204,14 @@ function buildTcCmdLines(songs) {
       `if not tg then return end`,
       `local tr=tg[2]`,
       `if not tr then return end`,
-      `for _,r in ipairs(tr:Children()) do for _,sb in ipairs(r:Children()) do local ev=sb:Children() for i=#ev,1,-1 do sb:Delete(i) end end end`,
-      `local rng=tr:Acquire()`,
-      `local sub=rng:Acquire('CmdSubTrack')`,
-      `for _,c in ipairs({${cuesLit}}) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence ${seq} Cue '..c[1]) if cue then e:Set('cuedestination',cue) end end`,
+      `local sendList={${cuesLit}}`,
+      `local sendNos={}`,
+      `for _,c in ipairs(sendList) do sendNos[math.floor(c[1]*1000+0.5)]=true end`,
+      `local sub=nil`,
+      `for _,r in ipairs(tr:Children()) do for _,sb in ipairs(r:Children()) do sub=sb break end if sub then break end end`,
+      `if not sub then local rng=tr:Acquire() sub=rng:Acquire('CmdSubTrack') end`,
+      `for _,r in ipairs(tr:Children()) do for _,sb in ipairs(r:Children()) do local ev=sb:Children() for i=#ev,1,-1 do local d=ev[i].cuedestination if d and d.no and sendNos[d.no] then sb:Delete(i) end end end end`,
+      `for _,c in ipairs(sendList) do local e=sub:Acquire() e:Set('rawtime',c[2]) local cue=GetObject('Sequence ${seq} Cue '..c[1]) if cue then e:Set('cuedestination',cue) end end`,
     ].join(';');
 
     out.push(`Lua "${lua}"`);
@@ -232,6 +244,7 @@ function buildTcLua(songs, headerTitle) {
   const validSongs = (songs || []).map(song => {
     const seq = parseInt(song.sequence) || 1;
     const cues = (song.cues || [])
+      .filter(c => c.includeTc !== false)
       .filter(c => isValidSmpte(c.position))
       .slice()
       .sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));
@@ -246,7 +259,7 @@ function buildTcLua(songs, headerTitle) {
   lines.push('--   * Sequence <seq> exists with cues.');
   lines.push('--   * Timecode pool <seq> exists.');
   lines.push('--   * TC <seq> has a TrackGroup with at least one Track (target=Sequence <seq>).');
-  lines.push('-- BEHAVIOR: clears all existing events on the target Track, then writes fresh ones.');
+  lines.push('-- BEHAVIOR: selectively overwrites events for the cues in `cues`, leaving other events untouched.');
   lines.push('');
   lines.push('local function applySong(seq, cues)');
   lines.push('  local s = DataPool().sequences[seq]');
@@ -259,17 +272,34 @@ function buildTcLua(songs, headerTitle) {
   lines.push('  -- whose events render on the TG header row (forum thread 68641).');
   lines.push('  local tr = tg[2]');
   lines.push('  if not tr then Printf("Cuelist TC: TC "..seq.." TrackGroup has no user Track"); return end');
-  lines.push('  -- Clear existing EVENTS, not TimeRanges: TimeRanges are structural and refuse');
-  lines.push('  -- deletion ("deletion of the child object is prohibited"); Delete is');
-  lines.push('  -- parent:Delete(1-basedIndex) (a no-arg child :Delete() errors "Wrong parameter #2").');
+  lines.push('  -- Phase 1: build a set of cue numbers we are sending (O(1) lookup).');
+  lines.push('  -- MA3 stores cue numbers in `.no` as integers ×1000 (cue 1 → 1000, cue 0.1 → 100).');
+  lines.push('  local sendNos = {}');
+  lines.push('  for _, c in ipairs(cues) do sendNos[math.floor(c[1]*1000+0.5)] = true end');
+  lines.push('  -- Phase 2: reuse the first existing CmdSubTrack; Acquire fresh only if Track is empty.');
+  lines.push('  -- This prevents repeated Sends from accumulating orphan TimeRanges.');
+  lines.push('  local sub = nil');
+  lines.push('  for _, r in ipairs(tr:Children()) do');
+  lines.push('    for _, sb in ipairs(r:Children()) do sub = sb; break end');
+  lines.push('    if sub then break end');
+  lines.push('  end');
+  lines.push('  if not sub then');
+  lines.push('    local rng = tr:Acquire()');
+  lines.push('    sub = rng:Acquire("CmdSubTrack")');
+  lines.push('  end');
+  lines.push('  -- Phase 3: delete events whose cuedestination.no is in our send set.');
+  lines.push('  -- Events for cues NOT in the send list are never touched.');
+  lines.push('  -- Delete is parent:Delete(1-basedIndex); TimeRanges are structural (refuse deletion).');
   lines.push('  for _, r in ipairs(tr:Children()) do');
   lines.push('    for _, sb in ipairs(r:Children()) do');
   lines.push('      local ev = sb:Children()');
-  lines.push('      for i = #ev, 1, -1 do sb:Delete(i) end');
+  lines.push('      for i = #ev, 1, -1 do');
+  lines.push('        local d = ev[i].cuedestination');
+  lines.push('        if d and d.no and sendNos[d.no] then sb:Delete(i) end');
+  lines.push('      end');
   lines.push('    end');
   lines.push('  end');
-  lines.push('  local rng = tr:Acquire()');
-  lines.push('  local sub = rng:Acquire("CmdSubTrack")');
+  lines.push('  -- Phase 4: write fresh events for each cue in the send list.');
   lines.push('  for _, c in ipairs(cues) do');
   lines.push('    local e = sub:Acquire()');
   lines.push('    e:Set("rawtime", c[2])');

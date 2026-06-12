@@ -133,6 +133,7 @@ function render() {
   }
 
   song.cues.sort((a, b) => (parseFloat(a.n) || 0) - (parseFloat(b.n) || 0));
+  container.appendChild(renderBulkToggleBar(song));
   song.cues.forEach((cue, ci) => container.appendChild(renderCue(song, cue, ci)));
 
   if (audioBuffer) renderMarkers();
@@ -165,7 +166,7 @@ function renderSidebar() {
       state.songs.splice(idx, 1);
       audioCache.delete(song.id);
       if (state.songs.length === 0) {
-        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null } };
+        const ns = { id: genId(), name: '', sequence: 1, cues: [], audioFileName: '', audioFilePath: '', audioTrim: { startS: 0, endS: null, headS: 0 } };
         state.songs.push(ns);
         state.activeSongId = ns.id;
       } else if (song.id === state.activeSongId) {
@@ -176,6 +177,31 @@ function renderSidebar() {
     });
     list.appendChild(li);
   });
+}
+
+function renderBulkToggleBar(song) {
+  const bar = document.createElement('div');
+  bar.className = 'cue-bulk-toolbar';
+  const allStore = song.cues.every(c => c.includeStore !== false);
+  const allTc = song.cues.every(c => c.includeTc !== false);
+  bar.innerHTML = `
+    <span class="cue-bulk-label">Toggle all:</span>
+    <button class="cue-include-chip cue-bulk-store ${allStore ? 'on' : 'off'}" title="Toggle STORE on every cue in this song">STORE</button>
+    <button class="cue-include-chip cue-bulk-tc ${allTc ? 'on' : 'off'}" title="Toggle TC on every cue in this song">TC</button>
+  `;
+  bar.querySelector('.cue-bulk-store').addEventListener('click', () => {
+    const newVal = !allStore;
+    song.cues.forEach(c => { c.includeStore = newVal; });
+    saveState();
+    render();
+  });
+  bar.querySelector('.cue-bulk-tc').addEventListener('click', () => {
+    const newVal = !allTc;
+    song.cues.forEach(c => { c.includeTc = newVal; });
+    saveState();
+    render();
+  });
+  return bar;
 }
 
 function cueSummary(cue) {
@@ -203,6 +229,8 @@ function renderCue(song, cue, ci) {
     <input type="number" step="0.1" class="cue-num" value="${escapeHtml(cue.n)}" title="Cue number">
     <input type="text" class="${tcCls}" placeholder="HH:MM:SS:FF" value="${tcVal}" title="Timecode (25fps SMPTE) — empty = excluded from TC export">
     <button class="icon-btn cue-tc-capture" title="Capture from audio playhead">🎯</button>
+    <button class="cue-include-chip cue-include-store ${cue.includeStore !== false ? 'on' : 'off'}" title="Include this cue's preset Store in Send / Export .lua">STORE</button>
+    <button class="cue-include-chip cue-include-tc ${cue.includeTc !== false ? 'on' : 'off'}" title="Include this cue's TC event in Send TC / Export TC .lua">TC</button>
     <input type="text" class="cue-name" placeholder="Cue name (Intro, Verse, Chorus...)" value="${escapeHtml(cue.name)}">
     ${cue.collapsed ? `<span class="cue-summary">${escapeHtml(cueSummary(cue))}</span>` : ''}
     <button class="icon-btn danger" title="Remove cue">&times;</button>
@@ -235,6 +263,18 @@ function renderCue(song, cue, ci) {
     const captured = captureCurrentPlayheadAsSmpte();
     if (!captured) { alert('Load audio first.'); return; }
     cue.position = captured;
+    saveState();
+    render();
+  });
+  hdr.querySelector('.cue-include-store').addEventListener('click', e => {
+    e.stopPropagation();
+    cue.includeStore = cue.includeStore === false;  // toggle: false→true, anything else→false
+    saveState();
+    render();
+  });
+  hdr.querySelector('.cue-include-tc').addEventListener('click', e => {
+    e.stopPropagation();
+    cue.includeTc = cue.includeTc === false;
     saveState();
     render();
   });
