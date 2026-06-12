@@ -30,6 +30,21 @@ A show is stored with one flag, chosen by the user:
 
 Every `Store` also carries `/NoConfirmation`.
 
+## Cue inclusion filters
+
+Cues carry two optional boolean flags in the project JSON:
+
+- `includeStore` — when `false`, the cue is omitted from the Store path
+  (no `ClearAll`, no `Group`, no `At Preset`, no `Store`, no `Set ... Fade/Delay/Note`).
+- `includeTc` — when `false`, the cue is omitted from the Timecode show path
+  (no Event is appended on the TimeRange's CmdSubTrack).
+
+Missing flags are treated as `true` (the desktop-side migration fills them
+in). The two filters are independent and combine with AND: a cue with
+`includeStore=false` and `includeTc=true` still produces a TC event but no
+Store. The MA3-side syntax is unchanged — only the set of participating
+cues changes.
+
 ## Per-cue sequence
 
 For each song (in show order), for each cue (sorted ascending by cue number):
