@@ -71,47 +71,47 @@ final class MacroPadTests: XCTestCase {
 
     func test_assignExecutor_sets_unloaded_executor() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 0)
-        XCTAssertEqual(pad.slot(at: 0), .executor(number: nil))
+        pad.assignExecutor(slot: 0, function: .toggle)
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: nil))
         XCTAssertNil(pad.action(at: 0), "an executor slot is not an action")
     }
 
     func test_loadExecutor_targets_number() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 1)
-        pad.loadExecutor(slot: 1, number: 201)
-        XCTAssertEqual(pad.slot(at: 1), .executor(number: 201))
+        pad.assignExecutor(slot: 1, function: .toggle)
+        pad.loadExecutor(slot: 1, target: .number(201))
+        XCTAssertEqual(pad.slot(at: 1), .executor(function: .toggle, target: .number(201)))
     }
 
     func test_loadExecutor_retargets_loaded_slot() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 0)
-        pad.loadExecutor(slot: 0, number: 201)
-        pad.loadExecutor(slot: 0, number: 7)
-        XCTAssertEqual(pad.slot(at: 0), .executor(number: 7))
+        pad.assignExecutor(slot: 0, function: .toggle)
+        pad.loadExecutor(slot: 0, target: .number(201))
+        pad.loadExecutor(slot: 0, target: .number(7))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: .number(7)))
     }
 
     func test_loadExecutor_rejects_out_of_range_number() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 0)
-        pad.loadExecutor(slot: 0, number: 0)
-        pad.loadExecutor(slot: 0, number: 10000)
-        XCTAssertEqual(pad.slot(at: 0), .executor(number: nil))
+        pad.assignExecutor(slot: 0, function: .toggle)
+        pad.loadExecutor(slot: 0, target: .number(0))
+        pad.loadExecutor(slot: 0, target: .number(10000))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: nil))
     }
 
     func test_loadExecutor_on_non_executor_slot_is_noop() {
         let pad = freshPad()
         pad.assign(slot: 2, action: MacroAction.find("off")!)
-        pad.loadExecutor(slot: 2, number: 201)
+        pad.loadExecutor(slot: 2, target: .number(201))
         XCTAssertEqual(pad.slot(at: 2), .action(MacroAction.find("off")!))
-        pad.loadExecutor(slot: 3, number: 201)   // empty slot
+        pad.loadExecutor(slot: 3, target: .number(201))   // empty slot
         XCTAssertNil(pad.slot(at: 3), "loadExecutor on an empty slot must stay a noop")
     }
 
     func test_assignExecutor_out_of_range_slot_is_safe_noop() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 9)
-        pad.assignExecutor(slot: -1)
+        pad.assignExecutor(slot: 9, function: .toggle)
+        pad.assignExecutor(slot: -1, function: .toggle)
         XCTAssertTrue(pad.slots.allSatisfy { $0 == nil })
     }
 
@@ -119,12 +119,12 @@ final class MacroPadTests: XCTestCase {
         let suite = "macropad.exec.\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!
         let p1 = MacroPad(defaults: d)
-        p1.assignExecutor(slot: 0)
-        p1.loadExecutor(slot: 0, number: 7)
-        p1.assignExecutor(slot: 2)
+        p1.assignExecutor(slot: 0, function: .toggle)
+        p1.loadExecutor(slot: 0, target: .number(7))
+        p1.assignExecutor(slot: 2, function: .toggle)
         let p2 = MacroPad(defaults: d)
-        XCTAssertEqual(p2.slot(at: 0), .executor(number: 7))
-        XCTAssertEqual(p2.slot(at: 2), .executor(number: nil))
+        XCTAssertEqual(p2.slot(at: 0), .executor(function: .toggle, target: .number(7)))
+        XCTAssertEqual(p2.slot(at: 2), .executor(function: .toggle, target: nil))
         XCTAssertNil(p2.slot(at: 1))
     }
 
