@@ -342,7 +342,7 @@ final class MacroPadTests: XCTestCase {
         pad.recordFlashPress(slot: 0)
         pad.clear(slot: 0)
         pad.recordFlashRelease(slot: 0)
-        XCTAssertFalse(pad.isActive(.number(7)))
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
     }
 
     func test_flash_flush_releases_all_held() {
@@ -367,5 +367,17 @@ final class MacroPadTests: XCTestCase {
         pad.recordFlashPress(slot: 1)
         pad.recordFlashRelease(slot: 0)
         XCTAssertFalse(pad.isActive(.number(7)))
+    }
+
+    func test_flash_flush_with_two_holds_of_same_target() {
+        // Duplicate values in the capture map: flush removes the shared belief
+        // once and empties the map — second remove of an absent member is safe.
+        let pad = padWithExecutor(slot: 0, function: .flash, target: .number(7))
+        pad.assignExecutor(slot: 1, function: .flash)
+        pad.loadExecutor(slot: 1, target: .number(7))
+        pad.recordFlashPress(slot: 0)
+        pad.recordFlashPress(slot: 1)
+        pad.recordFlashFlush()
+        XCTAssertTrue(pad.activeExecutors.isEmpty)
     }
 }
