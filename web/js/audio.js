@@ -87,7 +87,9 @@ function songToFileTime(songT, trim) {
 }
 
 function clampSeek(rawS, trim, duration) {
-  const lo = trim && typeof trim.startS === 'number' ? trim.startS : 0;
+  // Lower bound is the head trim (file-time of the first kept sample),
+  // not the audio-mobile shift. startS only governs songT↔fileT mapping.
+  const lo = trim && typeof trim.headS === 'number' ? trim.headS : 0;
   const hi = trim && trim.endS != null ? trim.endS : duration;
   return Math.max(lo, Math.min(hi, rawS));
 }
@@ -226,7 +228,7 @@ function showTimelineTcPopup(clickX, songT, dur, trim) {
 function refreshTimelineViewport() {
   if (!audioBuffer) return;
   const song = activeSong();
-  const trim = song && song.audioTrim ? song.audioTrim : { startS: 0, endS: null };
+  const trim = song && song.audioTrim ? song.audioTrim : { startS: 0, endS: null, headS: 0 };
   const dur = audioBuffer.duration;
   const ruler = document.getElementById('ruler');
   const waveL = document.getElementById('waveL');
@@ -494,6 +496,7 @@ function drawWaveform(canvas, channelData, durationS, trim) {
   // [0, durationS] draw nothing; past trim.endS render dim.
   const trimStart = (trim && typeof trim.startS === 'number') ? trim.startS : 0;
   const trimEnd = (trim && trim.endS != null) ? trim.endS : Infinity;
+  const trimHead = (trim && typeof trim.headS === 'number') ? trim.headS : 0;
   const song = activeSong();
   const vp = viewportOf(song, durationS);
   const sampleRate = channelData.length / durationS;
@@ -501,7 +504,7 @@ function drawWaveform(canvas, channelData, durationS, trim) {
     const songT = vp.offsetS + (x / w) * vp.visibleDur;
     const fileT = songT + trimStart;
     if (fileT < 0 || fileT >= durationS) continue;
-    ctx.fillStyle = (fileT >= trimEnd) ? '#2a3a52' : '#5b8dd6';
+    ctx.fillStyle = (fileT < trimHead || fileT >= trimEnd) ? '#2a3a52' : '#5b8dd6';
     const pxDur = vp.visibleDur / w;
     const i0 = Math.floor(fileT * sampleRate);
     const i1 = Math.min(channelData.length, Math.floor((fileT + pxDur) * sampleRate));
@@ -815,7 +818,7 @@ function renderAudioPanel() {
     startHandle.addEventListener('dblclick', () => {
       const song = activeSong();
       if (song && song.audioTrim) {
-        song.audioTrim.startS = 0;
+        song.audioTrim.headS = 0;
         redrawAudioBody();
         saveState();
       }
@@ -837,7 +840,7 @@ function renderAudioPanel() {
     const x = e.clientX - rect.left;
     const w = rect.width;
     const song = activeSong();
-    const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+    const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null, headS: 0 };
     const vp = viewportOf(song, dur);
     // Click position in song-time uses viewport offset/zoom.
     const songT = xToSongTime(x, w, vp);
@@ -851,7 +854,7 @@ function renderAudioPanel() {
   requestAnimationFrame(() => {
     const ruler = document.getElementById('ruler');
     const song = activeSong();
-    const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+    const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null, headS: 0 };
     if (ruler) drawRuler(ruler, audioBuffer.duration, trim);
 
     const waveL = document.getElementById('waveL');
@@ -915,8 +918,9 @@ function stopAudio() {
   if (!audioEl) return;
   audioEl.pause();
   const song = activeSong();
-  const startS = (song && song.audioTrim) ? song.audioTrim.startS : 0;
-  audioEl.currentTime = startS;
+  // Seek to head trim (first kept file-time), not the shift.
+  const headS = (song && song.audioTrim && typeof song.audioTrim.headS === 'number') ? song.audioTrim.headS : 0;
+  audioEl.currentTime = headS;
   const btn = document.getElementById('playBtn');
   if (btn) btn.textContent = '▶';
   updatePlayhead();
@@ -926,8 +930,8 @@ function restartAudio() {
   if (!audioEl) return;
   const wasPlaying = !audioEl.paused;
   const song = activeSong();
-  const startS = (song && song.audioTrim) ? song.audioTrim.startS : 0;
-  audioEl.currentTime = startS;
+  const headS = (song && song.audioTrim && typeof song.audioTrim.headS === 'number') ? song.audioTrim.headS : 0;
+  audioEl.currentTime = headS;
   if (wasPlaying && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   if (wasPlaying) audioEl.play();
   updatePlayhead();
@@ -936,21 +940,22 @@ function restartAudio() {
 function skipPrevMarker() {
   const song = activeSong();
   if (!audioEl || !song) return;
-  const trim = song.audioTrim || { startS: 0, endS: null };
+  const trim = song.audioTrim || { startS: 0, endS: null, headS: 0 };
   const dur = audioBuffer ? audioBuffer.duration : Infinity;
   const endS = trim.endS != null ? trim.endS : dur;
+  const headS = (typeof trim.headS === 'number') ? trim.headS : 0;
   const inWindow = song.cues.filter(c => {
     const sSong = timecodeToSeconds(c.position);
     if (isNaN(sSong)) return false;
     const sFile = songToFileTime(sSong, trim);
-    return sFile >= trim.startS && sFile <= endS;
+    return sFile >= headS && sFile <= endS;
   });
   const songT = fileToSongTime(audioEl.currentTime, trim);
   const target = findPrevMarker(songT, inWindow);
   if (target) {
     audioEl.currentTime = songToFileTime(timecodeToSeconds(target.position), trim);
   } else {
-    audioEl.currentTime = trim.startS;
+    audioEl.currentTime = headS;
   }
   updatePlayhead();
 }
@@ -958,14 +963,15 @@ function skipPrevMarker() {
 function skipNextMarker() {
   const song = activeSong();
   if (!audioEl || !song) return;
-  const trim = song.audioTrim || { startS: 0, endS: null };
+  const trim = song.audioTrim || { startS: 0, endS: null, headS: 0 };
   const dur = audioBuffer ? audioBuffer.duration : Infinity;
   const endS = trim.endS != null ? trim.endS : dur;
+  const headS = (typeof trim.headS === 'number') ? trim.headS : 0;
   const inWindow = song.cues.filter(c => {
     const sSong = timecodeToSeconds(c.position);
     if (isNaN(sSong)) return false;
     const sFile = songToFileTime(sSong, trim);
-    return sFile >= trim.startS && sFile <= endS;
+    return sFile >= headS && sFile <= endS;
   });
   const songT = fileToSongTime(audioEl.currentTime, trim);
   const target = findNextMarker(songT, inWindow);
@@ -996,7 +1002,7 @@ function stopPlayheadLoop() {
 function updatePlayhead() {
   if (!audioEl || !audioBuffer) return;
   const song = activeSong();
-  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null, headS: 0 };
 
   if (shouldAutoPause(audioEl.currentTime, trim, audioEl.paused)) {
     audioEl.pause();
@@ -1079,7 +1085,7 @@ function renderMarkers() {
   markers.innerHTML = '';
   const dur = audioBuffer.duration;
   if (dur <= 0) return;
-  const trim = song.audioTrim || { startS: 0, endS: null };
+  const trim = song.audioTrim || { startS: 0, endS: null, headS: 0 };
   const vp = viewportOf(song, dur);
   // audio-mobile model + viewport: markers anchored to SMPTE; x computed from
   // the visible time range. Markers outside the viewport aren't rendered.
@@ -1119,7 +1125,7 @@ function renderMarkers() {
 function captureCurrentPlayheadAsSmpte() {
   if (!audioEl || isNaN(audioEl.currentTime)) return null;
   const song = activeSong();
-  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null, headS: 0 };
   return secondsToTimecode(Math.max(0, fileToSongTime(audioEl.currentTime, trim)));
 }
 
@@ -1219,7 +1225,7 @@ function onMarkerDragEnd() {
 function redrawAudioBody() {
   if (!audioBuffer) return;
   const song = activeSong();
-  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null };
+  const trim = (song && song.audioTrim) ? song.audioTrim : { startS: 0, endS: null, headS: 0 };
   const dur = audioBuffer.duration;
   const wl = document.getElementById('waveL');
   if (wl) drawWaveform(wl, audioBuffer.getChannelData(0), dur, trim);
@@ -1235,7 +1241,7 @@ function redrawAudioBody() {
 function positionEndHandle() {
   const song = activeSong();
   if (!song || !audioBuffer) return;
-  const trim = song.audioTrim || { startS: 0, endS: null };
+  const trim = song.audioTrim || { startS: 0, endS: null, headS: 0 };
   const dur = audioBuffer.duration;
   const handle = document.getElementById('trimEndHandle');
   if (!handle) return;
@@ -1255,13 +1261,14 @@ function positionEndHandle() {
 function positionStartHandle() {
   const song = activeSong();
   if (!song || !audioBuffer) return;
-  const trim = song.audioTrim || { startS: 0, endS: null };
+  const trim = song.audioTrim || { startS: 0, endS: null, headS: 0 };
   const dur = audioBuffer.duration;
   const handle = document.getElementById('trimStartHandle');
   if (!handle) return;
   const vp = viewportOf(song, dur);
-  // Audio's first sample (fileT=0) maps to songT = -startS.
-  const audioStartSong = -trim.startS;
+  // The handle marks the kept-start in song-time: fileT=headS → songT = headS - startS.
+  const headS = (typeof trim.headS === 'number') ? trim.headS : 0;
+  const audioStartSong = headS - trim.startS;
   // Hide if outside the current viewport.
   if (audioStartSong < vp.offsetS || audioStartSong > vp.offsetS + vp.visibleDur) {
     handle.style.display = 'none';
@@ -1282,7 +1289,7 @@ function startAudioBodyDrag(evt) {
   const tl = document.getElementById('timeline');
   if (!tl) return;
   evt.preventDefault();
-  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
+  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null, headS: 0 };
   trimDragState = {
     kind: 'body',
     timelineRect: tl.getBoundingClientRect(),
@@ -1302,18 +1309,18 @@ function onAudioBodyDragMove(evt) {
   trimDragState.moved = true;
   const song = activeSong();
   if (!song) return;
-  const { timelineRect, durationS, initialClientX, initialStartS, initialEndS } = trimDragState;
+  const { timelineRect, durationS, initialClientX, initialStartS } = trimDragState;
   // viewport-aware: a pixel of drag corresponds to vp.visibleDur/w seconds of shift.
   const vp = viewportOf(song, durationS);
   const dxPx = evt.clientX - initialClientX;
   const dxS = (dxPx / timelineRect.width) * vp.visibleDur;
-  song.audioTrim.startS = initialStartS - dxS;
-  if (initialEndS != null) song.audioTrim.endS = initialEndS - dxS;
-  // No hard clamp on startS — operator can shift audio fully off either side if they want.
-  // Practical limit: don't let audio disappear entirely.
+  // Body-drag shifts only startS — both handles are file-anchored (headS/endS), so they
+  // visually follow the waveform on the timeline. Lower clamp: startS ≤ headS so the
+  // left handle (songT = headS - startS) never crosses below ruler 0.
+  const headS = (typeof song.audioTrim.headS === 'number') ? song.audioTrim.headS : 0;
   const minStartS = -(durationS - 0.5);
-  const maxStartS = durationS - 0.5;
-  song.audioTrim.startS = Math.max(minStartS, Math.min(maxStartS, song.audioTrim.startS));
+  const maxStartS = headS;
+  song.audioTrim.startS = Math.max(minStartS, Math.min(maxStartS, initialStartS - dxS));
   redrawAudioBody();
 }
 
@@ -1349,14 +1356,16 @@ function onEndHandleDragMove(evt) {
   if (!trimDragState || trimDragState.kind !== 'end') return;
   const song = activeSong();
   if (!song) return;
-  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
+  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null, headS: 0 };
   const { timelineRect, durationS } = trimDragState;
   const vp = viewportOf(song, durationS);
   let pxX = evt.clientX - timelineRect.left;
   pxX = Math.max(0, Math.min(timelineRect.width, pxX));
   const songT = vp.offsetS + (pxX / timelineRect.width) * vp.visibleDur;
   const fileT = songT + song.audioTrim.startS;
-  const leftBound = song.audioTrim.startS + 0.5;
+  // Lower bound: kept range must remain non-empty (endS > headS + 0.5).
+  const headS = (typeof song.audioTrim.headS === 'number') ? song.audioTrim.headS : 0;
+  const leftBound = headS + 0.5;
   song.audioTrim.endS = Math.max(leftBound, Math.min(durationS, fileT));
   redrawAudioBody();
 }
@@ -1392,18 +1401,17 @@ function onStartHandleDragMove(evt) {
   if (!trimDragState || trimDragState.kind !== 'start') return;
   const song = activeSong();
   if (!song) return;
-  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null };
+  if (!song.audioTrim) song.audioTrim = { startS: 0, endS: null, headS: 0 };
   const { timelineRect, durationS } = trimDragState;
   const vp = viewportOf(song, durationS);
   let pxX = evt.clientX - timelineRect.left;
   pxX = Math.max(0, Math.min(timelineRect.width, pxX));
   const songT = vp.offsetS + (pxX / timelineRect.width) * vp.visibleDur;
-  // Inverse of positionStartHandle: songT = -startS  →  startS = -songT.
-  // Clamp aligned with body-drag (allows negative startS) and end-handle minimum gap.
+  // Inverse of positionStartHandle: songT = headS - startS  →  headS = songT + startS.
+  // Drag updates only headS (the head trim). The waveform stays anchored to the file.
   const endSEffective = song.audioTrim.endS != null ? song.audioTrim.endS : durationS;
-  const minStartS = -(durationS - 0.5);
-  const maxStartS = endSEffective - 0.5;
-  song.audioTrim.startS = Math.max(minStartS, Math.min(maxStartS, -songT));
+  const newHeadS = songT + song.audioTrim.startS;
+  song.audioTrim.headS = Math.max(0, Math.min(endSEffective - 0.5, newHeadS));
   redrawAudioBody();
 }
 
@@ -1420,7 +1428,7 @@ function resetAudioTrim() {
   const song = activeSong();
   if (!song) return;
   if (song.audioLocked) return;             // 🔒 track is locked
-  song.audioTrim = { startS: 0, endS: null };
+  song.audioTrim = { startS: 0, endS: null, headS: 0 };
   redrawAudioBody();
   saveState();
 }

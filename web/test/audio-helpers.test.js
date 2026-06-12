@@ -45,22 +45,34 @@ test('pickTickInterval: >2min -> 10s ticks, major every 60s', () => {
 
 test('clampSeek: inside window passes through', () => {
   const { clampSeek } = loadAudioHelpers();
-  assert.strictEqual(clampSeek(5, { startS: 1, endS: 9 }, 10), 5);
+  // Lower bound is headS (head trim), not startS (audio-mobile shift).
+  assert.strictEqual(clampSeek(5, { startS: 0, endS: 9, headS: 1 }, 10), 5);
 });
 
-test('clampSeek: before startS clamps to startS', () => {
+test('clampSeek: before headS clamps to headS', () => {
   const { clampSeek } = loadAudioHelpers();
-  assert.strictEqual(clampSeek(0.5, { startS: 1, endS: 9 }, 10), 1);
+  assert.strictEqual(clampSeek(0.5, { startS: 0, endS: 9, headS: 1 }, 10), 1);
 });
 
 test('clampSeek: after endS clamps to endS', () => {
   const { clampSeek } = loadAudioHelpers();
-  assert.strictEqual(clampSeek(9.5, { startS: 1, endS: 9 }, 10), 9);
+  assert.strictEqual(clampSeek(9.5, { startS: 0, endS: 9, headS: 1 }, 10), 9);
 });
 
 test('clampSeek: endS=null clamps to duration on the right', () => {
   const { clampSeek } = loadAudioHelpers();
-  assert.strictEqual(clampSeek(15, { startS: 0, endS: null }, 10), 10);
+  assert.strictEqual(clampSeek(15, { startS: 0, endS: null, headS: 0 }, 10), 10);
+});
+
+test('clampSeek: missing headS defaults to 0 (backward-compat)', () => {
+  const { clampSeek } = loadAudioHelpers();
+  assert.strictEqual(clampSeek(0.5, { startS: 1, endS: 9 }, 10), 0.5);
+});
+
+test('clampSeek: startS does NOT act as a lower bound (it is the song-time shift)', () => {
+  const { clampSeek } = loadAudioHelpers();
+  // startS being positive used to incorrectly clamp seek to startS. Now only headS does.
+  assert.strictEqual(clampSeek(0.5, { startS: 5, endS: 9, headS: 0 }, 10), 0.5);
 });
 
 test('shouldAutoPause: past endS while playing -> true', () => {

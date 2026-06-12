@@ -30,27 +30,44 @@ are unchanged.
   segment duration.
 - There is no visible left handle and no way to nudge **only** `startS`.
 
-### Change
+### Change (revised after smoke test 2026-06-12)
+First pass made the left handle modify `startS` directly, which shifted the
+entire waveform — the operator wanted the handle to behave like the right
+handle does: handle moves on the timeline, waveform stays put, the cut
+region renders dim.
+
+Final model:
+
+- New data field `audioTrim.headS` (number ≥ 0, default 0) — file-time of
+  the first sample inside the kept region. Symmetric to `endS`. Added to
+  every `audioTrim` constructor + the `migrateState` shape check.
 - New DOM element next to `trimEndHandle`:
-  `<div class="trim-handle" id="trimStartHandle" title="Audio start — drag to cut the head"></div>`.
-- New drag handler `onTrimStartDragDown/Move/Up` mirroring the existing
-  end-handle handlers in `web/js/audio.js`.
-- Drag updates only `song.audioTrim.startS`. Clamp is aligned with the
-  existing audio-mobile model used by body-drag and the end handle —
-  startS may go negative (audio shifted behind the timeline zero):
-  `startS ∈ [-(durationS - 0.5), endSEffective - 0.5]` where
-  `endSEffective = audioTrim.endS != null ? audioTrim.endS : durationS`.
-  The `0.5` minimum gap matches the end handle's `leftBound = startS + 0.5`
-  rule already in `audio.js:1325`.
-- Body-drag stays as-is — both control paths coexist. Click priority is
-  resolved the same way as on the right: a `mousedown` whose target carries
-  the `trim-handle` class wins over body-drag (`audio.js` already short-
-  circuits body-drag in that case — line 1243 `if (evt.target.classList
-  .contains('trim-handle')) return`, so the new handle is covered by the
-  same guard with no extra code).
-- Visual: identical styling to the right handle (same `.trim-handle` CSS
-  class, mirrored chevron). Cursor `col-resize`. Amber HUD glow consistent
-  with the rest of the timeline.
+  `<div class="trim-handle trim-handle-start" id="trimStartHandle">`.
+- Drag the left handle → updates **only** `headS`. Waveform is anchored to
+  the file and does not move. Region `fileT ∈ [0, headS)` renders dim in
+  `drawWaveform` (mirrors the existing `fileT >= endS` dim).
+  Handle screen-position: `songT = headS − startS`. Clamp on drag:
+  `headS ∈ [0, endSEffective − 0.5]` where
+  `endSEffective = endS != null ? endS : durationS`.
+- Body-drag → updates **only** `startS` (no longer also adjusts `endS`).
+  Consequence: the whole waveform AND both handles shift on the timeline
+  together. Clamp: `startS ≤ headS` (the left handle is not allowed to
+  cross below ruler 0; with the default `headS = 0`, body-drag cannot move
+  the audio left at all until the operator cuts some head first). Floor
+  remains `-(durationS − 0.5)`.
+- Right end handle behavior unchanged in what it modifies, but its lower
+  bound now uses `headS` instead of `startS`: `leftBound = headS + 0.5`.
+- Double-click on left handle → resets `headS` to 0 (was: reset `startS`).
+- Visual: same `.trim-handle` CSS class. `.trim-handle-start` adds
+  `border-left` (vs `border-right`) so the accent points into the kept
+  region. Click priority over body-drag is unchanged — the
+  `evt.target.classList.contains('trim-handle')` guard at `audio.js:1243`
+  already short-circuits body-drag.
+- Playback paths read `headS` instead of `startS` as the start-of-kept
+  file-time: `stopAudio`, `restartAudio`, `skipPrevMarker`/`skipNextMarker`
+  in-window filter and rewind target, and `clampSeek`'s lower bound.
+  `fileToSongTime`/`songToFileTime` are unchanged (they are mappings
+  between file-time and song-time, governed by `startS` alone).
 
 ### Position math
 - Existing render code computes the right-handle `left` from `endS` in
