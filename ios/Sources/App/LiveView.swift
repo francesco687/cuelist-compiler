@@ -36,6 +36,9 @@ struct LiveView: View {
                         }
                         .opacity(isLocked ? 0.3 : 1)
                         .allowsHitTesting(!isLocked)
+                        // VoiceOver fires Buttons through the a11y tree, not hit
+                        // testing — hide the surface or the lock is touch-only.
+                        .accessibilityHidden(isLocked)
 
                         // Sheets (compose / picker) can't coexist with the lock:
                         // a presented sheet blocks background interaction, so the
@@ -96,7 +99,7 @@ struct LiveView: View {
     private func sendMessage(_ text: String) {
         guard hub.state.isOnline, ConsoleMessage.line(text: text) != nil else { return }
         hub.sendConsoleMessage(text)
-        fireCount += 1                         // haptic, same trigger as transport
+        fireCount += 1                         // haptic, same trigger as the pad
         withAnimation { didSend = true }
         sentResetTask?.cancel()                  // supersede any prior "Sent" timer
         sentResetTask = Task {

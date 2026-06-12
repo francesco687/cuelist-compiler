@@ -184,7 +184,7 @@ public final class HubClient {
 
     /// Pop a free-text note as a `MessageBox` on the desk. Builds the command-line
     /// string via `ConsoleMessage` and forwards it over the same optimistic `cmd`
-    /// passthrough as the transport buttons. No-ops if the note sanitizes to empty.
+    /// passthrough as the macro pad. No-ops if the note sanitizes to empty.
     public func sendConsoleMessage(_ text: String) {
         guard let line = ConsoleMessage.line(text: text) else { return }
         sendCommand(line)
