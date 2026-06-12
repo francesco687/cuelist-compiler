@@ -169,4 +169,32 @@ final class MacroPadTests: XCTestCase {
         pad.assign(slot: 0, action: MacroAction.find("pause")!)
         XCTAssertEqual(pad.slot(at: 0), .action(MacroAction.find("pause")!))
     }
+
+    func test_loadExecutor_coerces_digit_name_to_number() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0, function: .toggle)
+        pad.loadExecutor(slot: 0, target: .name(" 201 "))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: .number(201)))
+    }
+
+    func test_loadExecutor_rejects_out_of_range_digit_names() {
+        // Without this, the pad would persist a string the codec refuses to
+        // decode — a quietly dead cell.
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0, function: .flash)
+        pad.loadExecutor(slot: 0, target: .name("0"))
+        pad.loadExecutor(slot: 0, target: .name("10000"))
+        pad.loadExecutor(slot: 0, target: .name("99999999999999999999"))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .flash, target: nil))
+    }
+
+    func test_loadExecutor_retargets_legacy_slot_preserving_toggle() {
+        let suite = "macropad.legacyupgrade.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        d.set(["exec:201", "", "", ""], forKey: "macroPadSlots")
+        let pad = MacroPad(defaults: d)
+        pad.loadExecutor(slot: 0, target: .name("Blinders"))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: .name("Blinders")))
+        XCTAssertEqual(pad.slots[0], "exec:toggle:Blinders", "persisted form upgrades in place")
+    }
 }

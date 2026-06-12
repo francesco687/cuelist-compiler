@@ -48,10 +48,13 @@ public final class MacroPad {
     }
 
     /// Point an executor slot at a target (step 2), keeping the slot's function.
-    /// No-op unless the slot currently holds an executor and the target is valid:
-    /// numbers must be in range; names non-blank (stored trimmed), with quotes
-    /// and control characters refused — mirroring what the MacroSlot codec will
-    /// accept back, so a stored slot always decodes.
+    /// No-op unless the slot currently holds an executor and the target is valid.
+    /// Validation mirrors the `MacroSlot` codec exactly (via `MacroSlot.validatedTarget`),
+    /// so a stored slot always decodes back: numbers must be in 1...9999; names
+    /// are trimmed, and refused if blank, quoted, or containing control characters.
+    /// A `.name` whose trimmed content is all ASCII digits is coerced to the
+    /// equivalent `.number` — both address the same desk object and the codec
+    /// always decodes all-digit targets as numbers.
     public func loadExecutor(slot: Int, target: ExecutorTarget) {
         guard case .executor(let function, _)? = self.slot(at: slot) else { return }
         let validated: ExecutorTarget
@@ -60,12 +63,8 @@ public final class MacroPad {
             guard MacroSlot.executorRange.contains(n) else { return }
             validated = target
         case .name(let raw):
-            let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !name.isEmpty,
-                  !name.contains("\""),
-                  !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
-            else { return }
-            validated = .name(name)
+            guard let v = MacroSlot.validatedTarget(fromRaw: raw) else { return }
+            validated = v
         }
         slots[slot] = MacroSlot.executor(function: function, target: validated).rawValue
         persist()
