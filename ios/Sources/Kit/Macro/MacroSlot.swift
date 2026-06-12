@@ -70,6 +70,29 @@ public enum MacroSlot: RawRepresentable, Equatable, Sendable {
 
     private static let execPrefix = "exec:"
 
+    /// Classify and validate a raw target string the way the codec does: if the
+    /// raw string is entirely ASCII digits (untrimmed), it is treated as a number
+    /// and must fall in `executorRange`; anything else is treated as a name,
+    /// trimmed of whitespace, and refused if it contains quotes, control characters,
+    /// or is empty after trimming. Returns nil for anything that would decode to
+    /// nil — a single source of truth shared by the decoder and
+    /// `MacroPad.loadExecutor`, so a persisted target always round-trips.
+    /// An empty string returns nil; callers own the unloaded-slot distinction.
+    internal static func validatedTarget(fromRaw raw: String) -> ExecutorTarget? {
+        guard !raw.isEmpty else { return nil }
+        if raw.allSatisfy({ $0.isASCII && $0.isNumber }) {
+            // All ASCII-digits (untrimmed) — same branch as the decoder.
+            guard let n = Int(raw), executorRange.contains(n) else { return nil }
+            return .number(n)
+        } else {
+            let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return nil }
+            guard !name.contains("\"") else { return nil }
+            guard !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
+            return .name(name)
+        }
+    }
+
     /// Decode a persisted slot string. Unknown action ids, unknown functions,
     /// out-of-range numbers, and whitespace-only names decode to nil (empty
     /// slot) — never a crash or a bad command.
@@ -94,21 +117,10 @@ public enum MacroSlot: RawRepresentable, Equatable, Sendable {
         }
         if targetRaw.isEmpty {
             self = .executor(function: function, target: nil)
-        } else if targetRaw.allSatisfy({ $0.isASCII && $0.isNumber }) {
-            // All ASCII-digits is always a number — an executor *named* "201" resolves
-            // to executor 201, which addresses the same object on MA3.
-            // Non-ASCII numeric characters (e.g. "Ⅻ", "٢٠١") fall through to the
-            // name branch so they decode as valid names rather than nil.
-            guard let n = Int(targetRaw), Self.executorRange.contains(n) else { return nil }
-            self = .executor(function: function, target: .number(n))
+        } else if let target = Self.validatedTarget(fromRaw: String(targetRaw)) {
+            self = .executor(function: function, target: target)
         } else {
-            let name = targetRaw.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Reject empty-after-trim, double-quotes (would close MA3's quoted arg),
-            // and any remaining control characters (would corrupt OSC transport).
-            guard !name.isEmpty else { return nil }
-            guard !name.contains("\"") else { return nil }
-            guard !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
-            self = .executor(function: function, target: .name(name))
+            return nil
         }
     }
 
