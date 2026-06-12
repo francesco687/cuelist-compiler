@@ -20,6 +20,11 @@ public final class MacroPad {
     /// Deliberately not persisted: belief resets to unknown on every launch.
     public private(set) var activeExecutors: Set<ExecutorTarget> = []
 
+    /// Targets captured at flash press, keyed by slot — mirrors the view's
+    /// `flashPressed` release-command capture, so a mid-hold retarget or clear
+    /// still releases the belief that was actually engaged.
+    private var heldFlash: [Int: ExecutorTarget] = [:]
+
     @ObservationIgnored private let defaults: UserDefaults
     private static let key = "macroPadSlots"
 
@@ -98,6 +103,31 @@ public final class MacroPad {
         case .flash:
             break
         }
+    }
+
+    /// Record flash touch-down on `slot`: mark its target believed-active and
+    /// capture it for the matching release. No-op unless the slot holds a loaded
+    /// flash executor (the view gates on the command actually sending).
+    public func recordFlashPress(slot: Int) {
+        guard case .executor(function: .flash, target: let target?)? = self.slot(at: slot) else { return }
+        activeExecutors.insert(target)
+        heldFlash[slot] = target
+    }
+
+    /// Record flash touch-up/cancel on `slot`: release the belief captured at
+    /// press. No-op if this slot has no captured press. Releasing removes the
+    /// target from the set even if a toggle/on had latched it — accepted belief
+    /// approximation (see spec).
+    public func recordFlashRelease(slot: Int) {
+        guard let target = heldFlash.removeValue(forKey: slot) else { return }
+        activeExecutors.remove(target)
+    }
+
+    /// Release every held flash belief — the counterpart of the view's
+    /// `flushFlashReleases()` on view disappear / scene backgrounding.
+    public func recordFlashFlush() {
+        for target in heldFlash.values { activeExecutors.remove(target) }
+        heldFlash.removeAll()
     }
 
     /// Assign an action to a slot. Out-of-range slots are ignored.
