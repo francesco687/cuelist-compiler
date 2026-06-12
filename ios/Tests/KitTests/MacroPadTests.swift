@@ -8,9 +8,9 @@ final class MacroPadTests: XCTestCase {
         MacroPad(defaults: UserDefaults(suiteName: "macropad.test.\(UUID().uuidString)")!)
     }
 
-    func test_starts_with_four_empty_slots() {
+    func test_starts_with_eight_empty_slots() {
         let pad = freshPad()
-        XCTAssertEqual(pad.slots.count, 4)
+        XCTAssertEqual(pad.slots.count, 8)
         XCTAssertTrue(pad.slots.allSatisfy { $0 == nil })
     }
 
@@ -65,6 +65,64 @@ final class MacroPadTests: XCTestCase {
 
         XCTAssertNil(pad.action(at: 0), "unknown id must surface as an empty (nil) slot")
         XCTAssertEqual(pad.slots[0], "ghost_action", "raw id must be preserved, not auto-cleared")
+    }
+
+    // MARK: 4 → 8 slot migration
+
+    func test_legacy_four_slot_array_pads_to_eight_preserving_assignments() {
+        let suite = "macropad.migrate.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        // A pad saved by a 4-slot build: action, loaded executor, empty, action.
+        d.set(["go_plus", "exec:flash:201", "", "pause"], forKey: "macroPadSlots")
+
+        let pad = MacroPad(defaults: d)
+
+        XCTAssertEqual(pad.slots.count, 8)
+        XCTAssertEqual(pad.action(at: 0)?.id, "go_plus")
+        XCTAssertEqual(pad.slot(at: 1), .executor(function: .flash, target: .number(201)))
+        XCTAssertNil(pad.slot(at: 2))
+        XCTAssertEqual(pad.action(at: 3)?.id, "pause")
+        for slot in 4..<8 {
+            XCTAssertNil(pad.slot(at: slot), "padded slot \(slot) must start empty")
+        }
+    }
+
+    func test_legacy_array_persists_at_eight_after_first_mutation() {
+        let suite = "macropad.migratepersist.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        d.set(["go_plus", "", "", ""], forKey: "macroPadSlots")
+
+        let p1 = MacroPad(defaults: d)
+        p1.assign(slot: 5, action: MacroAction.find("off")!)   // a slot that didn't exist at 4
+
+        let p2 = MacroPad(defaults: d)
+        XCTAssertEqual(p2.slots.count, 8)
+        XCTAssertEqual(p2.action(at: 0)?.id, "go_plus", "legacy assignment must survive")
+        XCTAssertEqual(p2.action(at: 5)?.id, "off", "new high slot must survive")
+    }
+
+    func test_oversized_saved_array_falls_back_to_all_empty() {
+        let suite = "macropad.oversize.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        d.set(Array(repeating: "go_plus", count: 9), forKey: "macroPadSlots")
+
+        let pad = MacroPad(defaults: d)
+
+        XCTAssertEqual(pad.slots.count, 8)
+        XCTAssertTrue(pad.slots.allSatisfy { $0 == nil })
+    }
+
+    func test_eight_slot_round_trip() {
+        let suite = "macropad.eight.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        let p1 = MacroPad(defaults: d)
+        p1.assign(slot: 0, action: MacroAction.find("go_plus")!)
+        p1.assign(slot: 7, action: MacroAction.find("top")!)
+
+        let p2 = MacroPad(defaults: d)
+        XCTAssertEqual(p2.action(at: 0)?.id, "go_plus")
+        XCTAssertEqual(p2.action(at: 7)?.id, "top")
+        XCTAssertNil(p2.action(at: 4))
     }
 
     // MARK: Executor slots
