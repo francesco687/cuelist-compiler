@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The Live tab's four-slot macro pad. Holds the operator's assigned actions and
+/// The Live tab's eight-slot macro pad. Holds the operator's assigned actions and
 /// executor buttons app-wide, persisted to UserDefaults like the hub host/port.
 /// Pure state — never touches the network; firing is the view's job via HubClient.
 @MainActor
