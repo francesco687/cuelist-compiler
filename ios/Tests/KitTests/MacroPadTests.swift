@@ -69,26 +69,52 @@ final class MacroPadTests: XCTestCase {
 
     // MARK: Executor slots
 
-    func test_assignExecutor_sets_unloaded_executor() {
+    func test_assignExecutor_sets_unloaded_executor_with_function() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 0, function: .toggle)
-        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: nil))
+        pad.assignExecutor(slot: 0, function: .flash)
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .flash, target: nil))
         XCTAssertNil(pad.action(at: 0), "an executor slot is not an action")
     }
 
-    func test_loadExecutor_targets_number() {
+    func test_loadExecutor_targets_number_keeping_function() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 1, function: .toggle)
+        pad.assignExecutor(slot: 1, function: .on)
         pad.loadExecutor(slot: 1, target: .number(201))
-        XCTAssertEqual(pad.slot(at: 1), .executor(function: .toggle, target: .number(201)))
+        XCTAssertEqual(pad.slot(at: 1), .executor(function: .on, target: .number(201)))
+    }
+
+    func test_loadExecutor_targets_name_trimmed() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0, function: .toggle)
+        pad.loadExecutor(slot: 0, target: .name("  Blinders "))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: .name("Blinders")))
+    }
+
+    func test_loadExecutor_rejects_blank_name() {
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0, function: .toggle)
+        pad.loadExecutor(slot: 0, target: .name("   "))
+        pad.loadExecutor(slot: 0, target: .name(" \n "))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: nil))
+    }
+
+    func test_loadExecutor_rejects_quote_and_control_names() {
+        // Mirrors the MacroSlot codec rules — a name the codec would refuse to
+        // decode must never be persisted in the first place.
+        let pad = freshPad()
+        pad.assignExecutor(slot: 0, function: .flash)
+        pad.loadExecutor(slot: 0, target: .name("Bli\"nders"))
+        pad.loadExecutor(slot: 0, target: .name("Line\nBreak"))
+        pad.loadExecutor(slot: 0, target: .name("Tab\tName"))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .flash, target: nil))
     }
 
     func test_loadExecutor_retargets_loaded_slot() {
         let pad = freshPad()
-        pad.assignExecutor(slot: 0, function: .toggle)
+        pad.assignExecutor(slot: 0, function: .flash)
         pad.loadExecutor(slot: 0, target: .number(201))
-        pad.loadExecutor(slot: 0, target: .number(7))
-        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: .number(7)))
+        pad.loadExecutor(slot: 0, target: .name("Blinders"))
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .flash, target: .name("Blinders")))
     }
 
     func test_loadExecutor_rejects_out_of_range_number() {
@@ -111,7 +137,7 @@ final class MacroPadTests: XCTestCase {
     func test_assignExecutor_out_of_range_slot_is_safe_noop() {
         let pad = freshPad()
         pad.assignExecutor(slot: 9, function: .toggle)
-        pad.assignExecutor(slot: -1, function: .toggle)
+        pad.assignExecutor(slot: -1, function: .flash)
         XCTAssertTrue(pad.slots.allSatisfy { $0 == nil })
     }
 
@@ -119,13 +145,23 @@ final class MacroPadTests: XCTestCase {
         let suite = "macropad.exec.\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!
         let p1 = MacroPad(defaults: d)
-        p1.assignExecutor(slot: 0, function: .toggle)
-        p1.loadExecutor(slot: 0, target: .number(7))
-        p1.assignExecutor(slot: 2, function: .toggle)
+        p1.assignExecutor(slot: 0, function: .flash)
+        p1.loadExecutor(slot: 0, target: .name("Blinders"))
+        p1.assignExecutor(slot: 2, function: .on)
         let p2 = MacroPad(defaults: d)
-        XCTAssertEqual(p2.slot(at: 0), .executor(function: .toggle, target: .number(7)))
-        XCTAssertEqual(p2.slot(at: 2), .executor(function: .toggle, target: nil))
+        XCTAssertEqual(p2.slot(at: 0), .executor(function: .flash, target: .name("Blinders")))
+        XCTAssertEqual(p2.slot(at: 2), .executor(function: .on, target: nil))
         XCTAssertNil(p2.slot(at: 1))
+    }
+
+    func test_legacy_persisted_executor_loads_as_toggle() {
+        let suite = "macropad.legacy.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        // A pad saved by the PR #32 build (pre-function codec).
+        d.set(["exec:201", "exec:", "", ""], forKey: "macroPadSlots")
+        let pad = MacroPad(defaults: d)
+        XCTAssertEqual(pad.slot(at: 0), .executor(function: .toggle, target: .number(201)))
+        XCTAssertEqual(pad.slot(at: 1), .executor(function: .toggle, target: nil))
     }
 
     func test_slot_at_decodes_actions_too() {

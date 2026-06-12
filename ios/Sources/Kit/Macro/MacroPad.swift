@@ -48,11 +48,26 @@ public final class MacroPad {
     }
 
     /// Point an executor slot at a target (step 2), keeping the slot's function.
-    /// No-op unless the slot currently holds an executor and the target is valid.
+    /// No-op unless the slot currently holds an executor and the target is valid:
+    /// numbers must be in range; names non-blank (stored trimmed), with quotes
+    /// and control characters refused — mirroring what the MacroSlot codec will
+    /// accept back, so a stored slot always decodes.
     public func loadExecutor(slot: Int, target: ExecutorTarget) {
         guard case .executor(let function, _)? = self.slot(at: slot) else { return }
-        if case .number(let n) = target, !MacroSlot.executorRange.contains(n) { return }
-        slots[slot] = MacroSlot.executor(function: function, target: target).rawValue
+        let validated: ExecutorTarget
+        switch target {
+        case .number(let n):
+            guard MacroSlot.executorRange.contains(n) else { return }
+            validated = target
+        case .name(let raw):
+            let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty,
+                  !name.contains("\""),
+                  !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+            else { return }
+            validated = .name(name)
+        }
+        slots[slot] = MacroSlot.executor(function: function, target: validated).rawValue
         persist()
     }
 
