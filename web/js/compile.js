@@ -163,6 +163,10 @@ function buildCmdLines(songs) {
 // cues NOT in the send list are never touched. The former wipe-all approach was
 // replaced after smoke testing showed it destroyed events for cues the operator
 // had intentionally excluded from a partial send.
+//
+// MA3 stores cue numbers in `.no` as integers scaled ×1000 (verified live on
+// onPC 2026-06-12): displayed cue 1 → no=1000, cue 0.1 → no=100, cue 1.5 → no=1500.
+// Build sendNos keyed by the scaled value so the lookup against `d.no` matches.
 const TC_RAW_PER_SEC = 16777216;
 
 function tcRawtime(positionSmpte) {
@@ -202,7 +206,7 @@ function buildTcCmdLines(songs) {
       `if not tr then return end`,
       `local sendList={${cuesLit}}`,
       `local sendNos={}`,
-      `for _,c in ipairs(sendList) do sendNos[c[1]]=true end`,
+      `for _,c in ipairs(sendList) do sendNos[math.floor(c[1]*1000+0.5)]=true end`,
       `local sub=nil`,
       `for _,r in ipairs(tr:Children()) do for _,sb in ipairs(r:Children()) do sub=sb break end if sub then break end end`,
       `if not sub then local rng=tr:Acquire() sub=rng:Acquire('CmdSubTrack') end`,
@@ -269,8 +273,9 @@ function buildTcLua(songs, headerTitle) {
   lines.push('  local tr = tg[2]');
   lines.push('  if not tr then Printf("Cuelist TC: TC "..seq.." TrackGroup has no user Track"); return end');
   lines.push('  -- Phase 1: build a set of cue numbers we are sending (O(1) lookup).');
+  lines.push('  -- MA3 stores cue numbers in `.no` as integers ×1000 (cue 1 → 1000, cue 0.1 → 100).');
   lines.push('  local sendNos = {}');
-  lines.push('  for _, c in ipairs(cues) do sendNos[c[1]] = true end');
+  lines.push('  for _, c in ipairs(cues) do sendNos[math.floor(c[1]*1000+0.5)] = true end');
   lines.push('  -- Phase 2: reuse the first existing CmdSubTrack; Acquire fresh only if Track is empty.');
   lines.push('  -- This prevents repeated Sends from accumulating orphan TimeRanges.');
   lines.push('  local sub = nil');

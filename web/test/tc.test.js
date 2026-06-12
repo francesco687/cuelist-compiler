@@ -109,7 +109,8 @@ test('buildTcCmdLines: emits one Lua command per song using Object API', () => {
   assert.ok(line.includes("GetObject('Sequence 12 Cue '..c[1])"));
   // Selective overwrite: must build a sendNos set and check destination cue number
   assert.ok(line.includes('sendNos'), 'must use sendNos set for selective overwrite');
-  assert.ok(line.includes('sendNos[c[1]]=true'), 'must build sendNos from cue numbers');
+  assert.ok(line.includes('sendNos[math.floor(c[1]*1000+0.5)]=true'),
+    'must build sendNos keyed by MA3 internal ×1000 cue-no scaling');
   assert.ok(line.includes('sendNos[d.no]'), 'must check destination.no against send set');
 });
 
@@ -171,8 +172,8 @@ test('buildTcLua: emits a standalone Object-API plugin', () => {
   assert.match(lua, /if not sub then/);
   assert.match(lua, /e:Set\("rawtime", c\[2\]\)/);
   assert.match(lua, /e:Set\("cuedestination", cue\)/);
-  // Selective overwrite: sendNos set and destination.no check
-  assert.match(lua, /sendNos\[c\[1\]\] = true/);
+  // Selective overwrite: sendNos set (×1000 scaled) and destination.no check
+  assert.match(lua, /sendNos\[math\.floor\(c\[1\]\*1000\+0\.5\)\] = true/);
   assert.match(lua, /sendNos\[d\.no\]/);
   // SONGS table holds the data; main loops it
   assert.match(lua, /\{ seq=12, cues=\{\{1,83886080\}\} \},/);
