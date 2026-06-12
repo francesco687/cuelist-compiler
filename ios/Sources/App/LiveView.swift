@@ -8,13 +8,9 @@ import SaettaKit
 struct LiveView: View {
     @Environment(HubClient.self) private var hub
     @State private var fireCount = 0
-    @State private var messageText = ""
+    @State private var showCompose = false
     @State private var didSend = false
     @State private var sentResetTask: Task<Void, Never>?
-
-    private var canSend: Bool {
-        hub.state.isOnline && ConsoleMessage.line(text: messageText) != nil
-    }
 
     var body: some View {
         NavigationStack {
@@ -48,25 +44,33 @@ struct LiveView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .sensoryFeedback(.impact(weight: .medium), trigger: fireCount)
+            .sheet(isPresented: $showCompose) {
+                MessageComposeSheet(onSend: sendMessage)
+            }
         }
     }
 
     // MARK: Control area
 
+    // The keyboard would cover an inline field this low on the screen, so the
+    // row is just a tap target that opens a compose sheet pinned above the keyboard.
     @ViewBuilder private var controlSection: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                TextField("Message to console\u{2026}", text: $messageText)
-                    .textFieldStyle(.plain)
-                    .submitLabel(.send)
-                    .onSubmit { sendMessage() }
-                    .padding(.vertical, 10).padding(.horizontal, 12)
-                    .hudPanel()
-
-                Button("Send") { sendMessage() }
-                    .buttonStyle(AmberCTAStyle())
-                    .disabled(!canSend)
+            Button { showCompose = true } label: {
+                HStack(spacing: 10) {
+                    Text("Message to console\u{2026}")
+                        .foregroundStyle(Theme.textFaint)
+                    Spacer()
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Theme.textFaint)
+                }
+                .padding(.vertical, 10).padding(.horizontal, 12)
+                .hudPanel()
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+
             if didSend {
                 Label("Sent", systemImage: "checkmark.circle.fill")
                     .font(.system(size: 12)).foregroundStyle(Theme.ok)
@@ -76,11 +80,10 @@ struct LiveView: View {
         }
     }
 
-    private func sendMessage() {
-        guard canSend else { return }
-        hub.sendConsoleMessage(messageText)
+    private func sendMessage(_ text: String) {
+        guard hub.state.isOnline, ConsoleMessage.line(text: text) != nil else { return }
+        hub.sendConsoleMessage(text)
         fireCount += 1                         // haptic, same trigger as transport
-        messageText = ""
         withAnimation { didSend = true }
         sentResetTask?.cancel()                  // supersede any prior "Sent" timer
         sentResetTask = Task {
@@ -108,6 +111,59 @@ struct LiveView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Compact compose popup for the message-to-console field. Lives in a short
+/// sheet detent so the field stays visible above the keyboard. Starts empty on
+/// every presentation and auto-focuses so the keyboard comes straight up.
+private struct MessageComposeSheet: View {
+    @Environment(HubClient.self) private var hub
+    @Environment(\.dismiss) private var dismiss
+    let onSend: (String) -> Void
+
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    private var canSend: Bool {
+        hub.state.isOnline && ConsoleMessage.line(text: text) != nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Message to console")
+                .font(Theme.mono(size: 11, weight: .medium)).hudLabel()
+                .foregroundStyle(Theme.textDim)
+
+            HStack(spacing: 10) {
+                TextField("Type a message\u{2026}", text: $text)
+                    .textFieldStyle(.plain)
+                    .focused($focused)
+                    .submitLabel(.send)
+                    .onSubmit { send() }
+                    .foregroundStyle(Theme.text)
+                    .padding(.vertical, 10).padding(.horizontal, 12)
+                    .hudPanel()
+
+                Button("Send") { send() }
+                    .buttonStyle(AmberCTAStyle())
+                    .disabled(!canSend)
+            }
+        }
+        .padding(.horizontal, 20).padding(.top, 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .presentationDetents([.height(130)])
+        .presentationDragIndicator(.visible)
+        .presentationBackground {
+            Color(red: 0.09, green: 0.07, blue: 0.04)  // canvas-family dark amber
+        }
+        .onAppear { focused = true }
+    }
+
+    private func send() {
+        guard canSend else { return }
+        onSend(text)
+        dismiss()
     }
 }
 
