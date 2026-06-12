@@ -1,7 +1,7 @@
 import SwiftUI
 import SaettaKit
 
-/// The Live tab's 2×2 macro pad. Each cell holds an assignable value that fires on
+/// The Live tab's 2×4 macro pad. Each cell holds an assignable value that fires on
 /// the desk through the hub's `cmd` passthrough: a parameter-free action (runs on
 /// the desk-selected executor) or an executor button — toggle / on fire on tap,
 /// flash is momentary (Flash on touch-down, FlashOff on touch-up or cancel) —
@@ -13,6 +13,10 @@ struct MacroPadView: View {
     @Environment(HubClient.self) private var hub
     @Environment(\.scenePhase) private var scenePhase
     let onFire: () -> Void                     // haptic trigger, shared with transport
+    /// Live-tab output lock. The pad only OBSERVES it — when the lock engages,
+    /// held flashes are flushed so the desk is never left flashed behind a lock.
+    /// Hit-disabling while locked is the parent's job (`allowsHitTesting`).
+    let isLocked: Bool
 
     private struct SlotTarget: Identifiable { let id: Int }   // id == slot index
     @State private var picker: SlotTarget?
@@ -49,6 +53,9 @@ struct MacroPadView: View {
         .onDisappear { flushFlashReleases() }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { flushFlashReleases() }
+        }
+        .onChange(of: isLocked) { _, locked in
+            if locked { flushFlashReleases() }
         }
         .sheet(item: $picker) { target in
             MacroPickerSheet(

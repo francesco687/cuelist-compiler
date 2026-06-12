@@ -1,42 +1,49 @@
 import SwiftUI
 import SaettaKit
 
-/// The Live tab — run cues on the console-selected executor.
-/// Bare command-line transport (GO+/GO-/PAUSE) over the hub's `cmd` passthrough.
-/// Optimistic: each tap fires immediately with haptic + a press pulse; buttons
-/// disable when the hub is offline.
+/// The Live tab — run cues on the console-selected executor via the assignable
+/// macro pad, with a one-tap output lock (hold to unlock) so a pocketed or
+/// handed-over phone can't fire anything. Optimistic: each tap fires immediately
+/// with haptic + a press pulse; cells disable when the hub is offline.
 struct LiveView: View {
     @Environment(HubClient.self) private var hub
     @State private var fireCount = 0
     @State private var showCompose = false
     @State private var didSend = false
     @State private var sentResetTask: Task<Void, Never>?
+    /// Live-tab output lock — session-scoped UI state (relaunch starts unlocked,
+    /// same convention as the executor belief). Locks THIS tab's surface only;
+    /// the HubClient send path is not gated.
+    @State private var isLocked = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.canvas
                 VStack(spacing: 14) {
-                    connectionRow
+                    connectionRow            // stays live while locked — reconnect is harmless
 
-                    // Transport — flexible top region, absorbs vertical slack.
-                    VStack(spacing: 14) {
-                        TransportButton(title: "GO+", symbol: "arrow.right.circle.fill",
-                                        tint: Theme.ok) { fire("Go+") }
-                        TransportButton(title: "PAUSE", symbol: "pause.circle.fill",
-                                        tint: Theme.warn) { fire("Pause") }
-                        TransportButton(title: "GO-", symbol: "arrow.left.circle.fill",
-                                        tint: Theme.textFaint) { fire("Go-") }
+                    ZStack {
+                        VStack(spacing: 14) {
+                            lockBar
+
+                            // Assignable macro pad — fires on the desk-selected executor.
+                            MacroPadView(onFire: { fireCount += 1 }, isLocked: isLocked)
+                                .frame(maxHeight: .infinity, alignment: .top)
+
+                            // Message-to-console field.
+                            controlSection
+                        }
+                        .opacity(isLocked ? 0.3 : 1)
+                        .allowsHitTesting(!isLocked)
+
+                        if isLocked {
+                            LockOverlay {
+                                withAnimation(.easeOut(duration: 0.2)) { isLocked = false }
+                            }
+                            .transition(.opacity)
+                        }
                     }
-                    .frame(maxHeight: .infinity)
-                    .disabled(!hub.state.isOnline)
-                    .opacity(hub.state.isOnline ? 1 : 0.4)
-
-                    // Assignable macro pad — fires on the desk-selected executor.
-                    MacroPadView(onFire: { fireCount += 1 })
-
-                    // Message-to-console field.
-                    controlSection
                 }
                 .padding(20)
             }
@@ -44,6 +51,7 @@ struct LiveView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .sensoryFeedback(.impact(weight: .medium), trigger: fireCount)
+            .sensoryFeedback(.impact(weight: .heavy), trigger: isLocked)
             .sheet(isPresented: $showCompose) {
                 MessageComposeSheet(onSend: sendMessage)
             }
@@ -93,9 +101,27 @@ struct LiveView: View {
         }
     }
 
-    private func fire(_ line: String) {
-        fireCount += 1
-        hub.sendCommand(line)
+    /// Slim full-width arm bar. Locking is a single frictionless tap; unlocking
+    /// requires the overlay's press-and-hold.
+    private var lockBar: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.2)) { isLocked = true }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "lock.open.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.textDim)
+                Text("TAP TO LOCK")
+                    .font(Theme.mono(size: 11, weight: .medium)).hudLabel()
+                    .foregroundStyle(Theme.textDim)
+                Spacer()
+            }
+            .padding(.vertical, 12).padding(.horizontal, 14)
+            .hudPanel()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Lock controls")
     }
 
     private var connectionRow: some View {
@@ -167,24 +193,47 @@ private struct MessageComposeSheet: View {
     }
 }
 
-/// One large transport button: big symbol + title, tinted fill, press-scale feedback.
-private struct TransportButton: View {
-    let title: String
-    let symbol: String
-    let tint: Color
-    let action: () -> Void
+/// The locked state: a big centered lock with a hold-to-unlock progress ring.
+/// Tap-engage / hold-release asymmetry is the point — a stray pocket tap can
+/// lock but never unlock. Releasing before the ring closes cancels the unlock.
+private struct LockOverlay: View {
+    let onUnlock: () -> Void
+    @State private var holdProgress: CGFloat = 0
+
+    private static let holdDuration: TimeInterval = 1.0
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: symbol).font(.system(size: 36, weight: .bold))
-                Text(title).font(Theme.mono(size: 24, weight: .heavy)).hudLabel()
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .stroke(Theme.borderStrong, lineWidth: 5)
+                Circle()
+                    .trim(from: 0, to: holdProgress)
+                    .stroke(Theme.accentSolid, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 44, weight: .bold))
+                    .foregroundStyle(Theme.text)
             }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(tint.gradient, in: RoundedRectangle(cornerRadius: Theme.radiusLarge))
+            .frame(width: 110, height: 110)
+
+            Text("HOLD TO UNLOCK")
+                .font(Theme.mono(size: 12, weight: .medium)).hudLabel()
+                .foregroundStyle(Theme.textDim)
         }
-        .buttonStyle(PressScaleStyle())
+        .padding(40)                            // generous press target around the ring
+        .contentShape(Rectangle())
+        .onLongPressGesture(minimumDuration: Self.holdDuration, maximumDistance: 40) {
+            onUnlock()
+        } onPressingChanged: { pressing in
+            if pressing {
+                withAnimation(.linear(duration: Self.holdDuration)) { holdProgress = 1 }
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) { holdProgress = 0 }
+            }
+        }
+        .accessibilityLabel("Locked. Hold to unlock")
+        .accessibilityAction { onUnlock() }     // VoiceOver can't sustain a hold
     }
 }
 
