@@ -42,6 +42,9 @@ test('buildCmdLines: skips cues with includeStore=false', () => {
   assert.ok(joined.includes('Store Sequence 1 Cue 3 "C"'), 'cue 3 must emit');
   assert.ok(!joined.includes('Cue 2 "B"'), 'cue 2 must not emit');
   assert.ok(!/Store Sequence 1 Cue 2( |\/)/.test(joined), 'cue 2 must not emit unnamed form');
+  // Verify the entire cue block was suppressed, not just the Store line.
+  // 2 included cues → 2 pre-cue ClearAlls + 1 trailing = 3 total.
+  assert.strictEqual(out.filter(l => l === 'ClearAll').length, 3, 'orphaned ClearAll for excluded cue');
 });
 
 test('buildCmdLines: includeTc=false does NOT filter STORE path', () => {
