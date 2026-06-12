@@ -33,7 +33,9 @@ function newCue() {
     actions: [newAction()],
     fade: '',
     delay: '',
-    collapsed: false
+    collapsed: false,
+    includeStore: true,
+    includeTc: true
   };
 }
 
@@ -46,7 +48,9 @@ function appendCueWithTcAndResort(song, tc) {
     actions: [newAction()],
     fade: '',
     delay: '',
-    collapsed: false
+    collapsed: false,
+    includeStore: true,
+    includeTc: true
   });
   resortAndRenumber(song);
 }
@@ -94,6 +98,8 @@ function migrateCues(cues) {
   (cues || []).forEach(cue => {
     if (typeof cue.collapsed !== 'boolean') cue.collapsed = false;
     if (cue.position == null) cue.position = '';
+    if (typeof cue.includeStore !== 'boolean') cue.includeStore = true;
+    if (typeof cue.includeTc !== 'boolean') cue.includeTc = true;
     migrateActions(cue.actions);
   });
 }
@@ -513,7 +519,9 @@ function importCsv(file) {
           fade: '',
           delay: '',
           collapsed: true,
-          position
+          position,
+          includeStore: true,
+          includeTc: true
         });
       }
 
